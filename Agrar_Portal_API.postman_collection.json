@@ -1,0 +1,1789 @@
+{
+	"info": {
+		"_postman_id": "agrar-portal-api-collection",
+		"name": "Agrar Portal API",
+		"description": "Complete API collection for Agrar Portal - Agricultural Training & Certification Platform",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "agrar-portal"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Register User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Farmer\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"+123456789\",\n  \"user_type\": \"farmer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"register"
+							]
+						}
+					}
+				},
+				{
+					"name": "Login User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						}
+					}
+				},
+				{
+					"name": "Logout User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/logout",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"logout"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Training Management",
+			"item": [
+				{
+					"name": "List Trainings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"trainings"
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Training",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Advanced Crop Management\",\n  \"description\": \"Learn advanced farming techniques\",\n  \"category\": \"Crop Management\",\n  \"trainer_id\": 2,\n  \"start_date\": \"2025-01-01\",\n  \"end_date\": \"2025-12-31\",\n  \"is_online\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"trainings"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Training Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"trainings",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Training",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Training Title\",\n  \"description\": \"Updated description\",\n  \"category\": \"Updated Category\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"trainings",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Training",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"trainings",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Register for Training",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"trainings",
+								"1",
+								"register"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Training Module Management",
+			"item": [
+				{
+					"name": "List Modules for Training",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/modules",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"trainings",
+								"1",
+								"modules"
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Module",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Soil Health Fundamentals\",\n  \"sequence\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/modules",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"trainings",
+								"1",
+								"modules"
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Module",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Module Title\",\n  \"sequence\": 2\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/modules/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"trainings",
+								"1",
+								"modules",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Module",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/modules/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"trainings",
+								"1",
+								"modules",
+								"1"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Training Lesson Management",
+			"item": [
+				{
+					"name": "List Lessons for Module",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/modules/1/lessons",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"modules",
+								"1",
+								"lessons"
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Rich Media Lesson",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Understanding Soil pH\",\n  \"lesson_type\": \"mixed\",\n  \"duration_minutes\": 30,\n  \"content\": \"Soil pH is a measure of soil acidity or alkalinity...\",\n  \"description\": \"Learn about soil pH and its importance in farming\",\n  \"video_url\": \"https://example.com/ph-video.mp4\",\n  \"media_files\": [\n    {\n      \"type\": \"image\",\n      \"url\": \"https://example.com/ph-chart.jpg\",\n      \"title\": \"pH Scale Chart\",\n      \"description\": \"Visual representation of pH scale\"\n    },\n    {\n      \"type\": \"document\",\n      \"url\": \"https://example.com/ph-guide.pdf\",\n      \"title\": \"pH Testing Guide\",\n      \"description\": \"Step-by-step guide for testing soil pH\"\n    }\n  ],\n  \"status\": \"published\",\n  \"is_required\": true,\n  \"min_completion_time\": 1800,\n  \"metadata\": {\n    \"difficulty\": \"intermediate\",\n    \"tags\": [\"soil\", \"ph\", \"testing\"]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/modules/1/lessons",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"modules",
+								"1",
+								"lessons"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Lesson Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"lessons",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Lesson",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Lesson Title\",\n  \"content\": \"Updated content with new information\",\n  \"duration_minutes\": 45,\n  \"status\": \"published\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"lessons",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Lesson",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"lessons",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Upload Media to Lesson",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "type",
+									"value": "image",
+									"type": "text"
+								},
+								{
+									"key": "title",
+									"value": "Soil Sample Image",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "Close-up view of soil sample",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1/upload-media",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"lessons",
+								"1",
+								"upload-media"
+							]
+						}
+					}
+				},
+				{
+					"name": "Remove Media from Lesson",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"media_index\": 0\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1/remove-media",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"lessons",
+								"1",
+								"remove-media"
+							]
+						}
+					}
+				},
+				{
+					"name": "Reorder Lessons",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"lesson_order\": [3, 1, 2, 4]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/modules/1/reorder-lessons",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"modules",
+								"1",
+								"reorder-lessons"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Lesson Progress Tracking",
+			"item": [
+				{
+					"name": "Get Lesson Progress",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1/progress",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"lessons",
+								"1",
+								"progress"
+							]
+						}
+					}
+				},
+				{
+					"name": "Mark Lesson as Completed",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"time_spent\": 1800,\n  \"notes\": \"Learned a lot about soil pH testing\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1/complete",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"lessons",
+								"1",
+								"complete"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Exam Management",
+			"item": [
+				{
+					"name": "List Exams",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams"
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Exam",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"training_id\": 1,\n  \"title\": \"Final Assessment\",\n  \"description\": \"Comprehensive exam\",\n  \"passing_score\": 70,\n  \"duration_minutes\": 60,\n  \"start_date\": \"2025-01-01\",\n  \"end_date\": \"2025-12-31\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Exam Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Exam",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Exam Title\",\n  \"description\": \"Updated exam description\",\n  \"passing_score\": 75\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Exam",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Register for Exam",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1",
+								"register"
+							]
+						}
+					}
+				},
+				{
+					"name": "Start Exam",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1/start",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1",
+								"start"
+							]
+						}
+					}
+				},
+				{
+					"name": "Submit Exam",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"answers\": [\n    {\n      \"question_id\": 1,\n      \"choice_id\": 1\n    },\n    {\n      \"question_id\": 2,\n      \"answer_text\": \"Composting is recycling organic matter\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1/submit",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1",
+								"submit"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Exam Question Management",
+			"item": [
+				{
+					"name": "Add Single Choice Question with Media",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"question_text\": \"What is composting?\",\n  \"question_type\": \"single_choice\",\n  \"question_media\": [\n    {\n      \"type\": \"image\",\n      \"url\": \"https://example.com/compost-pile.jpg\",\n      \"title\": \"Compost Pile\",\n      \"description\": \"A healthy compost pile\"\n    }\n  ],\n  \"explanation\": \"Composting is the natural process of recycling organic matter into nutrient-rich soil.\",\n  \"points\": 2,\n  \"is_required\": true,\n  \"sequence\": 1,\n  \"choices\": [\n    {\n      \"choice_text\": \"A way to recycle organic matter\",\n      \"choice_media\": [\n        {\n          \"type\": \"image\",\n          \"url\": \"https://example.com/recycling.jpg\",\n          \"title\": \"Recycling Process\"\n        }\n      ],\n      \"is_correct\": true,\n      \"explanation\": \"This is the correct answer because composting breaks down organic materials.\",\n      \"points\": 2\n    },\n    {\n      \"choice_text\": \"A type of soil erosion\",\n      \"is_correct\": false,\n      \"explanation\": \"Soil erosion is the loss of soil, not the creation of soil.\",\n      \"points\": 0\n    },\n    {\n      \"choice_text\": \"A chemical fertilizer\",\n      \"is_correct\": false,\n      \"explanation\": \"Chemical fertilizers are synthetic, not natural like compost.\",\n      \"points\": 0\n    }\n  ],\n  \"metadata\": {\n    \"difficulty\": \"easy\",\n    \"tags\": [\"composting\", \"organic\", \"soil\"]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1/questions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1",
+								"questions"
+							]
+						}
+					}
+				},
+				{
+					"name": "Add Multiple Choice Question with Media",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"question_text\": \"Which of the following are benefits of sustainable farming?\",\n  \"question_type\": \"multiple_choice\",\n  \"question_media\": [\n    {\n      \"type\": \"video\",\n      \"url\": \"https://example.com/sustainable-farming.mp4\",\n      \"title\": \"Sustainable Farming Overview\",\n      \"description\": \"Video explaining sustainable farming practices\"\n    }\n  ],\n  \"explanation\": \"Sustainable farming provides multiple environmental and economic benefits.\",\n  \"points\": 3,\n  \"sequence\": 2,\n  \"choices\": [\n    {\n      \"choice_text\": \"Reduced soil erosion\",\n      \"choice_media\": [\n        {\n          \"type\": \"image\",\n          \"url\": \"https://example.com/soil-conservation.jpg\",\n          \"title\": \"Soil Conservation\"\n        }\n      ],\n      \"is_correct\": true,\n      \"points\": 1\n    },\n    {\n      \"choice_text\": \"Lower water consumption\",\n      \"is_correct\": true,\n      \"points\": 1\n    },\n    {\n      \"choice_text\": \"Increased biodiversity\",\n      \"is_correct\": true,\n      \"points\": 1\n    },\n    {\n      \"choice_text\": \"Higher chemical usage\",\n      \"is_correct\": false,\n      \"points\": 0\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1/questions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1",
+								"questions"
+							]
+						}
+					}
+				},
+				{
+					"name": "Add Text Question with Audio",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"question_text\": \"Listen to the audio and describe the soil type you hear about.\",\n  \"question_type\": \"text\",\n  \"question_media\": [\n    {\n      \"type\": \"audio\",\n      \"url\": \"https://example.com/soil-description.mp3\",\n      \"title\": \"Soil Type Audio\",\n      \"description\": \"Audio description of soil characteristics\"\n    }\n  ],\n  \"explanation\": \"The audio describes clay soil, which is characterized by fine particles and high water retention.\",\n  \"points\": 5,\n  \"sequence\": 3\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1/questions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1",
+								"questions"
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Question with Media",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"question_text\": \"What is the primary purpose of composting?\",\n  \"question_media\": [\n    {\n      \"type\": \"image\",\n      \"url\": \"https://example.com/compost-purpose.jpg\",\n      \"title\": \"Compost Purpose\"\n    }\n  ],\n  \"explanation\": \"Composting serves multiple purposes including soil enrichment and waste reduction.\",\n  \"points\": 3,\n  \"choices\": [\n    {\n      \"choice_text\": \"To recycle organic matter into nutrient-rich soil\",\n      \"is_correct\": true,\n      \"points\": 3\n    },\n    {\n      \"choice_text\": \"To reduce waste in landfills\",\n      \"is_correct\": true,\n      \"points\": 2\n    },\n    {\n      \"choice_text\": \"To create chemical fertilizers\",\n      \"is_correct\": false,\n      \"points\": 0\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1/questions/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1",
+								"questions",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Question",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1/questions/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1",
+								"questions",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Exam with Questions (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1/questions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1",
+								"questions"
+							]
+						}
+					}
+				},
+				{
+					"name": "Upload Media to Question",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "type",
+									"value": "image",
+									"type": "text"
+								},
+								{
+									"key": "target_type",
+									"value": "question",
+									"type": "text"
+								},
+								{
+									"key": "question_id",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "title",
+									"value": "Soil Sample Image",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "Close-up view of soil sample",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1/upload-question-media",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1",
+								"upload-question-media"
+							]
+						}
+					}
+				},
+				{
+					"name": "Upload Media to Choice",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "type",
+									"value": "image",
+									"type": "text"
+								},
+								{
+									"key": "target_type",
+									"value": "choice",
+									"type": "text"
+								},
+								{
+									"key": "question_id",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "choice_id",
+									"value": "2",
+									"type": "text"
+								},
+								{
+									"key": "title",
+									"value": "Choice Image",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "Visual representation of this choice",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1/upload-question-media",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1",
+								"upload-question-media"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Exam Taking (Students)",
+			"item": [
+				{
+					"name": "Get Exam for Taking",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1/take",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1",
+								"take"
+							]
+						}
+					}
+				},
+				{
+					"name": "Submit Exam with Enhanced Answers",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"answers\": [\n    {\n      \"question_id\": 1,\n      \"choice_id\": 1\n    },\n    {\n      \"question_id\": 2,\n      \"choice_ids\": [1, 2, 3]\n    },\n    {\n      \"question_id\": 3,\n      \"answer_text\": \"The audio described clay soil with fine particles and high water retention capacity.\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1/submit",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1",
+								"submit"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Certificates",
+			"item": [
+				{
+					"name": "List Certificates",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/certificates",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"certificates"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Certificate Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/certificates/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"certificates",
+								"1"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Forum",
+			"item": [
+				{
+					"name": "List Questions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/forum/questions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forum",
+								"questions"
+							]
+						}
+					}
+				},
+				{
+					"name": "Post Question",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Best time to plant tomatoes?\",\n  \"body\": \"When is the optimal planting season for tomatoes in this region?\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/forum/questions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forum",
+								"questions"
+							]
+						}
+					}
+				},
+				{
+					"name": "Answer Question",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"body\": \"Spring is the best time to plant tomatoes, typically after the last frost.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/forum/questions/1/answers",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forum",
+								"questions",
+								"1",
+								"answers"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Notifications",
+			"item": [
+				{
+					"name": "List Notifications",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/notifications",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"notifications"
+							]
+						}
+					}
+				},
+				{
+					"name": "Mark Notification as Read",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/notifications/1/read",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"notifications",
+								"1",
+								"read"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Payments",
+			"item": [
+				{
+					"name": "List Payments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/payments",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments"
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 50.00,\n  \"currency\": \"USD\",\n  \"payment_method\": \"card\",\n  \"status\": \"pending\",\n  \"related_exam_registration_id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/payments",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments"
+							]
+						}
+					}
+				},
+				{
+					"name": "Payment Webhook",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"payment_id\": 1,\n  \"status\": \"paid\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/payments/webhook",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments",
+								"webhook"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Progress Tracking",
+			"item": [
+				{
+					"name": "List User Progress",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/progress",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"progress"
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Progress",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"training_id\": 1,\n  \"module_id\": 1,\n  \"lesson_id\": 1,\n  \"status\": \"completed\",\n  \"completed_at\": \"2025-08-11T10:30:00Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/progress",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"progress"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "User Management",
+			"item": [
+				{
+					"name": "List Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get User Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"Updated Name\",\n  \"user_type\": \"trainer\",\n  \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/users/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"users",
+								"1"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "Health Endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"health"
+							]
+						}
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "YOUR_AUTH_TOKEN_HERE",
+			"type": "string"
+		}
+	]
+}

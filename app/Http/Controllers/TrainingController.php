@@ -1,12 +1,13 @@
 <?php
-
+ 
 namespace App\Http\Controllers;
-
+ 
 use App\Models\Training;
 use Illuminate\Http\Request;
 
 class TrainingController extends Controller
 {
+    
     public function index()
     {
         return Training::with('modules.lessons')->paginate(15);
@@ -55,5 +56,6 @@ class TrainingController extends Controller
         return response()->json(['message' => 'Deleted']);
     }
 }
-
+ 
+ 
 

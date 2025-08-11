@@ -1,14 +1,18 @@
 <?php
-
+ 
 namespace App\Http\Controllers;
+
+
 
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
-
+ 
 class AuthController extends Controller
 {
+    
+    
     public function register(Request $request)
     {
         $validated = $request->validate([
@@ -66,5 +70,6 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out']);
     }
 }
-
-
+ 
+ 
+ 

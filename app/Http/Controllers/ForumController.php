@@ -1,5 +1,5 @@
 <?php
-
+  
 namespace App\Http\Controllers;
 
 use App\Models\ForumQuestion;
@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 
 class ForumController extends Controller
 {
+    
     public function listQuestions()
     {
         return ForumQuestion::with('user')->latest()->paginate(20);

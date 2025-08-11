@@ -1,7 +1,7 @@
 <?php
-
+ 
 namespace App\Http\Controllers;
-
+ 
 use App\Models\{Training, TrainingRegistration, Exam, ExamRegistration, Certificate};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 
 class RegistrationController extends Controller
 {
+    
     public function registerTraining(Request $request, Training $training)
     {
         $registration = TrainingRegistration::firstOrCreate([
@@ -33,5 +34,6 @@ class RegistrationController extends Controller
         return response()->json($registration, 201);
     }
 }
-
+ 
+ 
 

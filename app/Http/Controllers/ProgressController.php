@@ -4,9 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\UserTrainingProgress;
 use Illuminate\Http\Request;
-
+ 
 class ProgressController extends Controller
 {
+   
     public function index(Request $request)
     {
         return UserTrainingProgress::where('user_id', $request->user()->id)->paginate(50);
