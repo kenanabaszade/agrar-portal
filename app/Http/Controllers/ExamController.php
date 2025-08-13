@@ -232,6 +232,26 @@ class ExamController extends Controller
                 return $question->getForExam();
             });
 
+        // Get user's exam registration for timing info
+        $registration = ExamRegistration::where('user_id', request()->user()->id)
+            ->where('exam_id', $exam->id)
+            ->first();
+
+        $timeInfo = null;
+        if ($registration && $registration->started_at) {
+            $timeElapsed = $registration->started_at->diffInMinutes(now());
+            $timeRemaining = max(0, $exam->duration_minutes - $timeElapsed);
+            $timeExceeded = $timeElapsed > $exam->duration_minutes;
+            
+            $timeInfo = [
+                'time_elapsed_minutes' => $timeElapsed,
+                'time_remaining_minutes' => $timeRemaining,
+                'time_limit_minutes' => $exam->duration_minutes,
+                'time_exceeded' => $timeExceeded,
+                'started_at' => $registration->started_at,
+            ];
+        }
+
         return response()->json([
             'exam' => [
                 'id' => $exam->id,
@@ -243,6 +263,7 @@ class ExamController extends Controller
             'questions' => $questions,
             'total_questions' => $questions->count(),
             'total_points' => $questions->sum('points'),
+            'time_info' => $timeInfo,
         ]);
     }
 
@@ -262,7 +283,12 @@ class ExamController extends Controller
             ->where('exam_id', $exam->id)
             ->firstOrFail();
 
-        DB::transaction(function () use ($registration, $data, $exam, $request) {
+        // Check if time limit exceeded
+        $timeElapsed = $registration->started_at->diffInMinutes(now());
+        $timeLimit = $exam->duration_minutes;
+        $timeExceeded = $timeElapsed > $timeLimit;
+
+        DB::transaction(function () use ($registration, $data, $exam, $request, $timeExceeded) {
             $totalPoints = 0;
             $earnedPoints = 0;
             $totalQuestions = ExamQuestion::where('exam_id', $exam->id)->where('is_required', true)->count();
@@ -291,13 +317,16 @@ class ExamController extends Controller
             $score = $totalPoints > 0 ? (int) floor(($earnedPoints / $totalPoints) * 100) : 0;
             $passed = $score >= (int) $exam->passing_score;
 
+            // Determine final status
+            $finalStatus = $timeExceeded ? 'timeout' : ($passed ? 'passed' : 'failed');
+
             $registration->update([
-                'status' => $passed ? 'passed' : 'failed',
+                'status' => $finalStatus,
                 'score' => $score,
                 'finished_at' => now(),
             ]);
 
-            if ($passed) {
+            if ($passed && !$timeExceeded) {
                 $cert = Certificate::create([
                     'user_id' => $request->user()->id,
                     'related_training_id' => $exam->training_id,
@@ -311,7 +340,14 @@ class ExamController extends Controller
             }
         });
 
-        return response()->json(ExamRegistration::find($registration->id)->load('certificate'));
+        $response = ExamRegistration::find($registration->id)->load('certificate');
+        
+        // Add timing information to response
+        $response->time_elapsed_minutes = $timeElapsed;
+        $response->time_limit_minutes = $timeLimit;
+        $response->time_exceeded = $timeExceeded;
+
+        return response()->json($response);
     }
 
     // Upload media to exam question or choice
