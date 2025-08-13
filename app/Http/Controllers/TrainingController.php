@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
  
 use App\Models\Training;
+use App\Models\TrainingRegistration;
 use Illuminate\Http\Request;
 
 class TrainingController extends Controller
@@ -54,6 +55,23 @@ class TrainingController extends Controller
     {
         $training->delete();
         return response()->json(['message' => 'Deleted']);
+    }
+
+    /**
+     * Register user for training (duplicate of RegistrationController method)
+     * This method is referenced in routes but was missing
+     */
+    public function register(Request $request, Training $training)
+    {
+        $registration = TrainingRegistration::firstOrCreate([
+            'user_id' => $request->user()->id,
+            'training_id' => $training->id,
+        ], [
+            'status' => 'approved',
+            'registration_date' => now(),
+        ]);
+        
+        return response()->json($registration, 201);
     }
 }
  

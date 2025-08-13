@@ -29,6 +29,11 @@ class ForumController extends Controller
         return response()->json($question, 201);
     }
 
+    public function showQuestion(ForumQuestion $question)
+    {
+        return $question->load(['user', 'answers.user']);
+    }
+
     public function answerQuestion(Request $request, ForumQuestion $question)
     {
         $validated = $request->validate([
@@ -41,6 +46,11 @@ class ForumController extends Controller
             'is_accepted' => false,
         ]);
         return response()->json($answer, 201);
+    }
+
+    public function getAnswers(ForumQuestion $question)
+    {
+        return $question->answers()->with('user')->latest()->paginate(20);
     }
 }
 

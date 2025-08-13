@@ -13,7 +13,6 @@ Route::prefix('v1')->group(function () {
 
         // Training Management
         Route::apiResource('trainings', \App\Http\Controllers\TrainingController::class)->middleware('role:admin,trainer');
-        Route::post('trainings/{training}/register', [\App\Http\Controllers\TrainingController::class, 'register']);
         
         // Training Module Management (admin,trainer only)
         Route::apiResource('trainings.modules', \App\Http\Controllers\TrainingModuleController::class)->middleware('role:admin,trainer');
@@ -50,7 +49,9 @@ Route::prefix('v1')->group(function () {
         // Forum
         Route::get('forum/questions', [\App\Http\Controllers\ForumController::class, 'listQuestions']);
         Route::post('forum/questions', [\App\Http\Controllers\ForumController::class, 'postQuestion']);
+        Route::get('forum/questions/{question}', [\App\Http\Controllers\ForumController::class, 'showQuestion']);
         Route::post('forum/questions/{question}/answers', [\App\Http\Controllers\ForumController::class, 'answerQuestion']);
+        Route::get('forum/questions/{question}/answers', [\App\Http\Controllers\ForumController::class, 'getAnswers']);
 
         // Notifications
         Route::get('notifications', [\App\Http\Controllers\NotificationController::class, 'index']);
