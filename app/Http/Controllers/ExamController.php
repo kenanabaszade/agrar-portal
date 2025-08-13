@@ -318,7 +318,7 @@ class ExamController extends Controller
     public function uploadQuestionMedia(Request $request, Exam $exam)
     {
         $validated = $request->validate([
-            'file' => ['required', 'file', 'max:102400'], // 100MB max
+            'file' => ['required', 'file', 'max:10240'], // 10MB max for security
             'type' => ['required', 'in:image,video,audio,document'],
             'target_type' => ['required', 'in:question,choice'],
             'question_id' => ['required', 'exists:exam_questions,id'],

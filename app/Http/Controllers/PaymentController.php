@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Payment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
  
 class PaymentController extends Controller
 {
@@ -31,12 +32,32 @@ class PaymentController extends Controller
     // Webhook endpoint to update payment status (e.g., from PSP)
     public function webhook(Request $request)
     {
+        // Verify webhook signature for security
+        $signature = $request->header('X-Webhook-Signature');
+        $payload = $request->getContent();
+        $expectedSignature = hash_hmac('sha256', $payload, config('app.webhook_secret', 'default-secret'));
+        
+        if (!hash_equals($expectedSignature, $signature ?? '')) {
+            Log::warning('Invalid webhook signature', [
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent()
+            ]);
+            abort(401, 'Invalid signature');
+        }
+
         $data = $request->validate([
             'payment_id' => ['required', 'integer', 'exists:payments,id'],
             'status' => ['required', 'in:pending,paid,failed,refunded'],
         ]);
+        
         $payment = Payment::findOrFail($data['payment_id']);
         $payment->update(['status' => $data['status']]);
+        
+        Log::info('Payment status updated via webhook', [
+            'payment_id' => $payment->id,
+            'new_status' => $data['status']
+        ]);
+        
         return response()->json(['message' => 'ok']);
     }
 }
