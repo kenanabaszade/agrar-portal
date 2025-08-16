@@ -5,11 +5,19 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     // Auth
     Route::post('auth/register', [\App\Http\Controllers\AuthController::class, 'register']);
+    Route::post('auth/verify-otp', [\App\Http\Controllers\AuthController::class, 'verifyOtp']);
+    Route::post('auth/resend-otp', [\App\Http\Controllers\AuthController::class, 'resendOtp']);
     Route::post('auth/login', [\App\Http\Controllers\AuthController::class, 'login']);
 
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('auth/logout', [\App\Http\Controllers\AuthController::class, 'logout']);
+        
+        // 2FA Management (for authenticated users)
+        Route::get('auth/2fa/status', [\App\Http\Controllers\AuthController::class, 'getTwoFactorStatus']);
+        Route::post('auth/2fa/enable', [\App\Http\Controllers\AuthController::class, 'enableTwoFactor']);
+        Route::post('auth/2fa/verify-enable', [\App\Http\Controllers\AuthController::class, 'verifyTwoFactorActivation']);
+        Route::post('auth/2fa/disable', [\App\Http\Controllers\AuthController::class, 'disableTwoFactor']);
 
         // Training Management
         Route::apiResource('trainings', \App\Http\Controllers\TrainingController::class)->middleware('role:admin,trainer');

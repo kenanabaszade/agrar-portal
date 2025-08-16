@@ -22,7 +22,7 @@ Authorization: Bearer YOUR_TOKEN_HERE
 
 ## Authentication Endpoints
 
-### Register User
+### Register User (2FA Required)
 ```http
 POST /auth/register
 ```
@@ -42,18 +42,63 @@ POST /auth/register
 **Response (201):**
 ```json
 {
+  "message": "Registration successful! Please check your email for OTP verification.",
+  "email": "john@example.com"
+}
+```
+
+**Note:** After registration, a 6-digit OTP code will be sent to the user's email. The user must verify this OTP before they can login.
+
+### Verify OTP
+```http
+POST /auth/verify-otp
+```
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com",
+  "otp": "123456"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Email verified successfully!",
   "user": {
     "id": 1,
     "first_name": "John",
     "last_name": "Farmer",
     "email": "john@example.com",
+    "email_verified": true,
+    "email_verified_at": "2025-08-15T16:30:00.000000Z",
     "user_type": "farmer"
   },
   "token": "1|abc123..."
 }
 ```
 
-### Login User
+### Resend OTP
+```http
+POST /auth/resend-otp
+```
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "New OTP sent to your email"
+}
+```
+
+### Login User (Email Verification Required)
 ```http
 POST /auth/login
 ```
@@ -66,7 +111,7 @@ POST /auth/login
 }
 ```
 
-**Response (200):**
+**Response (200) - Success:**
 ```json
 {
   "user": {
@@ -74,11 +119,23 @@ POST /auth/login
     "first_name": "John",
     "last_name": "Farmer",
     "email": "john@example.com",
+    "email_verified": true,
     "user_type": "farmer"
   },
   "token": "1|abc123..."
 }
 ```
+
+**Response (422) - Email Not Verified:**
+```json
+{
+  "message": "Please verify your email first. Check your inbox for OTP code.",
+  "email": "john@example.com",
+  "needs_verification": true
+}
+```
+
+**Note:** Users must verify their email with OTP before they can login to the system.
 
 ### Logout User
 ```http
@@ -91,6 +148,103 @@ POST /auth/logout
 ```json
 {
   "message": "Logged out"
+}
+```
+
+---
+
+## 2FA Management Endpoints
+
+### Check 2FA Status
+```http
+GET /auth/2fa/status
+```
+
+**Headers:** `Authorization: Bearer YOUR_TOKEN`
+
+**Response (200):**
+```json
+{
+  "two_factor_enabled": true,
+  "email_verified": true
+}
+```
+
+### Enable 2FA
+```http
+POST /auth/2fa/enable
+```
+
+**Headers:** `Authorization: Bearer YOUR_TOKEN`
+
+**Response (200):**
+```json
+{
+  "message": "OTP sent to your email. Please verify to enable 2FA."
+}
+```
+
+### Verify 2FA Activation
+```http
+POST /auth/2fa/verify-enable
+```
+
+**Headers:** `Authorization: Bearer YOUR_TOKEN`
+
+**Request Body:**
+```json
+{
+  "otp": "123456"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "2FA enabled successfully!",
+  "user": {
+    "id": 1,
+    "two_factor_enabled": true
+  }
+}
+```
+
+### Disable 2FA
+```http
+POST /auth/2fa/disable
+```
+
+**Headers:** `Authorization: Bearer YOUR_TOKEN`
+
+**Response (200):**
+```json
+{
+  "message": "OTP sent to your email. Please verify to disable 2FA."
+}
+```
+
+### Verify 2FA Deactivation
+```http
+POST /auth/2fa/verify-disable
+```
+
+**Headers:** `Authorization: Bearer YOUR_TOKEN`
+
+**Request Body:**
+```json
+{
+  "otp": "123456"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "2FA disabled successfully!",
+  "user": {
+    "id": 1,
+    "two_factor_enabled": false
+  }
 }
 ```
 
