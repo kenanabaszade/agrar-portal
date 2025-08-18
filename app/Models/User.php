@@ -27,6 +27,10 @@ class User extends Authenticatable
         'user_type',
         'is_active',
         'two_factor_enabled',
+        'otp_code',
+        'otp_expires_at',
+        'email_verified',
+        'email_verified_at',
     ];
 
     /**
@@ -48,8 +52,10 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'otp_expires_at' => 'datetime',
             'is_active' => 'boolean',
             'two_factor_enabled' => 'boolean',
+            'email_verified' => 'boolean',
         ];
     }
 

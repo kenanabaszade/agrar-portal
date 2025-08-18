@@ -25,6 +25,9 @@ class DatabaseSeeder extends Seeder
             'phone' => '0000000000',
             'password_hash' => Hash::make('password123'),
             'user_type' => 'admin',
+            'email_verified' => true,
+            'email_verified_at' => now(),
+            'two_factor_enabled' => true,
         ]);
         $trainer = User::firstOrCreate(['email' => 'trainer@example.com'], [
             'first_name' => 'Tracy',
@@ -32,6 +35,9 @@ class DatabaseSeeder extends Seeder
             'phone' => '1111111111',
             'password_hash' => Hash::make('password123'),
             'user_type' => 'trainer',
+            'email_verified' => true,
+            'email_verified_at' => now(),
+            'two_factor_enabled' => true,
         ]);
         $farmer = User::firstOrCreate(['email' => 'farmer@example.com'], [
             'first_name' => 'Frank',
@@ -39,6 +45,9 @@ class DatabaseSeeder extends Seeder
             'phone' => '2222222222',
             'password_hash' => Hash::make('password123'),
             'user_type' => 'farmer',
+            'email_verified' => true,
+            'email_verified_at' => now(),
+            'two_factor_enabled' => true,
         ]);
 
         // Attach roles via pivot if needed
