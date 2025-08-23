@@ -33,6 +33,8 @@ class ExamRegistration extends Model
     {
         return $this->belongsTo(Certificate::class);
     }
+
+    
 }
 
 
