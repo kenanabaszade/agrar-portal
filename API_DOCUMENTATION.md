@@ -153,6 +153,101 @@ POST /auth/logout
 
 ---
 
+## Password Reset Endpoints (2FA Protected)
+
+### Request Password Reset
+```http
+POST /auth/forgot-password
+```
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Password reset OTP sent to your email. Please check your inbox.",
+  "email": "john@example.com"
+}
+```
+
+**Note:** This endpoint generates a reset token and sends a 6-digit OTP to the user's email for 2FA verification.
+
+### Verify Password Reset OTP
+```http
+POST /auth/verify-password-reset-otp
+```
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com",
+  "otp": "123456"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "OTP verified successfully. You can now reset your password.",
+  "token": "64-character-reset-token",
+  "email": "john@example.com"
+}
+```
+
+**Note:** After OTP verification, the system returns a reset token that must be used to reset the password.
+
+### Reset Password
+```http
+POST /auth/reset-password
+```
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com",
+  "token": "64-character-reset-token",
+  "password": "newPassword123",
+  "password_confirmation": "newPassword123"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Password reset successfully. You can now login with your new password."
+}
+```
+
+**Note:** The reset token expires after 24 hours and can only be used once.
+
+### Resend Password Reset OTP
+```http
+POST /auth/resend-password-reset-otp
+```
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "New password reset OTP sent to your email."
+}
+```
+
+**Note:** This endpoint can be used if the original OTP has expired (10 minutes).
+
+---
+
 ## 2FA Management Endpoints
 
 ### Check 2FA Status

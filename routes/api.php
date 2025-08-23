@@ -8,6 +8,12 @@ Route::prefix('v1')->group(function () {
     Route::post('auth/verify-otp', [\App\Http\Controllers\AuthController::class, 'verifyOtp']);
     Route::post('auth/resend-otp', [\App\Http\Controllers\AuthController::class, 'resendOtp']);
     Route::post('auth/login', [\App\Http\Controllers\AuthController::class, 'login']);
+    
+    // Password Reset (Public routes)
+    Route::post('auth/forgot-password', [\App\Http\Controllers\AuthController::class, 'forgotPassword']);
+    Route::post('auth/verify-password-reset-otp', [\App\Http\Controllers\AuthController::class, 'verifyPasswordResetOtp']);
+    Route::post('auth/reset-password', [\App\Http\Controllers\AuthController::class, 'resetPassword']);
+    Route::post('auth/resend-password-reset-otp', [\App\Http\Controllers\AuthController::class, 'resendPasswordResetOtp']);
 
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
