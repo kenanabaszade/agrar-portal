@@ -8,6 +8,8 @@ Route::prefix('v1')->group(function () {
     Route::post('auth/verify-otp', [\App\Http\Controllers\AuthController::class, 'verifyOtp']);
     Route::post('auth/resend-otp', [\App\Http\Controllers\AuthController::class, 'resendOtp']);
     Route::post('auth/login', [\App\Http\Controllers\AuthController::class, 'login']);
+    Route::post('auth/verify-login-otp', [\App\Http\Controllers\AuthController::class, 'verifyLoginOtp']);
+    Route::post('auth/resend-login-otp', [\App\Http\Controllers\AuthController::class, 'resendLoginOtp']);
     
     // Password Reset (Public routes)
     Route::post('auth/forgot-password', [\App\Http\Controllers\AuthController::class, 'forgotPassword']);
@@ -84,6 +86,17 @@ Route::prefix('v1')->group(function () {
         Route::get('users', [\App\Http\Controllers\UsersController::class, 'index'])->middleware('role:admin');
         Route::get('users/{user}', [\App\Http\Controllers\UsersController::class, 'show'])->middleware('role:admin');
         Route::patch('users/{user}', [\App\Http\Controllers\UsersController::class, 'update'])->middleware('role:admin');
+        Route::post('users/{user}/toggle-2fa', [\App\Http\Controllers\UsersController::class, 'toggleTwoFactor'])->middleware('role:admin');
+        Route::delete('users/{user}', [\App\Http\Controllers\UsersController::class, 'destroy'])->middleware('role:admin');
+
+        // Profile Management (for authenticated users)
+        Route::get('profile', [\App\Http\Controllers\ProfileController::class, 'show']);
+        Route::patch('profile', [\App\Http\Controllers\ProfileController::class, 'update']);
+        Route::post('profile/change-password', [\App\Http\Controllers\ProfileController::class, 'changePassword']);
+        Route::post('profile/request-email-change', [\App\Http\Controllers\ProfileController::class, 'requestEmailChange']);
+        Route::post('profile/verify-email-change', [\App\Http\Controllers\ProfileController::class, 'verifyEmailChange']);
+        Route::post('profile/resend-email-change-otp', [\App\Http\Controllers\ProfileController::class, 'resendEmailChangeOtp']);
+        Route::post('profile/cancel-email-change', [\App\Http\Controllers\ProfileController::class, 'cancelEmailChange']);
 
         // Registrations
         Route::post('trainings/{training}/register', [\App\Http\Controllers\RegistrationController::class, 'registerTraining']);

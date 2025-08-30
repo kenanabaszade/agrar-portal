@@ -26,6 +26,7 @@ class AuthController extends Controller
             'phone' => ['nullable', 'string', 'max:50'],
             'password' => ['required', 'string', 'min:8'],
             'user_type' => ['nullable', Rule::in(['farmer', 'trainer', 'admin'])],
+            'region' => ['nullable', 'string', 'max:255'],
         ]);
 
         // Check if user already exists but not verified
@@ -53,6 +54,7 @@ class AuthController extends Controller
         $user->last_name = $validated['last_name'];
         $user->email = $validated['email'];
         $user->phone = $validated['phone'] ?? null;
+        $user->region = $validated['region'] ?? null;
         $user->password_hash = Hash::make($validated['password']);
         $user->user_type = $validated['user_type'] ?? 'farmer';
         $user->email_verified = false;
@@ -278,6 +280,33 @@ class AuthController extends Controller
             ], 422);
         }
 
+        // Check if 2FA is enabled for this user
+        if ($user->two_factor_enabled) {
+            // Generate and send OTP for 2FA verification
+            $otp = $this->generateOtp();
+            $user->update([
+                'otp_code' => $otp,
+                'otp_expires_at' => Carbon::now()->addMinutes(10),
+            ]);
+
+            Notification::send($user, new OtpNotification($otp));
+
+            return response()->json([
+                'message' => '2FA verification required. Please check your email for OTP code.',
+                'email' => $user->email,
+                'needs_2fa' => true,
+                'user_id' => $user->id,
+            ], 200);
+        }
+
+        // Clear any existing OTP codes when 2FA is disabled
+        if ($user->otp_code || $user->otp_expires_at) {
+            $user->update([
+                'otp_code' => null,
+                'otp_expires_at' => null,
+            ]);
+        }
+
         $token = $user->createToken('api')->plainTextToken;
 
         return response()->json([
@@ -455,6 +484,81 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'New password reset OTP sent to your email.',
+        ], 200);
+    }
+
+    public function verifyLoginOtp(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => ['required', 'integer'],
+            'otp' => ['required', 'string', 'size:6'],
+        ]);
+
+        $user = User::find($validated['user_id']);
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        if (!$user->two_factor_enabled) {
+            return response()->json(['message' => '2FA is not enabled for this user'], 400);
+        }
+
+        if (!$user->otp_code || !$user->otp_expires_at) {
+            return response()->json(['message' => 'No OTP found. Please login again.'], 400);
+        }
+
+        if (Carbon::now()->isAfter($user->otp_expires_at)) {
+            return response()->json(['message' => 'OTP has expired. Please login again.'], 400);
+        }
+
+        if ($user->otp_code !== $validated['otp']) {
+            return response()->json(['message' => 'Invalid OTP code'], 422);
+        }
+
+        // Clear the OTP after successful verification
+        $user->update([
+            'otp_code' => null,
+            'otp_expires_at' => null,
+        ]);
+
+        // Generate token for successful login
+        $token = $user->createToken('api')->plainTextToken;
+
+        return response()->json([
+            'message' => '2FA verification successful!',
+            'user' => $user,
+            'token' => $token,
+        ], 200);
+    }
+
+    public function resendLoginOtp(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => ['required', 'integer'],
+        ]);
+
+        $user = User::find($validated['user_id']);
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        if (!$user->two_factor_enabled) {
+            return response()->json(['message' => '2FA is not enabled for this user'], 400);
+        }
+
+        // Generate new OTP
+        $otp = $this->generateOtp();
+        $user->update([
+            'otp_code' => $otp,
+            'otp_expires_at' => Carbon::now()->addMinutes(10),
+        ]);
+
+        Notification::send($user, new OtpNotification($otp));
+
+        return response()->json([
+            'message' => 'New 2FA OTP sent to your email.',
         ], 200);
     }
 }
