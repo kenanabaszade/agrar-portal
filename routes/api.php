@@ -84,6 +84,7 @@ Route::prefix('v1')->group(function () {
 
         // Users (basic admin ops)
         Route::get('users', [\App\Http\Controllers\UsersController::class, 'index'])->middleware('role:admin');
+        Route::post('users', [\App\Http\Controllers\UsersController::class, 'store'])->middleware('role:admin');
         Route::get('users/{user}', [\App\Http\Controllers\UsersController::class, 'show'])->middleware('role:admin');
         Route::patch('users/{user}', [\App\Http\Controllers\UsersController::class, 'update'])->middleware('role:admin');
         Route::post('users/{user}/toggle-2fa', [\App\Http\Controllers\UsersController::class, 'toggleTwoFactor'])->middleware('role:admin');

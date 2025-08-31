@@ -14,6 +14,42 @@ class UsersController extends Controller
         return User::paginate(20);
     }
 
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'username' => ['nullable', 'string', 'max:255', 'unique:users,username'],
+            'father_name' => ['nullable', 'string', 'max:255'],
+            'region' => ['nullable', 'string', 'max:255'],
+            'email' => ['required', 'email', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'password' => ['required', 'string', 'min:8'],
+            'user_type' => ['required', 'in:farmer,trainer,admin'],
+            'two_factor_enabled' => ['boolean'],
+        ]);
+
+        // Create the user
+        $user = User::create([
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'],
+            'username' => $validated['username'] ?? null,
+            'father_name' => $validated['father_name'] ?? null,
+            'region' => $validated['region'] ?? null,
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+            'password_hash' => Hash::make($validated['password']),
+            'user_type' => $validated['user_type'],
+            'two_factor_enabled' => $validated['two_factor_enabled'] ?? false,
+            'email_verified' => true, // Admin-created users are automatically verified
+        ]);
+
+        return response()->json([
+            'message' => 'User created successfully',
+            'user' => $user,
+        ], 201);
+    }
+
     public function show(User $user)
     {
         return $user;
