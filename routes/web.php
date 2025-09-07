@@ -56,7 +56,25 @@ Route::get('/oauth2/callback', function (Request $request) {
             ]);
         }
         
-        // Store the token data in session for the test page
+        // If we have a state parameter (user ID), store the token in the user's account
+        if ($state && is_numeric($state)) {
+            $user = \App\Models\User::find($state);
+            if ($user) {
+                $user->update([
+                    'google_access_token' => json_encode($tokenData)
+                ]);
+                
+                return view('oauth2-success', [
+                    'code' => $code,
+                    'message' => 'Authorization successful! Access token stored in your account.',
+                    'token_received' => true,
+                    'access_token' => isset($tokenData['access_token']) ? 'Received' : 'Not received',
+                    'user_stored' => true
+                ]);
+            }
+        }
+        
+        // Fallback: Store the token data in session for the test page
         session([
             'oauth2_code' => $code, 
             'oauth2_state' => $state,
@@ -66,9 +84,10 @@ Route::get('/oauth2/callback', function (Request $request) {
         
         return view('oauth2-success', [
             'code' => $code,
-            'message' => 'Authorization successful! Access token obtained and stored.',
+            'message' => 'Authorization successful! Access token obtained and stored in session.',
             'token_received' => true,
-            'access_token' => isset($tokenData['access_token']) ? 'Received' : 'Not received'
+            'access_token' => isset($tokenData['access_token']) ? 'Received' : 'Not received',
+            'user_stored' => false
         ]);
         
     } catch (\Exception $e) {

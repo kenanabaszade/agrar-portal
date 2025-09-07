@@ -1531,6 +1531,35 @@
       "description": "Google Meet integration using OAuth2 authentication. Users must authorize Google Calendar access first. Admins and trainers can create meetings with real Google Meet conferences, users can register and join.",
       "item": [
         {
+          "name": "Check Google Authentication Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/google/check-access",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "google",
+                "check-access"
+              ]
+            },
+            "description": "Check if the user is authenticated with Google Calendar and can create meetings. Returns authentication status, token validity, and whether the user can create Google Meet meetings."
+          }
+        },
+        {
           "name": "Get Google OAuth2 Authorization URL",
           "request": {
             "method": "GET",
@@ -1651,6 +1680,35 @@
               ]
             },
             "description": "Revoke Google Calendar access for the authenticated user. This will remove the stored access token."
+          }
+        },
+        {
+          "name": "Test Meeting Creation Flow (Step-by-Step)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/google/check-access",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "google",
+                "check-access"
+              ]
+            },
+            "description": "STEP 1: Check if you can create meetings. If 'can_create_meetings' is false, you need to authorize Google Calendar access first using the 'Get Google OAuth2 Authorization URL' endpoint."
           }
         },
         {

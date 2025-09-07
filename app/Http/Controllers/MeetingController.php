@@ -87,7 +87,21 @@ class MeetingController extends Controller
                 return response()->json([
                     'error' => 'Google Calendar access required',
                     'message' => 'Please authorize Google Calendar access first',
-                    'auth_url' => url('/api/v1/google/auth-url')
+                    'auth_url' => url('/api/v1/google/auth-url'),
+                    'check_auth_url' => url('/api/v1/google/check-access')
+                ], 401);
+            }
+
+            // Verify the access token is still valid by testing it
+            $this->googleCalendarService->setAccessToken($user->google_access_token);
+            $tokenValidation = $this->googleCalendarService->validateAccessToken();
+            
+            if (!$tokenValidation['valid']) {
+                return response()->json([
+                    'error' => 'Google Calendar access expired',
+                    'message' => 'Your Google Calendar access has expired. Please re-authorize.',
+                    'auth_url' => url('/api/v1/google/auth-url'),
+                    'details' => $tokenValidation['error'] ?? 'Token validation failed'
                 ], 401);
             }
 

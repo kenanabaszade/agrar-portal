@@ -18,10 +18,14 @@ class GoogleAuthController extends Controller
     /**
      * Get Google OAuth2 authorization URL
      */
-    public function getAuthUrl(): JsonResponse
+    public function getAuthUrl(Request $request): JsonResponse
     {
         try {
-            $authUrl = $this->googleCalendarService->getAuthUrl();
+            $user = $request->user();
+            $userId = $user->id;
+            
+            // Include user ID in state parameter
+            $authUrl = $this->googleCalendarService->getAuthUrl($userId);
             
             return response()->json([
                 'success' => true,
@@ -125,11 +129,21 @@ class GoogleAuthController extends Controller
             session()->forget(['oauth2_code', 'oauth2_state', 'oauth2_token', 'oauth2_success']);
         }
         
+        // If we have a stored token, validate it
+        $tokenValid = false;
+        if ($hasStoredToken) {
+            $this->googleCalendarService->setAccessToken($user->google_access_token);
+            $validation = $this->googleCalendarService->validateAccessToken();
+            $tokenValid = $validation['valid'];
+        }
+
         return response()->json([
             'success' => true,
             'has_access' => $hasAccess,
             'has_stored_token' => $hasStoredToken,
             'has_session_token' => $hasSessionToken,
+            'token_valid' => $tokenValid,
+            'can_create_meetings' => $hasAccess && $tokenValid,
             'user' => $user->fresh()
         ]);
     }

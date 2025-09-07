@@ -56,8 +56,13 @@ class GoogleCalendarService
     /**
      * Get OAuth2 authorization URL
      */
-    public function getAuthUrl(): string
+    public function getAuthUrl($userId = null): string
     {
+        // Include user ID in state parameter if provided
+        if ($userId) {
+            $this->client->setState($userId);
+        }
+        
         return $this->client->createAuthUrl();
     }
 
@@ -75,6 +80,28 @@ class GoogleCalendarService
     public function setAccessToken(string $accessToken): void
     {
         $this->client->setAccessToken($accessToken);
+    }
+
+    /**
+     * Validate if the current access token is still valid
+     */
+    public function validateAccessToken(): array
+    {
+        try {
+            // Try to make a simple API call to validate the token
+            $calendarList = $this->service->calendarList->listCalendarList(['maxResults' => 1]);
+            
+            return [
+                'valid' => true,
+                'message' => 'Token is valid'
+            ];
+        } catch (Exception $e) {
+            return [
+                'valid' => false,
+                'error' => $e->getMessage(),
+                'message' => 'Token validation failed'
+            ];
+        }
     }
 
     /**
@@ -104,11 +131,6 @@ class GoogleCalendarService
             $createRequest = new \Google\Service\Calendar\CreateConferenceRequest();
             $createRequest->setRequestId(uniqid());
             $conferenceData->setCreateRequest($createRequest);
-            
-            // Set conference solution key for Google Meet
-            $conferenceSolutionKey = new \Google\Service\Calendar\ConferenceSolutionKey();
-            $conferenceSolutionKey->setType('hangoutsMeet');
-            $conferenceData->setConferenceSolutionKey($conferenceSolutionKey);
             
             $event->setConferenceData($conferenceData);
 

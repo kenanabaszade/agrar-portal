@@ -62,6 +62,18 @@
         </div>
         @endif
         
+        @if(isset($user_stored) && $user_stored)
+        <div class="code-display" style="background: #e8f5e8;">
+            <strong>✅ Token Storage:</strong><br>
+            Access token has been stored in your user account
+        </div>
+        @elseif(isset($user_stored) && !$user_stored)
+        <div class="code-display" style="background: #fff3cd;">
+            <strong>⚠️ Token Storage:</strong><br>
+            Access token stored in session only (not linked to user account)
+        </div>
+        @endif
+        
         <div class="instructions">
             <p><strong>Next Steps:</strong></p>
             <p>1. Return to your application</p>
