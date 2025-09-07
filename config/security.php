@@ -63,7 +63,7 @@ return [
     */
 
     'file_upload' => [
-        'max_size' => 10240, // 10MB in KB
+        'max_size' => 25600, // 25MB in KB
         'allowed_types' => [
             'image' => ['jpg', 'jpeg', 'png', 'gif', 'webp'],
             'video' => ['mp4', 'avi', 'mov', 'wmv'],

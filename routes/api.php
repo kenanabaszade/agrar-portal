@@ -30,6 +30,11 @@ Route::prefix('v1')->group(function () {
         // Training Management
         Route::apiResource('trainings', \App\Http\Controllers\TrainingController::class)->middleware('role:admin,trainer');
         
+        // Training Media Management (separate endpoints for advanced file operations)
+        Route::post('trainings/{training}/upload-media', [\App\Http\Controllers\TrainingController::class, 'uploadMedia'])->middleware('role:admin,trainer');
+        Route::delete('trainings/{training}/media/{mediaId}', [\App\Http\Controllers\TrainingController::class, 'removeMedia'])->middleware('role:admin,trainer');
+        Route::get('trainings/{training}/media', [\App\Http\Controllers\TrainingController::class, 'getMedia'])->middleware('role:admin,trainer');
+        
         // Training Module Management (admin,trainer only)
         Route::apiResource('trainings.modules', \App\Http\Controllers\TrainingModuleController::class)->middleware('role:admin,trainer');
         

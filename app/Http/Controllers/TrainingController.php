@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Training;
 use App\Models\TrainingRegistration;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rules\File;
 
 class TrainingController extends Controller
 {
@@ -24,10 +26,72 @@ class TrainingController extends Controller
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'is_online' => ['boolean'],
+            'type' => ['nullable', 'string', 'in:online,offline'],
+            'online_details' => ['nullable', 'array'],
+            'online_details.participant_size' => ['nullable', 'string'],
+            'online_details.google_meet_link' => ['nullable', 'string'],
+            'offline_details' => ['nullable', 'array'],
+            'offline_details.participant_size' => ['nullable', 'string'],
+            'offline_details.address' => ['nullable', 'string'],
+            'offline_details.coordinates' => ['nullable', 'string'],
+            'banner_image' => ['nullable', File::types(['jpg', 'jpeg', 'png', 'gif', 'webp'])->max(5 * 1024)], // 5MB max
+            'intro_video' => ['nullable', File::types(['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'])->max(20 * 1024)], // 20MB max
+            'media_files.*' => ['nullable', 'file', 'max:' . (50 * 1024)], // 50MB max per file
         ]);
 
+        // Remove file inputs from validated data as they're not database fields
+        unset($validated['banner_image'], $validated['intro_video'], $validated['media_files']);
+
         $training = Training::create($validated);
-        return response()->json($training, 201);
+        $mediaFiles = [];
+
+        // Handle banner image upload
+        if ($request->hasFile('banner_image')) {
+            $bannerPath = $request->file('banner_image')->store('trainings/banners', 'public');
+            $mediaFiles[] = [
+                'type' => 'banner',
+                'path' => $bannerPath,
+                'original_name' => $request->file('banner_image')->getClientOriginalName(),
+                'mime_type' => $request->file('banner_image')->getMimeType(),
+                'size' => $request->file('banner_image')->getSize(),
+                'uploaded_at' => now()->toISOString(),
+            ];
+        }
+
+        // Handle intro video upload
+        if ($request->hasFile('intro_video')) {
+            $videoPath = $request->file('intro_video')->store('trainings/videos', 'public');
+            $mediaFiles[] = [
+                'type' => 'intro_video',
+                'path' => $videoPath,
+                'original_name' => $request->file('intro_video')->getClientOriginalName(),
+                'mime_type' => $request->file('intro_video')->getMimeType(),
+                'size' => $request->file('intro_video')->getSize(),
+                'uploaded_at' => now()->toISOString(),
+            ];
+        }
+
+        // Handle general media files
+        if ($request->hasFile('media_files')) {
+            foreach ($request->file('media_files') as $file) {
+                $path = $file->store('trainings/media', 'public');
+                $mediaFiles[] = [
+                    'type' => 'general',
+                    'path' => $path,
+                    'original_name' => $file->getClientOriginalName(),
+                    'mime_type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                    'uploaded_at' => now()->toISOString(),
+                ];
+            }
+        }
+
+        // Update training with all media files
+        if (!empty($mediaFiles)) {
+            $training->update(['media_files' => $mediaFiles]);
+        }
+
+        return response()->json($training->load('modules.lessons'), 201);
     }
 
     public function show(Training $training)
@@ -45,16 +109,99 @@ class TrainingController extends Controller
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'is_online' => ['boolean'],
+            'type' => ['nullable', 'string', 'in:online,offline'],
+            'online_details' => ['nullable', 'array'],
+            'online_details.participant_size' => ['nullable', 'string'],
+            'online_details.google_meet_link' => ['nullable', 'string'],
+            'offline_details' => ['nullable', 'array'],
+            'offline_details.participant_size' => ['nullable', 'string'],
+            'offline_details.address' => ['nullable', 'string'],
+            'offline_details.coordinates' => ['nullable', 'string'],
+            'banner_image' => ['nullable', File::types(['jpg', 'jpeg', 'png', 'gif', 'webp'])->max(5 * 1024)], // 5MB max
+            'intro_video' => ['nullable', File::types(['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'])->max(20 * 1024)], // 20MB max
+            'media_files.*' => ['nullable', 'file', 'max:' . (50 * 1024)], // 50MB max per file
+            'remove_banner' => ['nullable', 'boolean'],
+            'remove_intro_video' => ['nullable', 'boolean'],
+            'remove_media_files' => ['nullable', 'array'], // Array of file paths to remove
+            'remove_media_files.*' => ['string'],
         ]);
 
+        // Handle banner image replacement/removal
+        if ($request->hasFile('banner_image')) {
+            // Remove existing banner
+            $training->removeMediaFilesByType('banner');
+            // Add new banner
+            $bannerPath = $request->file('banner_image')->store('trainings/banners', 'public');
+            $training->addMediaFile(
+                $bannerPath,
+                $request->file('banner_image')->getClientOriginalName(),
+                $request->file('banner_image')->getMimeType(),
+                $request->file('banner_image')->getSize(),
+                'banner'
+            );
+        } elseif ($request->boolean('remove_banner')) {
+            $training->removeMediaFilesByType('banner');
+        }
+
+        // Handle intro video replacement/removal
+        if ($request->hasFile('intro_video')) {
+            // Remove existing intro video
+            $training->removeMediaFilesByType('intro_video');
+            // Add new intro video
+            $videoPath = $request->file('intro_video')->store('trainings/videos', 'public');
+            $training->addMediaFile(
+                $videoPath,
+                $request->file('intro_video')->getClientOriginalName(),
+                $request->file('intro_video')->getMimeType(),
+                $request->file('intro_video')->getSize(),
+                'intro_video'
+            );
+        } elseif ($request->boolean('remove_intro_video')) {
+            $training->removeMediaFilesByType('intro_video');
+        }
+
+        // Handle specific media files removal
+        if ($request->has('remove_media_files')) {
+            $filesToRemove = $request->input('remove_media_files', []);
+            foreach ($filesToRemove as $fileToRemove) {
+                $training->removeMediaFile($fileToRemove);
+            }
+        }
+
+        // Handle additional media files
+        if ($request->hasFile('media_files')) {
+            foreach ($request->file('media_files') as $file) {
+                $path = $file->store('trainings/media', 'public');
+                $training->addMediaFile(
+                    $path,
+                    $file->getClientOriginalName(),
+                    $file->getMimeType(),
+                    $file->getSize(),
+                    'general'
+                );
+            }
+        }
+
+        // Remove file inputs and control flags from validated data
+        unset($validated['banner_image'], $validated['intro_video'], $validated['media_files'], 
+              $validated['remove_banner'], $validated['remove_intro_video'], $validated['remove_media_files']);
+
         $training->update($validated);
-        return response()->json($training);
+        return response()->json($training->fresh()->load('modules.lessons'));
     }
 
     public function destroy(Training $training)
     {
+        // Delete all associated media files
+        $mediaFiles = $training->getRawOriginal('media_files') ? json_decode($training->getRawOriginal('media_files'), true) : [];
+        foreach ($mediaFiles as $file) {
+            if (Storage::disk('public')->exists($file['path'])) {
+                Storage::disk('public')->delete($file['path']);
+            }
+        }
+
         $training->delete();
-        return response()->json(['message' => 'Deleted']);
+        return response()->json(['message' => 'Training and associated media deleted successfully']);
     }
 
     /**
@@ -73,7 +220,118 @@ class TrainingController extends Controller
         
         return response()->json($registration, 201);
     }
-}
- 
- 
 
+    /**
+     * Upload media files to training (separate endpoint)
+     * POST /api/v1/trainings/{training}/upload-media
+     */
+    public function uploadMedia(Request $request, Training $training)
+    {
+        $validated = $request->validate([
+            'banner_image' => ['nullable', File::types(['jpg', 'jpeg', 'png', 'gif', 'webp'])->max(5 * 1024)],
+            'intro_video' => ['nullable', File::types(['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'])->max(20 * 1024)],
+            'media_files.*' => ['nullable', 'file', 'max:' . (50 * 1024)],
+            'type' => ['nullable', 'string', 'in:banner,intro_video,general'],
+        ]);
+
+        $uploadedFiles = [];
+
+        // Handle banner image upload
+        if ($request->hasFile('banner_image')) {
+            $bannerPath = $request->file('banner_image')->store('trainings/banners', 'public');
+            $training->addMediaFile(
+                $bannerPath,
+                $request->file('banner_image')->getClientOriginalName(),
+                $request->file('banner_image')->getMimeType(),
+                $request->file('banner_image')->getSize(),
+                'banner'
+            );
+            $uploadedFiles[] = [
+                'type' => 'banner',
+                'path' => $bannerPath,
+                'original_name' => $request->file('banner_image')->getClientOriginalName(),
+            ];
+        }
+
+        // Handle intro video upload
+        if ($request->hasFile('intro_video')) {
+            $videoPath = $request->file('intro_video')->store('trainings/videos', 'public');
+            $training->addMediaFile(
+                $videoPath,
+                $request->file('intro_video')->getClientOriginalName(),
+                $request->file('intro_video')->getMimeType(),
+                $request->file('intro_video')->getSize(),
+                'intro_video'
+            );
+            $uploadedFiles[] = [
+                'type' => 'intro_video',
+                'path' => $videoPath,
+                'original_name' => $request->file('intro_video')->getClientOriginalName(),
+            ];
+        }
+
+        // Handle general media files
+        if ($request->hasFile('media_files')) {
+            foreach ($request->file('media_files') as $file) {
+                $path = $file->store('trainings/media', 'public');
+                $training->addMediaFile(
+                    $path,
+                    $file->getClientOriginalName(),
+                    $file->getMimeType(),
+                    $file->getSize(),
+                    'general'
+                );
+                $uploadedFiles[] = [
+                    'type' => 'general',
+                    'path' => $path,
+                    'original_name' => $file->getClientOriginalName(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'message' => 'Media files uploaded successfully',
+            'uploaded_files' => $uploadedFiles,
+            'training' => $training->fresh()
+        ], 201);
+    }
+
+    /**
+     * Get all media files for a training
+     * GET /api/v1/trainings/{training}/media
+     */
+    public function getMedia(Training $training)
+    {
+        return response()->json([
+            'training_id' => $training->id,
+            'media_files' => $training->media_files,
+            'banner_image' => $training->banner_image,
+            'intro_video' => $training->intro_video,
+            'general_media_files' => $training->general_media_files,
+        ]);
+    }
+
+    /**
+     * Remove a specific media file from training
+     * DELETE /api/v1/trainings/{training}/media/{mediaId}
+     */
+    public function removeMedia(Request $request, Training $training, $mediaId)
+    {
+        $mediaFiles = $training->media_files ?? [];
+        
+        // Find the media file by path (using mediaId as path)
+        $mediaFile = collect($mediaFiles)->firstWhere('path', $mediaId);
+        
+        if (!$mediaFile) {
+            return response()->json(['error' => 'Media file not found'], 404);
+        }
+
+        // Remove the file
+        $training->removeMediaFile($mediaId);
+
+        return response()->json([
+            'message' => 'Media file removed successfully',
+            'removed_file' => $mediaFile
+        ]);
+    }
+}
