@@ -51,6 +51,11 @@ class Training extends Model
         return $this->hasMany(TrainingModule::class);
     }
 
+    public function registrations()
+    {
+        return $this->hasMany(TrainingRegistration::class);
+    }
+
     /**
      * Get all media files with full URLs
      */

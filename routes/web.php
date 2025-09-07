@@ -7,6 +7,11 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Google Meet Integration Test Page
+Route::get('/google-meet-test', function () {
+    return view('google-meet-test');
+});
+
 // Add a simple login route to prevent RouteNotFoundException
 Route::get('/login', function () {
     return response()->json([
@@ -19,7 +24,7 @@ Route::get('/login', function () {
     ]);
 })->name('login');
 
-// OAuth2 callback handler for Google
+// OAuth2 callback handler for Google (exclude from auth middleware)
 Route::get('/oauth2/callback', function (Request $request) {
     $code = $request->get('code');
     $state = $request->get('state');
@@ -39,11 +44,38 @@ Route::get('/oauth2/callback', function (Request $request) {
         ]);
     }
     
-    // Store the code in session and redirect to a success page
-    session(['oauth2_code' => $code, 'oauth2_state' => $state]);
-    
-    return view('oauth2-success', [
-        'code' => $code,
-        'message' => 'Authorization successful! You can now close this window and return to your application.'
-    ]);
-});
+    try {
+        // Exchange the authorization code for an access token
+        $googleCalendarService = app(\App\Services\GoogleCalendarService::class);
+        $tokenData = $googleCalendarService->fetchAccessToken($code);
+        
+        if (isset($tokenData['error'])) {
+            return view('oauth2-error', [
+                'error' => $tokenData['error'],
+                'message' => 'Failed to exchange authorization code for access token: ' . ($tokenData['error_description'] ?? $tokenData['error'])
+            ]);
+        }
+        
+        // Store the token data in session for the test page
+        session([
+            'oauth2_code' => $code, 
+            'oauth2_state' => $state,
+            'oauth2_token' => $tokenData,
+            'oauth2_success' => true
+        ]);
+        
+        return view('oauth2-success', [
+            'code' => $code,
+            'message' => 'Authorization successful! Access token obtained and stored.',
+            'token_received' => true,
+            'access_token' => isset($tokenData['access_token']) ? 'Received' : 'Not received'
+        ]);
+        
+    } catch (\Exception $e) {
+        return view('oauth2-error', [
+            'error' => 'Token exchange failed',
+            'message' => 'Failed to exchange authorization code: ' . $e->getMessage()
+        ]);
+    }
+})->withoutMiddleware(['auth']);
+

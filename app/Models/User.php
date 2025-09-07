@@ -71,6 +71,25 @@ class User extends Authenticatable
         return $this->belongsToMany(Role::class, 'user_roles');
     }
 
+    /**
+     * Check if user has a specific role
+     */
+    public function hasRole($roles)
+    {
+        if (is_string($roles)) {
+            $roles = [$roles];
+        }
+
+        // Check user_type first (like the middleware does)
+        $userRoleTypes = array_map('strtolower', $roles);
+        if (in_array(strtolower((string) $this->user_type), $userRoleTypes, true)) {
+            return true;
+        }
+
+        // Then check attached roles
+        return $this->roles()->whereIn('name', $roles)->exists();
+    }
+
     public function emailChangeRequests()
     {
         return $this->hasMany(EmailChangeRequest::class);

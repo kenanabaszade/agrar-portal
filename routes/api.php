@@ -1,6 +1,20 @@
 <?php
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
+// Route Model Binding
+Route::model('lesson', \App\Models\TrainingLesson::class);
+Route::model('module', \App\Models\TrainingModule::class);
+
+// Custom route model binding for nested resources
+Route::bind('lesson', function ($value, $route) {
+    $module = $route->parameter('module');
+    $moduleId = is_object($module) ? $module->id : $module;
+    return \App\Models\TrainingLesson::where('id', $value)
+        ->where('module_id', $moduleId)
+        ->firstOrFail();
+});
 
 Route::prefix('v1')->group(function () {
     // Auth
@@ -125,5 +139,6 @@ Route::prefix('v1')->group(function () {
         Route::post('exams/{exam}/register', [\App\Http\Controllers\RegistrationController::class, 'registerExam']);
     });
 });
+
 
 

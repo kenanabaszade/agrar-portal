@@ -101,12 +101,36 @@ class GoogleAuthController extends Controller
             ], 401);
         }
 
-        $hasAccess = !empty($user->google_access_token);
+        // Check if user has stored access token
+        $hasStoredToken = !empty($user->google_access_token);
+        
+        // Check if there's a token in session (from OAuth2 callback)
+        $hasSessionToken = session('oauth2_success') && session('oauth2_token');
+        
+        // Also check if there's a token in the request session (for API calls)
+        if (!$hasSessionToken && $request->hasSession()) {
+            $hasSessionToken = $request->session()->has('oauth2_success') && $request->session()->has('oauth2_token');
+        }
+        
+        $hasAccess = $hasStoredToken || $hasSessionToken;
+        
+        // If we have a session token but no stored token, store it
+        if ($hasSessionToken && !$hasStoredToken) {
+            $tokenData = session('oauth2_token');
+            $user->update([
+                'google_access_token' => json_encode($tokenData)
+            ]);
+            
+            // Clear session data
+            session()->forget(['oauth2_code', 'oauth2_state', 'oauth2_token', 'oauth2_success']);
+        }
         
         return response()->json([
             'success' => true,
             'has_access' => $hasAccess,
-            'user' => $user
+            'has_stored_token' => $hasStoredToken,
+            'has_session_token' => $hasSessionToken,
+            'user' => $user->fresh()
         ]);
     }
 
@@ -149,23 +173,32 @@ class GoogleAuthController extends Controller
         try {
             $code = session('oauth2_code');
             $state = session('oauth2_state');
+            $token = session('oauth2_token');
+            $success = session('oauth2_success');
             
-            if (!$code) {
+            if (!$code && !$success) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No OAuth2 code found in session. Please complete the authorization process first.'
+                    'message' => 'No OAuth2 data found in session. Please complete the authorization process first.'
                 ], 404);
             }
             
-            // Clear the code from session after retrieving it
-            session()->forget(['oauth2_code', 'oauth2_state']);
-            
-            return response()->json([
+            $response = [
                 'success' => true,
-                'code' => $code,
-                'state' => $state,
-                'message' => 'OAuth2 code retrieved successfully'
-            ]);
+                'message' => 'OAuth2 data retrieved successfully'
+            ];
+            
+            if ($code) {
+                $response['code'] = $code;
+                $response['state'] = $state;
+            }
+            
+            if ($success && $token) {
+                $response['token_received'] = true;
+                $response['has_access_token'] = isset($token['access_token']);
+            }
+            
+            return response()->json($response);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

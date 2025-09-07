@@ -2110,7 +2110,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/modules/1/lessons",
+              "raw": "{{base_url}}/api/v1/modules/7/lessons",
               "host": [
                 "{{base_url}}"
               ],
@@ -2118,7 +2118,7 @@
                 "api",
                 "v1",
                 "modules",
-                "1",
+                "7",
                 "lessons"
               ]
             }
@@ -2140,10 +2140,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Understanding Soil pH\",\n  \"lesson_type\": \"mixed\",\n  \"duration_minutes\": 30,\n  \"content\": \"Soil pH is a measure of soil acidity or alkalinity...\",\n  \"description\": \"Learn about soil pH and its importance in farming\",\n  \"video_url\": \"https://example.com/ph-video.mp4\",\n  \"media_files\": [\n    {\n      \"type\": \"image\",\n      \"url\": \"https://example.com/ph-chart.jpg\",\n      \"title\": \"pH Scale Chart\",\n      \"description\": \"Visual representation of pH scale\"\n    },\n    {\n      \"type\": \"document\",\n      \"url\": \"https://example.com/ph-guide.pdf\",\n      \"title\": \"pH Testing Guide\",\n      \"description\": \"Step-by-step guide for testing soil pH\"\n    }\n  ],\n  \"status\": \"published\",\n  \"is_required\": true,\n  \"min_completion_time\": 1800,\n  \"metadata\": {\n    \"difficulty\": \"intermediate\",\n    \"tags\": [\"soil\", \"ph\", \"testing\"]\n  }\n}"
+              "raw": "{\n  \"title\": \"Advanced Crop Rotation Techniques\",\n  \"lesson_type\": \"mixed\",\n  \"duration_minutes\": 45,\n  \"content\": \"Crop rotation is a fundamental agricultural practice that involves growing different types of crops in the same area across different seasons. This lesson covers advanced techniques for effective crop rotation planning and implementation.\",\n  \"description\": \"Learn advanced crop rotation strategies for sustainable farming\",\n  \"video_url\": \"https://example.com/crop-rotation-video.mp4\",\n  \"pdf_url\": \"https://example.com/crop-rotation-guide.pdf\",\n  \"media_files\": [\n    {\n      \"type\": \"image\",\n      \"url\": \"https://example.com/rotation-schedule.jpg\",\n      \"title\": \"Crop Rotation Schedule\",\n      \"description\": \"Visual guide showing optimal crop rotation sequence\"\n    },\n    {\n      \"type\": \"document\",\n      \"url\": \"https://example.com/soil-health-guide.pdf\",\n      \"title\": \"Soil Health Assessment\",\n      \"description\": \"Comprehensive guide for assessing soil health after rotation\"\n    },\n    {\n      \"type\": \"video\",\n      \"url\": \"https://example.com/field-demo.mp4\",\n      \"title\": \"Field Demonstration\",\n      \"description\": \"Real-world demonstration of crop rotation implementation\"\n    }\n  ],\n  \"sequence\": 3,\n  \"status\": \"published\",\n  \"is_required\": true,\n  \"min_completion_time\": 2700,\n  \"metadata\": {\n    \"difficulty\": \"advanced\",\n    \"tags\": [\"crop-rotation\", \"sustainable-farming\", \"soil-health\"],\n    \"learning_objectives\": [\n      \"Understand crop rotation principles\",\n      \"Plan effective rotation schedules\",\n      \"Assess soil health improvements\"\n    ],\n    \"prerequisites\": [\"Basic soil science knowledge\"]\n  }\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/modules/1/lessons",
+              "raw": "{{base_url}}/api/v1/modules/7/lessons",
               "host": [
                 "{{base_url}}"
               ],
@@ -2151,7 +2151,7 @@
                 "api",
                 "v1",
                 "modules",
-                "1",
+                "7",
                 "lessons"
               ]
             }
@@ -2168,15 +2168,17 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/lessons/1",
+              "raw": "{{base_url}}/api/v1/modules/7/lessons/5",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "modules",
+                "7",
                 "lessons",
-                "1"
+                "5"
               ]
             }
           }
@@ -2197,18 +2199,20 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Updated Lesson Title\",\n  \"content\": \"Updated content with new information\",\n  \"duration_minutes\": 45,\n  \"status\": \"published\"\n}"
+              "raw": "{\n  \"title\": \"Updated: Advanced Crop Rotation Techniques\",\n  \"content\": \"Updated content with latest research findings and improved techniques for crop rotation implementation. This lesson now includes new insights from recent agricultural studies.\",\n  \"description\": \"Updated description with enhanced learning outcomes\",\n  \"duration_minutes\": 50,\n  \"video_url\": \"https://example.com/updated-crop-rotation-video.mp4\",\n  \"media_files\": [\n    {\n      \"type\": \"image\",\n      \"url\": \"https://example.com/updated-rotation-schedule.jpg\",\n      \"title\": \"Updated Crop Rotation Schedule\",\n      \"description\": \"Revised visual guide with latest recommendations\"\n    },\n    {\n      \"type\": \"document\",\n      \"url\": \"https://example.com/updated-soil-health-guide.pdf\",\n      \"title\": \"Updated Soil Health Assessment\",\n      \"description\": \"Latest version with new assessment methods\"\n    }\n  ],\n  \"status\": \"published\",\n  \"is_required\": true,\n  \"min_completion_time\": 3000,\n  \"metadata\": {\n    \"difficulty\": \"advanced\",\n    \"tags\": [\"crop-rotation\", \"sustainable-farming\", \"soil-health\", \"updated-2024\"],\n    \"learning_objectives\": [\n      \"Understand advanced crop rotation principles\",\n      \"Plan effective rotation schedules with latest techniques\",\n      \"Assess soil health improvements using new methods\",\n      \"Apply sustainable farming practices\"\n    ],\n    \"prerequisites\": [\"Basic soil science knowledge\", \"Previous crop rotation experience\"],\n    \"last_updated\": \"2024-01-15\"\n  }\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/lessons/1",
+              "raw": "{{base_url}}/api/v1/modules/7/lessons/5",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "modules",
+                "7",
                 "lessons",
-                "1"
+                "5"
               ]
             }
           }
@@ -2224,15 +2228,17 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/lessons/1",
+              "raw": "{{base_url}}/api/v1/modules/7/lessons/5",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "modules",
+                "7",
                 "lessons",
-                "1"
+                "5"
               ]
             }
           }
@@ -2262,18 +2268,18 @@
                 },
                 {
                   "key": "title",
-                  "value": "Soil Sample Image",
+                  "value": "Crop Rotation Field Photo",
                   "type": "text"
                 },
                 {
                   "key": "description",
-                  "value": "Close-up view of soil sample",
+                  "value": "Real-world example of crop rotation implementation showing different crop stages",
                   "type": "text"
                 }
               ]
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/lessons/1/upload-media",
+              "raw": "{{base_url}}/api/v1/lessons/5/upload-media",
               "host": [
                 "{{base_url}}"
               ],
@@ -2281,7 +2287,7 @@
                 "api",
                 "v1",
                 "lessons",
-                "1",
+                "5",
                 "upload-media"
               ]
             }
@@ -2306,7 +2312,7 @@
               "raw": "{\n  \"media_index\": 0\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/lessons/1/remove-media",
+              "raw": "{{base_url}}/api/v1/lessons/5/remove-media",
               "host": [
                 "{{base_url}}"
               ],
@@ -2314,7 +2320,7 @@
                 "api",
                 "v1",
                 "lessons",
-                "1",
+                "5",
                 "remove-media"
               ]
             }
@@ -2336,10 +2342,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"lesson_order\": [3, 1, 2, 4]\n}"
+              "raw": "{\n  \"lesson_order\": [6, 5]\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/modules/1/reorder-lessons",
+              "raw": "{{base_url}}/api/v1/modules/7/reorder-lessons",
               "host": [
                 "{{base_url}}"
               ],
@@ -2347,8 +2353,73 @@
                 "api",
                 "v1",
                 "modules",
-                "1",
+                "7",
                 "reorder-lessons"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Lesson with Full Content (Admin/Trainer)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/modules/7/lessons/6?include_full_content=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "modules",
+                "7",
+                "lessons",
+                "6"
+              ],
+              "query": [
+                {
+                  "key": "include_full_content",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Simple Text Lesson",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Introduction to Sustainable Farming\",\n  \"lesson_type\": \"text\",\n  \"duration_minutes\": 20,\n  \"content\": \"Sustainable farming is an approach to agriculture that focuses on producing food in a way that preserves the environment, supports local communities, and maintains economic viability for farmers.\",\n  \"description\": \"Basic introduction to sustainable farming principles\",\n  \"status\": \"published\",\n  \"is_required\": true,\n  \"min_completion_time\": 1200,\n  \"metadata\": {\n    \"difficulty\": \"beginner\",\n    \"tags\": [\"sustainable-farming\", \"introduction\"]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/modules/7/lessons",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "modules",
+                "7",
+                "lessons"
               ]
             }
           }
@@ -2369,7 +2440,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/lessons/1/progress",
+              "raw": "{{base_url}}/api/v1/lessons/5/progress",
               "host": [
                 "{{base_url}}"
               ],
@@ -2377,7 +2448,7 @@
                 "api",
                 "v1",
                 "lessons",
-                "1",
+                "5",
                 "progress"
               ]
             }
@@ -2399,10 +2470,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"time_spent\": 1800,\n  \"notes\": \"Learned a lot about soil pH testing\"\n}"
+              "raw": "{\n  \"time_spent\": 2700,\n  \"notes\": \"Excellent lesson on crop rotation techniques. The field demonstration video was particularly helpful in understanding the practical implementation. I now have a clear plan for implementing crop rotation on my farm next season.\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/api/v1/lessons/1/complete",
+              "raw": "{{base_url}}/api/v1/lessons/5/complete",
               "host": [
                 "{{base_url}}"
               ],
@@ -2410,8 +2481,37 @@
                 "api",
                 "v1",
                 "lessons",
-                "1",
+                "5",
                 "complete"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All User Lesson Progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/progress?type=lessons",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "progress"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "lessons"
+                }
               ]
             }
           }

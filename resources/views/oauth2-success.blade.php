@@ -55,12 +55,19 @@
             {{ $code }}
         </div>
         
+        @if(isset($token_received) && $token_received)
+        <div class="code-display" style="background: #e8f5e8;">
+            <strong>✅ Access Token Status:</strong><br>
+            {{ $access_token }}
+        </div>
+        @endif
+        
         <div class="instructions">
             <p><strong>Next Steps:</strong></p>
-            <p>1. Copy the authorization code above</p>
-            <p>2. Return to your application</p>
-            <p>3. Use the code to complete the OAuth2 flow</p>
-            <p>4. You can now close this window</p>
+            <p>1. Return to your application</p>
+            <p>2. Click "Check OAuth2 Status" to verify the authorization</p>
+            <p>3. You can now create Google Meet meetings</p>
+            <p>4. You can close this window</p>
         </div>
     </div>
 </body>
