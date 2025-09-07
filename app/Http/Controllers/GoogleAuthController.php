@@ -140,4 +140,37 @@ class GoogleAuthController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get OAuth2 code from session (after user completes authorization)
+     */
+    public function getOAuth2Code(): JsonResponse
+    {
+        try {
+            $code = session('oauth2_code');
+            $state = session('oauth2_state');
+            
+            if (!$code) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No OAuth2 code found in session. Please complete the authorization process first.'
+                ], 404);
+            }
+            
+            // Clear the code from session after retrieving it
+            session()->forget(['oauth2_code', 'oauth2_state']);
+            
+            return response()->json([
+                'success' => true,
+                'code' => $code,
+                'state' => $state,
+                'message' => 'OAuth2 code retrieved successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

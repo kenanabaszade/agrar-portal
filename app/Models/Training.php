@@ -36,6 +36,11 @@ class Training extends Model
         'has_certificate' => 'boolean',
     ];
 
+    protected $attributes = [
+        'is_online' => true,
+        'has_certificate' => false,
+    ];
+
     public function trainer()
     {
         return $this->belongsTo(User::class, 'trainer_id');

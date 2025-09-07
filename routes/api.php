@@ -109,6 +109,7 @@ Route::prefix('v1')->group(function () {
         Route::get('google/callback', [\App\Http\Controllers\GoogleAuthController::class, 'handleCallback']);
         Route::get('google/check-access', [\App\Http\Controllers\GoogleAuthController::class, 'checkAccess']);
         Route::post('google/revoke-access', [\App\Http\Controllers\GoogleAuthController::class, 'revokeAccess']);
+        Route::get('google/oauth2-code', [\App\Http\Controllers\GoogleAuthController::class, 'getOAuth2Code']);
 
         // Google Meet Management (admin,trainer only)
         Route::apiResource('meetings', \App\Http\Controllers\MeetingController::class)->middleware('role:admin,trainer');

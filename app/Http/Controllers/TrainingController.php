@@ -25,7 +25,7 @@ class TrainingController extends Controller
             'trainer_id' => ['required', 'exists:users,id'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'is_online' => ['boolean'],
+            'is_online' => ['nullable', 'boolean'],
             'type' => ['nullable', 'string', 'in:online,offline'],
             'online_details' => ['nullable', 'array'],
             'online_details.participant_size' => ['nullable', 'string'],
@@ -40,6 +40,10 @@ class TrainingController extends Controller
             'intro_video' => ['nullable', File::types(['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'])->max(20 * 1024)], // 20MB max
             'media_files.*' => ['nullable', 'file', 'max:' . (50 * 1024)], // 50MB max per file
         ]);
+
+        // Set default values
+        $validated['is_online'] = $validated['is_online'] ?? true;
+        $validated['has_certificate'] = $validated['has_certificate'] ?? false;
 
         // Remove file inputs from validated data as they're not database fields
         unset($validated['banner_image'], $validated['intro_video'], $validated['media_files']);
@@ -110,7 +114,7 @@ class TrainingController extends Controller
             'trainer_id' => ['sometimes', 'exists:users,id'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'is_online' => ['boolean'],
+            'is_online' => ['nullable', 'boolean'],
             'type' => ['nullable', 'string', 'in:online,offline'],
             'online_details' => ['nullable', 'array'],
             'online_details.participant_size' => ['nullable', 'string'],

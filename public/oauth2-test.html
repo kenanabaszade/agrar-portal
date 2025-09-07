@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google OAuth2 Test - Agrar Portal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .step {
+            background: #ecf0f1;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .button {
+            background: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background: #2980b9;
+        }
+        .success {
+            background: #d5f4e6;
+            border-left-color: #27ae60;
+            color: #27ae60;
+        }
+        .error {
+            background: #fadbd8;
+            border-left-color: #e74c3c;
+            color: #e74c3c;
+        }
+        .info {
+            background: #d6eaf8;
+            border-left-color: #3498db;
+            color: #2980b9;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .auth-url {
+            word-break: break-all;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 3px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Google OAuth2 Test - Agrar Portal</h1>
+        
+        <div class="step">
+            <h3>Step 1: Get Authorization URL</h3>
+            <p>Click the button below to get the Google OAuth2 authorization URL:</p>
+            <button class="button" onclick="getAuthUrl()">Get Authorization URL</button>
+            <div id="authUrlResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Authorize Google Calendar Access</h3>
+            <p>After getting the URL, click the "Authorize" button to open Google OAuth2:</p>
+            <button class="button" id="authorizeBtn" onclick="authorizeGoogle()" disabled>Authorize Google Calendar</button>
+            <div id="authorizeResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Handle Callback</h3>
+            <p>After authorization, you'll be redirected back here. The authorization code will be extracted and displayed below:</p>
+            <div id="callbackResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Test Callback Endpoint</h3>
+            <p>Use the authorization code to test the callback endpoint:</p>
+            <button class="button" id="testCallbackBtn" onclick="testCallback()" disabled>Test Callback Endpoint</button>
+            <div id="callbackTestResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 5: Check Access Status</h3>
+            <p>Verify that Google Calendar access has been granted:</p>
+            <button class="button" onclick="checkAccess()">Check Access Status</button>
+            <div id="accessResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 6: Create Google Meet Meeting</h3>
+            <p>Test creating a Google Meet meeting:</p>
+            <button class="button" onclick="createMeeting()">Create Test Meeting</button>
+            <div id="meetingResult" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v1';
+        const AUTH_TOKEN = '34|m1tDPv0d9hmb6S9nWTLJgeMLIeXU4p7JQUp3pv5ea41a8e42';
+        let authUrl = '';
+        let authCode = '';
+
+        // Check for authorization code in URL on page load
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            if (code) {
+                authCode = code;
+                showCallbackResult(code);
+                document.getElementById('testCallbackBtn').disabled = false;
+            }
+        };
+
+        async function getAuthUrl() {
+            try {
+                const response = await fetch(`${API_BASE}/google/auth-url`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${AUTH_TOKEN}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    authUrl = data.auth_url;
+                    document.getElementById('authUrlResult').innerHTML = `
+                        <div class="success">
+                            <h4>✅ Authorization URL Generated Successfully!</h4>
+                            <p><strong>URL:</strong></p>
+                            <div class="auth-url">${authUrl}</div>
+                            <p><strong>Next Step:</strong> Click the "Authorize Google Calendar" button below.</p>
+                        </div>
+                    `;
+                    document.getElementById('authUrlResult').style.display = 'block';
+                    document.getElementById('authorizeBtn').disabled = false;
+                } else {
+                    throw new Error(data.error || 'Failed to get authorization URL');
+                }
+            } catch (error) {
+                document.getElementById('authUrlResult').innerHTML = `
+                    <div class="error">
+                        <h4>❌ Error Getting Authorization URL</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+                document.getElementById('authUrlResult').style.display = 'block';
+            }
+        }
+
+        function authorizeGoogle() {
+            if (authUrl) {
+                window.open(authUrl, '_blank');
+                document.getElementById('authorizeResult').innerHTML = `
+                    <div class="info">
+                        <h4>🔗 Authorization Window Opened</h4>
+                        <p>Complete the authorization in the new window. You'll be redirected back to this page with the authorization code.</p>
+                    </div>
+                `;
+                document.getElementById('authorizeResult').style.display = 'block';
+            }
+        }
+
+        function showCallbackResult(code) {
+            document.getElementById('callbackResult').innerHTML = `
+                <div class="success">
+                    <h4>✅ Authorization Code Received!</h4>
+                    <p><strong>Code:</strong></p>
+                    <div class="code-block">${code}</div>
+                    <p><strong>Next Step:</strong> Click "Test Callback Endpoint" to exchange this code for an access token.</p>
+                </div>
+            `;
+            document.getElementById('callbackResult').style.display = 'block';
+        }
+
+        async function testCallback() {
+            if (!authCode) {
+                alert('No authorization code available. Please complete the authorization first.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/google/callback?code=${authCode}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${AUTH_TOKEN}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('callbackTestResult').innerHTML = `
+                        <div class="success">
+                            <h4>✅ Callback Successful!</h4>
+                            <p>Google Calendar access has been granted and stored.</p>
+                            <div class="code-block">${JSON.stringify(data, null, 2)}</div>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.error || 'Callback failed');
+                }
+            } catch (error) {
+                document.getElementById('callbackTestResult').innerHTML = `
+                    <div class="error">
+                        <h4>❌ Callback Failed</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('callbackTestResult').style.display = 'block';
+        }
+
+        async function checkAccess() {
+            try {
+                const response = await fetch(`${API_BASE}/google/check-access`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${AUTH_TOKEN}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.has_access) {
+                    document.getElementById('accessResult').innerHTML = `
+                        <div class="success">
+                            <h4>✅ Google Calendar Access Granted!</h4>
+                            <p>You can now create Google Meet meetings.</p>
+                            <div class="code-block">${JSON.stringify(data, null, 2)}</div>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('accessResult').innerHTML = `
+                        <div class="error">
+                            <h4>❌ No Google Calendar Access</h4>
+                            <p>Please complete the OAuth2 authorization first.</p>
+                            <div class="code-block">${JSON.stringify(data, null, 2)}</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('accessResult').innerHTML = `
+                    <div class="error">
+                        <h4>❌ Error Checking Access</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('accessResult').style.display = 'block';
+        }
+
+        async function createMeeting() {
+            try {
+                const response = await fetch(`${API_BASE}/meetings`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${AUTH_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: 'Test Meeting from HTML',
+                        description: 'Testing Google Meet creation from HTML page',
+                        start_time: '2025-09-15 10:00:00',
+                        end_time: '2025-09-15 12:00:00',
+                        timezone: 'UTC',
+                        max_attendees: 50,
+                        training_id: 5,
+                        is_recurring: false,
+                        attendees: [
+                            {
+                                email: 'test@example.com',
+                                name: 'Test User'
+                            }
+                        ]
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('meetingResult').innerHTML = `
+                        <div class="success">
+                            <h4>✅ Google Meet Meeting Created Successfully!</h4>
+                            <p><strong>Meeting Link:</strong> <a href="${data.meet_link}" target="_blank">${data.meet_link}</a></p>
+                            <p><strong>Meeting ID:</strong> ${data.meeting_id}</p>
+                            <div class="code-block">${JSON.stringify(data, null, 2)}</div>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.error || 'Failed to create meeting');
+                }
+            } catch (error) {
+                document.getElementById('meetingResult').innerHTML = `
+                    <div class="error">
+                        <h4>❌ Failed to Create Meeting</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('meetingResult').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
