@@ -23,6 +23,7 @@ class Training extends Model
         'offline_details',
         'media_files',
         'has_certificate',
+        'difficulty',
     ];
 
     protected $casts = [

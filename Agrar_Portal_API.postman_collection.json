@@ -619,7 +619,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Advanced Crop Management\",\n  \"description\": \"Learn advanced farming techniques for modern agriculture\",\n  \"category\": \"Crop Management\",\n  \"trainer_id\": 2,\n  \"start_date\": \"2025-01-01\",\n  \"end_date\": \"2025-12-31\",\n  \"is_online\": true,\n  \"type\": \"online\",\n  \"has_certificate\": true,\n  \"online_details\": {\n    \"participant_size\": \"50\",\n    \"google_meet_link\": \"https://meet.google.com/abc-defg-hij\"\n  },\n  \"offline_details\": {\n    \"participant_size\": \"\",\n    \"address\": \"\",\n    \"coordinates\": \"\"\n  }\n}"
+              "raw": "{\n  \"title\": \"Advanced Crop Management\",\n  \"description\": \"Learn advanced farming techniques for modern agriculture\",\n  \"category\": \"Crop Management\",\n  \"trainer_id\": 2,\n  \"start_date\": \"2025-01-01\",\n  \"end_date\": \"2025-12-31\",\n  \"is_online\": true,\n  \"type\": \"online\",\n  \"has_certificate\": true,\n  \"difficulty\": \"intermediate\",\n  \"online_details\": {\n    \"participant_size\": \"50\",\n    \"google_meet_link\": \"https://meet.google.com/abc-defg-hij\"\n  },\n  \"offline_details\": {\n    \"participant_size\": \"\",\n    \"address\": \"\",\n    \"coordinates\": \"\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/trainings",
@@ -686,6 +686,11 @@
                 {
                   "key": "has_certificate",
                   "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "difficulty",
+                  "value": "intermediate",
                   "type": "text"
                 },
                 {
@@ -1020,7 +1025,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Updated Training Title\",\n  \"description\": \"Updated description\",\n  \"category\": \"Updated Category\",\n  \"has_certificate\": true\n}"
+              "raw": "{\n  \"title\": \"Updated Training Title\",\n  \"description\": \"Updated description\",\n  \"category\": \"Updated Category\",\n  \"has_certificate\": true,\n  \"difficulty\": \"advanced\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/trainings/1",
