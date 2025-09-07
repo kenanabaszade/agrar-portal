@@ -104,6 +104,21 @@ Route::prefix('v1')->group(function () {
         Route::post('profile/resend-email-change-otp', [\App\Http\Controllers\ProfileController::class, 'resendEmailChangeOtp']);
         Route::post('profile/cancel-email-change', [\App\Http\Controllers\ProfileController::class, 'cancelEmailChange']);
 
+        // Google Calendar Authentication
+        Route::get('google/auth-url', [\App\Http\Controllers\GoogleAuthController::class, 'getAuthUrl']);
+        Route::get('google/callback', [\App\Http\Controllers\GoogleAuthController::class, 'handleCallback']);
+        Route::get('google/check-access', [\App\Http\Controllers\GoogleAuthController::class, 'checkAccess']);
+        Route::post('google/revoke-access', [\App\Http\Controllers\GoogleAuthController::class, 'revokeAccess']);
+
+        // Google Meet Management (admin,trainer only)
+        Route::apiResource('meetings', \App\Http\Controllers\MeetingController::class)->middleware('role:admin,trainer');
+        Route::get('meetings/{meeting}/attendees', [\App\Http\Controllers\MeetingController::class, 'attendees'])->middleware('role:admin,trainer');
+        
+        // Meeting Registration (for all authenticated users)
+        Route::post('meetings/{meeting}/register', [\App\Http\Controllers\MeetingController::class, 'register']);
+        Route::delete('meetings/{meeting}/cancel-registration', [\App\Http\Controllers\MeetingController::class, 'cancelRegistration']);
+        Route::get('my-meetings', [\App\Http\Controllers\MeetingController::class, 'myRegistrations']);
+
         // Registrations
         Route::post('trainings/{training}/register', [\App\Http\Controllers\RegistrationController::class, 'registerTraining']);
         Route::post('exams/{exam}/register', [\App\Http\Controllers\RegistrationController::class, 'registerExam']);

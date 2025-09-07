@@ -34,6 +34,7 @@ class TrainingController extends Controller
             'offline_details.participant_size' => ['nullable', 'string'],
             'offline_details.address' => ['nullable', 'string'],
             'offline_details.coordinates' => ['nullable', 'string'],
+            'has_certificate' => ['nullable', 'boolean'],
             'banner_image' => ['nullable', File::types(['jpg', 'jpeg', 'png', 'gif', 'webp'])->max(5 * 1024)], // 5MB max
             'intro_video' => ['nullable', File::types(['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'])->max(20 * 1024)], // 20MB max
             'media_files.*' => ['nullable', 'file', 'max:' . (50 * 1024)], // 50MB max per file
@@ -117,6 +118,7 @@ class TrainingController extends Controller
             'offline_details.participant_size' => ['nullable', 'string'],
             'offline_details.address' => ['nullable', 'string'],
             'offline_details.coordinates' => ['nullable', 'string'],
+            'has_certificate' => ['nullable', 'boolean'],
             'banner_image' => ['nullable', File::types(['jpg', 'jpeg', 'png', 'gif', 'webp'])->max(5 * 1024)], // 5MB max
             'intro_video' => ['nullable', File::types(['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'])->max(20 * 1024)], // 20MB max
             'media_files.*' => ['nullable', 'file', 'max:' . (50 * 1024)], // 50MB max per file

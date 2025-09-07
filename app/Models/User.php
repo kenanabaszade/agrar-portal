@@ -34,6 +34,9 @@ class User extends Authenticatable
         'otp_expires_at',
         'email_verified',
         'email_verified_at',
+        'google_access_token',
+        'google_refresh_token',
+        'google_token_expires_at',
     ];
 
     /**
@@ -56,6 +59,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'otp_expires_at' => 'datetime',
+            'google_token_expires_at' => 'datetime',
             'is_active' => 'boolean',
             'two_factor_enabled' => 'boolean',
             'email_verified' => 'boolean',

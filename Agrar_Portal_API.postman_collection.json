@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "agrar-portal-api-collection",
     "name": "Agrar Portal API",
-    "description": "# Agrar Portal API Collection\n\nThis collection contains all API endpoints for the Agrar Portal system including:\n\n## Features\n- **Authentication & 2FA**: Complete authentication flow with OTP verification\n- **Training Management**: Full CRUD operations with media upload support\n- **Hybrid Media Approach**: Both single endpoint and separate media endpoints\n- **Online/Offline Training**: Support for both training types with detailed configurations\n- **User Management**: Admin operations and profile management\n- **Exam System**: Complete exam creation and taking functionality\n- **Forum**: Q&A system for community interaction\n- **Progress Tracking**: User progress monitoring\n- **Payment Integration**: Payment processing and webhooks\n\n## Training Media Upload Options\n\n### Single Endpoint Approach\n- Create training with files in one request: `POST /api/v1/trainings`\n- Update training with files: `PATCH /api/v1/trainings/{id}`\n- Best for: Small files, simple workflows, atomic operations\n\n### Separate Endpoint Approach  \n- Upload media to existing training: `POST /api/v1/trainings/{id}/upload-media`\n- Get training media: `GET /api/v1/trainings/{id}/media`\n- Remove specific media: `DELETE /api/v1/trainings/{id}/media/{path}`\n- Best for: Large files, progressive upload, advanced file management\n\n## New Training Fields\n- `type`: \"online\" or \"offline\"\n- `online_details`: { participant_size, google_meet_link }\n- `offline_details`: { participant_size, address, coordinates }\n- `media_files`: Unified media storage with type categorization\n\n## Usage\n1. Set `{{base_url}}` variable to your API base URL\n2. Set `{{auth_token}}` variable with your authentication token\n3. Use the appropriate endpoint based on your use case\n",
+    "description": "# Agrar Portal API Collection\n\nThis collection contains all API endpoints for the Agrar Portal system including:\n\n## Features\n- **Authentication & 2FA**: Complete authentication flow with OTP verification\n- **Training Management**: Full CRUD operations with media upload support\n- **Hybrid Media Approach**: Both single endpoint and separate media endpoints\n- **Online/Offline Training**: Support for both training types with detailed configurations\n- **User Management**: Admin operations and profile management\n- **Exam System**: Complete exam creation and taking functionality\n- **Forum**: Q&A system for community interaction\n- **Progress Tracking**: User progress monitoring\n- **Payment Integration**: Payment processing and webhooks\n- **Google Meet Integration**: OAuth2-based Google Meet conference creation\n\n## Google Meet Integration (OAuth2)\n\n### OAuth2 Flow\n1. **Get Authorization URL**: `GET /api/v1/google/auth-url`\n2. **Authorize Google Calendar**: Visit the returned URL and authorize access\n3. **Handle Callback**: `GET /api/v1/google/callback?code=YOUR_CODE`\n4. **Check Access**: `GET /api/v1/google/check-access`\n5. **Create Meetings**: `POST /api/v1/meetings` (creates real Google Meet conferences)\n\n### Key Features\n- **Real Google Meet Conferences**: Creates actual Google Meet rooms (not fake links)\n- **OAuth2 Authentication**: Works with personal Google accounts\n- **Automatic Conference Creation**: Google Calendar API creates the Meet conference\n- **Persistent Meeting Links**: Each meeting gets a unique, reusable Google Meet link\n- **Full CRUD Operations**: Create, read, update, delete meetings\n- **User Registration**: Users can register for meetings\n\n## Training Media Upload Options\n\n### Single Endpoint Approach\n- Create training with files in one request: `POST /api/v1/trainings`\n- Update training with files: `PATCH /api/v1/trainings/{id}`\n- Best for: Small files, simple workflows, atomic operations\n\n### Separate Endpoint Approach  \n- Upload media to existing training: `POST /api/v1/trainings/{id}/upload-media`\n- Get training media: `GET /api/v1/trainings/{id}/media`\n- Remove specific media: `DELETE /api/v1/trainings/{id}/media/{path}`\n- Best for: Large files, progressive upload, advanced file management\n\n## New Training Fields\n- `type`: \"online\" or \"offline\"\n- `online_details`: { participant_size, google_meet_link }\n- `offline_details`: { participant_size, address, coordinates }\n- `media_files`: Unified media storage with type categorization\n\n## Usage\n1. Set `{{base_url}}` variable to your API base URL\n2. Set `{{auth_token}}` variable with your authentication token\n3. For Google Meet: Complete OAuth2 flow first, then create meetings\n4. Use the appropriate endpoint based on your use case\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "agrar-portal"
   },
@@ -619,7 +619,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Advanced Crop Management\",\n  \"description\": \"Learn advanced farming techniques for modern agriculture\",\n  \"category\": \"Crop Management\",\n  \"trainer_id\": 2,\n  \"start_date\": \"2025-01-01\",\n  \"end_date\": \"2025-12-31\",\n  \"is_online\": true,\n  \"type\": \"online\",\n  \"online_details\": {\n    \"participant_size\": \"50\",\n    \"google_meet_link\": \"https://meet.google.com/abc-defg-hij\"\n  },\n  \"offline_details\": {\n    \"participant_size\": \"\",\n    \"address\": \"\",\n    \"coordinates\": \"\"\n  }\n}"
+              "raw": "{\n  \"title\": \"Advanced Crop Management\",\n  \"description\": \"Learn advanced farming techniques for modern agriculture\",\n  \"category\": \"Crop Management\",\n  \"trainer_id\": 2,\n  \"start_date\": \"2025-01-01\",\n  \"end_date\": \"2025-12-31\",\n  \"is_online\": true,\n  \"type\": \"online\",\n  \"has_certificate\": true,\n  \"online_details\": {\n    \"participant_size\": \"50\",\n    \"google_meet_link\": \"https://meet.google.com/abc-defg-hij\"\n  },\n  \"offline_details\": {\n    \"participant_size\": \"\",\n    \"address\": \"\",\n    \"coordinates\": \"\"\n  }\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/trainings",
@@ -680,6 +680,11 @@
                 },
                 {
                   "key": "is_online",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "has_certificate",
                   "value": "true",
                   "type": "text"
                 },
@@ -1015,7 +1020,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Updated Training Title\",\n  \"description\": \"Updated description\",\n  \"category\": \"Updated Category\"\n}"
+              "raw": "{\n  \"title\": \"Updated Training Title\",\n  \"description\": \"Updated description\",\n  \"category\": \"Updated Category\",\n  \"has_certificate\": true\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/trainings/1",
@@ -1512,6 +1517,453 @@
               ]
             },
             "description": "Upload large media files to an existing training. Use this for files larger than 10MB or when you want better error handling for file uploads."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Google Meet Management",
+      "description": "Google Meet integration using OAuth2 authentication. Users must authorize Google Calendar access first. Admins and trainers can create meetings with real Google Meet conferences, users can register and join.",
+      "item": [
+        {
+          "name": "Get Google OAuth2 Authorization URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/google/auth-url",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "google",
+                "auth-url"
+              ]
+            },
+            "description": "Get the Google OAuth2 authorization URL. Visit this URL to authorize Google Calendar access for creating Google Meet conferences."
+          }
+        },
+        {
+          "name": "Handle Google OAuth2 Callback",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/google/callback?code={{google_auth_code}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "google",
+                "callback"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "{{google_auth_code}}",
+                  "description": "Authorization code from Google OAuth2 callback"
+                }
+              ]
+            },
+            "description": "Exchange Google OAuth2 authorization code for access token. Use the code parameter from the Google OAuth2 callback URL."
+          }
+        },
+        {
+          "name": "Check Google Calendar Access",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/google/check-access",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "google",
+                "check-access"
+              ]
+            },
+            "description": "Check if the authenticated user has Google Calendar access. Returns true if user can create Google Meet meetings."
+          }
+        },
+        {
+          "name": "Revoke Google Calendar Access",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/google/revoke-access",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "google",
+                "revoke-access"
+              ]
+            },
+            "description": "Revoke Google Calendar access for the authenticated user. This will remove the stored access token."
+          }
+        },
+        {
+          "name": "Create Google Meet Meeting",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Agricultural Training Session\",\n  \"description\": \"Learn about modern farming techniques and best practices\",\n  \"start_time\": \"2025-01-15 10:00:00\",\n  \"end_time\": \"2025-01-15 12:00:00\",\n  \"timezone\": \"UTC\",\n  \"max_attendees\": 50,\n  \"training_id\": 1,\n  \"is_recurring\": false,\n  \"attendees\": [\n    {\n      \"email\": \"farmer@example.com\",\n      \"name\": \"John Farmer\"\n    },\n    {\n      \"email\": \"agriculturist@example.com\",\n      \"name\": \"Jane Agriculturist\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "meetings"
+              ]
+            },
+            "description": "Create a new Google Meet meeting with real Google Meet conference. Only admins and trainers can create meetings. User must have Google Calendar access authorized first. The system will automatically create a Google Calendar event with a real Google Meet conference link."
+          }
+        },
+        {
+          "name": "List All Meetings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings?status=upcoming",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "meetings"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "upcoming",
+                  "description": "Filter by status: upcoming, live, past, scheduled, ended, cancelled"
+                },
+                {
+                  "key": "created_by",
+                  "value": "",
+                  "description": "Filter by creator user ID"
+                },
+                {
+                  "key": "training_id",
+                  "value": "",
+                  "description": "Filter by training ID"
+                }
+              ]
+            },
+            "description": "Get a list of all meetings with optional filtering. Supports pagination and various status filters."
+          }
+        },
+        {
+          "name": "Get Meeting Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "meetings",
+                "1"
+              ]
+            },
+            "description": "Get detailed information about a specific meeting including attendee count, status, and Google Meet link."
+          }
+        },
+        {
+          "name": "Update Meeting",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Agricultural Training Session\",\n  \"description\": \"Updated description with new topics\",\n  \"max_attendees\": 100,\n  \"status\": \"scheduled\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "meetings",
+                "1"
+              ]
+            },
+            "description": "Update meeting details. Changes will be synchronized with Google Calendar. Only admins and trainers can update meetings."
+          }
+        },
+        {
+          "name": "Delete Meeting",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "meetings",
+                "1"
+              ]
+            },
+            "description": "Delete a meeting. This will remove the meeting from both the database and Google Calendar. Only admins and trainers can delete meetings."
+          }
+        },
+        {
+          "name": "Register for Meeting",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings/1/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "meetings",
+                "1",
+                "register"
+              ]
+            },
+            "description": "Register the authenticated user for a meeting. All authenticated users can register for meetings if there are available spots."
+          }
+        },
+        {
+          "name": "Cancel Meeting Registration",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings/1/cancel-registration",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "meetings",
+                "1",
+                "cancel-registration"
+              ]
+            },
+            "description": "Cancel the authenticated user's registration for a meeting. Users can only cancel their own registrations."
+          }
+        },
+        {
+          "name": "Get My Meeting Registrations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/my-meetings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "my-meetings"
+              ]
+            },
+            "description": "Get all meetings that the authenticated user has registered for. Shows registration status and meeting details."
+          }
+        },
+        {
+          "name": "Get Meeting Attendees",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings/{{meeting_id}}/attendees",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "meetings",
+                "{{meeting_id}}",
+                "attendees"
+              ]
+            },
+            "description": "Get list of all attendees registered for a specific meeting. Only admins and trainers can view attendee lists."
+          }
+        },
+        {
+          "name": "Create Recurring Meeting",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Weekly Agricultural Training\",\n  \"description\": \"Weekly training sessions for agricultural best practices\",\n  \"start_time\": \"2025-01-15 10:00:00\",\n  \"end_time\": \"2025-01-15 12:00:00\",\n  \"timezone\": \"UTC\",\n  \"max_attendees\": 30,\n  \"is_recurring\": true,\n  \"recurrence_rules\": [\n    {\n      \"frequency\": \"weekly\",\n      \"interval\": 1,\n      \"count\": 10\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "meetings"
+              ]
+            },
+            "description": "Create a recurring meeting that repeats weekly for 10 weeks. Supports various recurrence patterns."
           }
         }
       ]
@@ -3366,8 +3818,9 @@
     },
     {
       "key": "auth_token",
-      "value": "YOUR_AUTH_TOKEN_HERE",
-      "type": "string"
+      "value": "34|m1tDPv0d9hmb6S9nWTLJgeMLIeXU4p7JQUp3pv5ea41a8e42",
+      "type": "string",
+      "description": "Current working authentication token for testing"
     },
     {
       "key": "user_email",
@@ -3408,6 +3861,24 @@
       "key": "user_id",
       "value": "1",
       "type": "string"
+    },
+    {
+      "key": "google_auth_code",
+      "value": "YOUR_GOOGLE_AUTH_CODE_HERE",
+      "type": "string",
+      "description": "Authorization code from Google OAuth2 callback URL"
+    },
+    {
+      "key": "meeting_id",
+      "value": "1",
+      "type": "string",
+      "description": "Meeting ID for testing meeting operations"
+    },
+    {
+      "key": "training_id",
+      "value": "5",
+      "type": "string",
+      "description": "Training ID for creating meetings"
     }
   ]
 }

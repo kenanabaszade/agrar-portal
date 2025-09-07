@@ -22,6 +22,7 @@ class Training extends Model
         'online_details',
         'offline_details',
         'media_files',
+        'has_certificate',
     ];
 
     protected $casts = [
@@ -31,6 +32,7 @@ class Training extends Model
         'start_date' => 'date',
         'end_date' => 'date',
         'is_online' => 'boolean',
+        'has_certificate' => 'boolean',
     ];
 
     public function trainer()
