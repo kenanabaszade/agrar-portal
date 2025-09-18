@@ -34,7 +34,10 @@ class ExamRegistration extends Model
         return $this->belongsTo(Certificate::class);
     }
 
-    
+    public function answers()
+    {
+        return $this->hasMany(ExamUserAnswer::class, 'registration_id');
+    }
 }
 
 

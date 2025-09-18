@@ -16,6 +16,11 @@ Route::prefix('v1')->group(function () {
     Route::post('auth/verify-password-reset-otp', [\App\Http\Controllers\AuthController::class, 'verifyPasswordResetOtp']);
     Route::post('auth/reset-password', [\App\Http\Controllers\AuthController::class, 'resetPassword']);
     Route::post('auth/resend-password-reset-otp', [\App\Http\Controllers\AuthController::class, 'resendPasswordResetOtp']);
+    
+    // Development/Testing endpoints (only available in non-production environments)
+    Route::post('auth/generate-test-token', [\App\Http\Controllers\AuthController::class, 'generateTestToken']);
+    Route::post('auth/verify-otp-dev', [\App\Http\Controllers\AuthController::class, 'verifyOtpDev']);
+    Route::post('auth/verify-login-otp-dev', [\App\Http\Controllers\AuthController::class, 'verifyLoginOtpDev']);
 
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
@@ -43,13 +48,20 @@ Route::prefix('v1')->group(function () {
         Route::get('lessons/{lesson}/progress', [\App\Http\Controllers\TrainingLessonController::class, 'getProgress']);
         Route::post('lessons/{lesson}/complete', [\App\Http\Controllers\TrainingLessonController::class, 'markCompleted']);
 
-        // Exams CRUD (admin,trainer only)
+        // Categories CRUD (admin only)
+        Route::get('categories/dropdown', [\App\Http\Controllers\CategoryController::class, 'dropdown'])->middleware('role:admin,trainer');
+        Route::apiResource('categories', \App\Http\Controllers\CategoryController::class)->middleware('role:admin');
+
+        // Exams CRUD (admin only for management, admin/trainer for questions)
+        Route::get('exams/stats', [\App\Http\Controllers\ExamController::class, 'getStats'])->middleware('role:admin');
+        Route::get('exams/form-data', [\App\Http\Controllers\ExamController::class, 'getFormData'])->middleware('role:admin,trainer');
         Route::apiResource('exams', \App\Http\Controllers\ExamController::class)->middleware('role:admin,trainer');
+        
+        // Exam taking (for students)
         Route::post('exams/{exam}/start', [\App\Http\Controllers\ExamController::class, 'start']);
         Route::post('exams/{exam}/submit', [\App\Http\Controllers\ExamController::class, 'submit']);
         
-        // Exam Question Management (admin,trainer only)
-        Route::post('exams/{exam}/questions', [\App\Http\Controllers\ExamController::class, 'addQuestion'])->middleware('role:admin,trainer');
+        // Exam Question Management (admin,trainer only) - For editing existing exams only
         Route::put('exams/{exam}/questions/{question}', [\App\Http\Controllers\ExamController::class, 'updateQuestion'])->middleware('role:admin,trainer');
         Route::delete('exams/{exam}/questions/{question}', [\App\Http\Controllers\ExamController::class, 'deleteQuestion'])->middleware('role:admin,trainer');
         Route::get('exams/{exam}/questions', [\App\Http\Controllers\ExamController::class, 'getExamWithQuestions'])->middleware('role:admin,trainer');

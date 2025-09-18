@@ -1,0 +1,40 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('exams', function (Blueprint $table) {
+            // Make training_id nullable for independent exams
+            $table->foreignId('training_id')->nullable()->change();
+            
+            // Add category field for independent exams
+            $table->string('category')->nullable()->after('description');
+            
+            // Add index for category
+            $table->index(['category']);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('exams', function (Blueprint $table) {
+            // Revert training_id to required
+            $table->foreignId('training_id')->nullable(false)->change();
+            
+            // Remove category field
+            $table->dropIndex(['category']);
+            $table->dropColumn('category');
+        });
+    }
+};

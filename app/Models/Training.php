@@ -28,6 +28,11 @@ class Training extends Model
     {
         return $this->hasMany(TrainingModule::class);
     }
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class, 'category', 'name');
+    }
 }
 
 

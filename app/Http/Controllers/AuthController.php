@@ -561,6 +561,167 @@ class AuthController extends Controller
             'message' => 'New 2FA OTP sent to your email.',
         ], 200);
     }
+
+    /**
+     * Generate test token for development/testing (bypasses OTP verification)
+     * Only available in non-production environments
+     */
+    public function generateTestToken(Request $request)
+    {
+        // Only allow in development/testing environments
+        if (app()->environment('production')) {
+            return response()->json([
+                'message' => 'Test token generation is not available in production'
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'exists:users,email'],
+            'user_type' => ['sometimes', 'in:admin,trainer,farmer'] // Optional: specify user type
+        ]);
+
+        $user = User::where('email', $validated['email'])->first();
+
+        // If user_type is specified, create/update user with that type
+        if (isset($validated['user_type']) && $user->user_type !== $validated['user_type']) {
+            $user->update(['user_type' => $validated['user_type']]);
+        }
+
+        // Force verify email and enable 2FA if not already done
+        if (!$user->email_verified) {
+            $user->update([
+                'email_verified' => true,
+                'email_verified_at' => now(),
+                'two_factor_enabled' => true,
+                'otp_code' => null,
+                'otp_expires_at' => null,
+            ]);
+        }
+
+        // Generate token
+        $token = $user->createToken('test-token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Test token generated successfully',
+            'user' => [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+                'user_type' => $user->user_type,
+                'two_factor_enabled' => $user->two_factor_enabled,
+                'email_verified' => $user->email_verified,
+            ],
+            'token' => $token,
+            'token_type' => 'Bearer',
+            'note' => 'This is a test token for development purposes only'
+        ], 200);
+    }
+
+    /**
+     * Development OTP bypass - accepts any 6-digit code as valid
+     * Only available in non-production environments
+     */
+    public function verifyOtpDev(Request $request)
+    {
+        // Only allow in development/testing environments
+        if (app()->environment('production')) {
+            return response()->json([
+                'message' => 'Development OTP bypass is not available in production'
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'otp' => ['required', 'string', 'size:6'],
+        ]);
+
+        $user = User::where('email', $validated['email'])->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        // Accept any 6-digit code in development
+        if (strlen($validated['otp']) === 6 && is_numeric($validated['otp'])) {
+            // Verify the user and enable 2FA
+            $user->update([
+                'email_verified' => true,
+                'email_verified_at' => now(),
+                'two_factor_enabled' => true,
+                'otp_code' => null,
+                'otp_expires_at' => null,
+            ]);
+
+            $token = $user->createToken('auth-token')->plainTextToken;
+
+            return response()->json([
+                'message' => 'OTP verified successfully (development mode)',
+                'user' => [
+                    'id' => $user->id,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'email' => $user->email,
+                    'user_type' => $user->user_type,
+                    'two_factor_enabled' => $user->two_factor_enabled,
+                ],
+                'token' => $token,
+                'token_type' => 'Bearer',
+                'note' => 'Development mode: Any 6-digit code is accepted'
+            ], 200);
+        }
+
+        return response()->json(['message' => 'Invalid OTP format'], 422);
+    }
+
+    /**
+     * Development login OTP bypass - accepts any 6-digit code as valid
+     * Only available in non-production environments
+     */
+    public function verifyLoginOtpDev(Request $request)
+    {
+        // Only allow in development/testing environments
+        if (app()->environment('production')) {
+            return response()->json([
+                'message' => 'Development login OTP bypass is not available in production'
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'user_id' => ['required', 'exists:users,id'],
+            'otp' => ['required', 'string', 'size:6'],
+        ]);
+
+        $user = User::findOrFail($validated['user_id']);
+
+        // Accept any 6-digit code in development
+        if (strlen($validated['otp']) === 6 && is_numeric($validated['otp'])) {
+            // Clear OTP fields
+            $user->update([
+                'otp_code' => null,
+                'otp_expires_at' => null,
+            ]);
+
+            $token = $user->createToken('auth-token')->plainTextToken;
+
+            return response()->json([
+                'message' => 'Login OTP verified successfully (development mode)',
+                'user' => [
+                    'id' => $user->id,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'email' => $user->email,
+                    'user_type' => $user->user_type,
+                    'two_factor_enabled' => $user->two_factor_enabled,
+                ],
+                'token' => $token,
+                'token_type' => 'Bearer',
+                'note' => 'Development mode: Any 6-digit code is accepted'
+            ], 200);
+        }
+
+        return response()->json(['message' => 'Invalid OTP format'], 422);
+    }
 }
  
  

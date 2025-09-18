@@ -14,7 +14,8 @@ class ExamQuestion extends Model
         'question_text', 
         'question_media',
         'explanation',
-        'question_type', 
+        'question_type',
+        'difficulty',
         'points',
         'is_required',
         'sequence',
@@ -119,33 +120,47 @@ class ExamQuestion extends Model
      */
     public function calculatePoints($answer)
     {
-        if ($this->question_type === 'single_choice') {
-            $choice = $this->choices->find($answer['choice_id'] ?? null);
-            return $choice && $choice->is_correct ? $choice->points : 0;
+        try {
+            if ($this->question_type === 'single_choice') {
+                $choiceId = $answer['choice_id'] ?? null;
+                if (!$choiceId) return 0;
+                
+                // Use already loaded choices from relationship to avoid query
+                $choice = $this->choices->where('id', $choiceId)->first();
+                return $choice && $choice->is_correct ? ($choice->points ?? $this->points) : 0;
+            }
+
+            if ($this->question_type === 'multiple_choice') {
+                $selectedChoiceIds = collect($answer['choice_ids'] ?? []);
+                if ($selectedChoiceIds->isEmpty()) return 0;
+                
+                // Use already loaded choices from relationship
+                $allChoices = $this->choices;
+                $correctChoiceIds = $allChoices->where('is_correct', true)->pluck('id');
+                
+                // Simple scoring: if all correct choices selected and no incorrect ones
+                $correctSelected = $selectedChoiceIds->intersect($correctChoiceIds);
+                $incorrectSelected = $selectedChoiceIds->diff($correctChoiceIds);
+                
+                // All correct selected and no incorrect selected
+                if ($correctSelected->count() === $correctChoiceIds->count() && $incorrectSelected->isEmpty()) {
+                    return $this->points;
+                }
+                
+                return 0;
+            }
+
+            if ($this->question_type === 'text') {
+                // For text questions, basic validation (non-empty)
+                $answerText = trim($answer['answer_text'] ?? '');
+                return !empty($answerText) ? $this->points : 0;
+            }
+
+            return 0;
+        } catch (\Exception $e) {
+            \Log::error('Error in calculatePoints for question ' . $this->id . ': ' . $e->getMessage());
+            return 0; // Return 0 points if calculation fails
         }
-
-        if ($this->question_type === 'multiple_choice') {
-            $selectedChoices = collect($answer['choice_ids'] ?? []);
-            $correctChoices = $this->choices->where('is_correct', true);
-            
-            // All correct choices must be selected and no incorrect ones
-            $allCorrectSelected = $correctChoices->every(function ($choice) use ($selectedChoices) {
-                return $selectedChoices->contains($choice->id);
-            });
-            
-            $noIncorrectSelected = $this->choices->where('is_correct', false)->every(function ($choice) use ($selectedChoices) {
-                return !$selectedChoices->contains($choice->id);
-            });
-
-            return ($allCorrectSelected && $noIncorrectSelected) ? $this->points : 0;
-        }
-
-        if ($this->question_type === 'text') {
-            // For text questions, basic validation (non-empty)
-            return !empty($answer['answer_text']) ? $this->points : 0;
-        }
-
-        return 0;
     }
 }
 
