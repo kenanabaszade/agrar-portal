@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google OAuth2 Helper - Agrar Portal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .button {
+            background: #2196F3;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background: #1976D2;
+        }
+        .button.success {
+            background: #4CAF50;
+        }
+        .button.error {
+            background: #f44336;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .code {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Google OAuth2 Helper</h1>
+        <p>This page will help you complete the Google OAuth2 flow and test meeting creation.</p>
+
+        <div class="step">
+            <h3>Step 1: Get Authorization URL</h3>
+            <p>First, get the Google OAuth2 authorization URL:</p>
+            <button class="button" onclick="getAuthUrl()">Get Authorization URL</button>
+            <div id="authUrlStatus" class="status hidden"></div>
+            <div id="authUrlContainer" class="hidden">
+                <p><strong>Authorization URL:</strong></p>
+                <div id="authUrl" class="code"></div>
+                <button class="button success" onclick="openAuthUrl()">Open Authorization URL</button>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Complete OAuth2 Flow</h3>
+            <p>After clicking the button above, you'll be redirected to Google. Complete the authorization and you'll be redirected back here.</p>
+            <div id="oauthStatus" class="status hidden"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Check Access Status</h3>
+            <p>Check if the Google access token was properly stored:</p>
+            <button class="button" onclick="checkAccess()">Check Access Status</button>
+            <div id="accessStatus" class="status hidden"></div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Test Meeting Creation</h3>
+            <p>Create a test Google Meet meeting:</p>
+            <button class="button" onclick="createMeeting()">Create Test Meeting</button>
+            <div id="meetingStatus" class="status hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = '';
+        let authUrl = '';
+
+        // Get auth token from localStorage or prompt user
+        function getAuthToken() {
+            authToken = localStorage.getItem('authToken');
+            if (!authToken) {
+                authToken = prompt('Please enter your authentication token:');
+                if (authToken) {
+                    localStorage.setItem('authToken', authToken);
+                }
+            }
+            return authToken;
+        }
+
+        async function getAuthUrl() {
+            const token = getAuthToken();
+            if (!token) {
+                showStatus('authUrlStatus', 'Please enter your authentication token first', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/v1/google/auth-url', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.auth_url) {
+                    authUrl = data.auth_url;
+                    document.getElementById('authUrl').textContent = authUrl;
+                    document.getElementById('authUrlContainer').classList.remove('hidden');
+                    showStatus('authUrlStatus', 'Authorization URL generated successfully!', 'success');
+                } else {
+                    showStatus('authUrlStatus', `Error: ${data.message || 'Failed to get auth URL'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('authUrlStatus', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        function openAuthUrl() {
+            if (authUrl) {
+                window.open(authUrl, '_blank');
+            }
+        }
+
+        async function checkAccess() {
+            const token = getAuthToken();
+            if (!token) {
+                showStatus('accessStatus', 'Please enter your authentication token first', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/v1/google/check-access', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.has_access) {
+                    showStatus('accessStatus', '✅ Google access is properly configured!', 'success');
+                } else {
+                    showStatus('accessStatus', `❌ Google access not configured: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('accessStatus', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function createMeeting() {
+            const token = getAuthToken();
+            if (!token) {
+                showStatus('meetingStatus', 'Please enter your authentication token first', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/v1/meetings', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: 'Test Meeting from Helper',
+                        description: 'This is a test meeting created via the OAuth2 helper',
+                        start_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
+                        end_time: new Date(Date.now() + 24 * 60 * 60 * 1000 + 60 * 60 * 1000).toISOString(), // Tomorrow + 1 hour
+                        attendees: ['test@example.com']
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.data && data.data.id) {
+                    let message = `✅ Meeting created successfully!<br>`;
+                    message += `Meeting ID: ${data.data.id}<br>`;
+                    if (data.data.meet_url) {
+                        message += `Google Meet URL: <a href="${data.data.meet_url}" target="_blank">${data.data.meet_url}</a>`;
+                    }
+                    showStatus('meetingStatus', message, 'success');
+                } else {
+                    showStatus('meetingStatus', `❌ Failed to create meeting: ${data.message || JSON.stringify(data)}`, 'error');
+                }
+            } catch (error) {
+                showStatus('meetingStatus', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        function showStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `status ${type}`;
+            element.classList.remove('hidden');
+        }
+
+        // Check if we're coming back from OAuth2 callback
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const error = urlParams.get('error');
+
+            if (error) {
+                showStatus('oauthStatus', `❌ OAuth2 Error: ${error}`, 'error');
+            } else if (code) {
+                showStatus('oauthStatus', `✅ OAuth2 authorization code received: ${code.substring(0, 20)}...`, 'success');
+            }
+        });
+    </script>
+</body>
+</html>

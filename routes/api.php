@@ -1,6 +1,20 @@
 <?php
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
+// Route Model Binding
+Route::model('lesson', \App\Models\TrainingLesson::class);
+Route::model('module', \App\Models\TrainingModule::class);
+
+// Custom route model binding for nested resources
+Route::bind('lesson', function ($value, $route) {
+    $module = $route->parameter('module');
+    $moduleId = is_object($module) ? $module->id : $module;
+    return \App\Models\TrainingLesson::where('id', $value)
+        ->where('module_id', $moduleId)
+        ->firstOrFail();
+});
 
 Route::prefix('v1')->group(function () {
     // Auth
@@ -34,6 +48,11 @@ Route::prefix('v1')->group(function () {
 
         // Training Management
         Route::apiResource('trainings', \App\Http\Controllers\TrainingController::class)->middleware('role:admin,trainer');
+        
+        // Training Media Management (separate endpoints for advanced file operations)
+        Route::post('trainings/{training}/upload-media', [\App\Http\Controllers\TrainingController::class, 'uploadMedia'])->middleware('role:admin,trainer');
+        Route::delete('trainings/{training}/media/{mediaId}', [\App\Http\Controllers\TrainingController::class, 'removeMedia'])->middleware('role:admin,trainer');
+        Route::get('trainings/{training}/media', [\App\Http\Controllers\TrainingController::class, 'getMedia'])->middleware('role:admin,trainer');
         
         // Training Module Management (admin,trainer only)
         Route::apiResource('trainings.modules', \App\Http\Controllers\TrainingModuleController::class)->middleware('role:admin,trainer');
@@ -111,10 +130,27 @@ Route::prefix('v1')->group(function () {
         Route::post('profile/resend-email-change-otp', [\App\Http\Controllers\ProfileController::class, 'resendEmailChangeOtp']);
         Route::post('profile/cancel-email-change', [\App\Http\Controllers\ProfileController::class, 'cancelEmailChange']);
 
+        // Google Calendar Authentication
+        Route::get('google/auth-url', [\App\Http\Controllers\GoogleAuthController::class, 'getAuthUrl']);
+        Route::get('google/callback', [\App\Http\Controllers\GoogleAuthController::class, 'handleCallback']);
+        Route::get('google/check-access', [\App\Http\Controllers\GoogleAuthController::class, 'checkAccess']);
+        Route::post('google/revoke-access', [\App\Http\Controllers\GoogleAuthController::class, 'revokeAccess']);
+        Route::get('google/oauth2-code', [\App\Http\Controllers\GoogleAuthController::class, 'getOAuth2Code']);
+
+        // Google Meet Management (admin,trainer only)
+        Route::apiResource('meetings', \App\Http\Controllers\MeetingController::class)->middleware('role:admin,trainer');
+        Route::get('meetings/{meeting}/attendees', [\App\Http\Controllers\MeetingController::class, 'attendees'])->middleware('role:admin,trainer');
+        
+        // Meeting Registration (for all authenticated users)
+        Route::post('meetings/{meeting}/register', [\App\Http\Controllers\MeetingController::class, 'register']);
+        Route::delete('meetings/{meeting}/cancel-registration', [\App\Http\Controllers\MeetingController::class, 'cancelRegistration']);
+        Route::get('my-meetings', [\App\Http\Controllers\MeetingController::class, 'myRegistrations']);
+
         // Registrations
         Route::post('trainings/{training}/register', [\App\Http\Controllers\RegistrationController::class, 'registerTraining']);
         Route::post('exams/{exam}/register', [\App\Http\Controllers\RegistrationController::class, 'registerExam']);
     });
 });
+
 
 

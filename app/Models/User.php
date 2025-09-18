@@ -34,6 +34,9 @@ class User extends Authenticatable
         'otp_expires_at',
         'email_verified',
         'email_verified_at',
+        'google_access_token',
+        'google_refresh_token',
+        'google_token_expires_at',
     ];
 
     /**
@@ -56,6 +59,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'otp_expires_at' => 'datetime',
+            'google_token_expires_at' => 'datetime',
             'is_active' => 'boolean',
             'two_factor_enabled' => 'boolean',
             'email_verified' => 'boolean',
@@ -65,6 +69,25 @@ class User extends Authenticatable
     public function roles()
     {
         return $this->belongsToMany(Role::class, 'user_roles');
+    }
+
+    /**
+     * Check if user has a specific role
+     */
+    public function hasRole($roles)
+    {
+        if (is_string($roles)) {
+            $roles = [$roles];
+        }
+
+        // Check user_type first (like the middleware does)
+        $userRoleTypes = array_map('strtolower', $roles);
+        if (in_array(strtolower((string) $this->user_type), $userRoleTypes, true)) {
+            return true;
+        }
+
+        // Then check attached roles
+        return $this->roles()->whereIn('name', $roles)->exists();
     }
 
     public function emailChangeRequests()

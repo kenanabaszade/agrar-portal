@@ -62,21 +62,26 @@ class TrainingLessonController extends Controller
     /**
      * Get lesson details with full content
      */
-    public function show(TrainingLesson $lesson)
+    public function show(TrainingModule $module, TrainingLesson $lesson)
     {
         // Check if user has access to this lesson
         if (auth()->check()) {
             $user = auth()->user();
             
-            // Check if user is registered for the training
-            $training = $lesson->module->training;
-            $registration = $training->registrations()
-                ->where('user_id', $user->id)
-                ->where('status', 'approved')
-                ->first();
+            // Admins and trainers have access to all lessons
+            if ($user->hasRole(['admin', 'trainer'])) {
+                // Allow access for admins and trainers
+            } else {
+                // Check if user is registered for the training
+                $training = $lesson->module->training;
+                $registration = $training->registrations()
+                    ->where('user_id', $user->id)
+                    ->where('status', 'approved')
+                    ->first();
 
-            if (!$registration) {
-                return response()->json(['message' => 'Access denied. Please register for this training.'], 403);
+                if (!$registration) {
+                    return response()->json(['message' => 'Access denied. Please register for this training.'], 403);
+                }
             }
         }
 
@@ -90,7 +95,7 @@ class TrainingLessonController extends Controller
     /**
      * Update lesson
      */
-    public function update(Request $request, TrainingLesson $lesson)
+    public function update(Request $request, TrainingModule $module, TrainingLesson $lesson)
     {
         $validated = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
@@ -120,7 +125,7 @@ class TrainingLessonController extends Controller
     /**
      * Delete lesson
      */
-    public function destroy(TrainingLesson $lesson)
+    public function destroy(TrainingModule $module, TrainingLesson $lesson)
     {
         $lesson->delete();
         return response()->json(['message' => 'Lesson deleted successfully']);
