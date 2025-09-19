@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "agrar-portal-api-collection",
 		"name": "Agrar Portal API",
-		"description": "Complete API collection for Agrar Portal - Agricultural Training & Certification Platform with 2FA (Two-Factor Authentication) support using Gmail OTP",
+		"description": "Complete API collection for Agrar Portal - Agricultural Training & Certification Platform with 2FA (Two-Factor Authentication) support using Gmail OTP. Includes Google Meet integration, comprehensive exam management, training modules, forum system, and user management. Updated with all latest endpoints and detailed examples.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "agrar-portal"
 	},
@@ -3108,6 +3108,818 @@
 			]
 		},
 		{
+			"name": "Google Calendar Authentication",
+			"item": [
+				{
+					"name": "Get Google Auth URL",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/google/auth-url",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"google",
+								"auth-url"
+							]
+						}
+					},
+					"description": "Get Google OAuth2 authorization URL for Google Calendar access. User needs to visit this URL to authorize access."
+				},
+				{
+					"name": "Handle Google OAuth2 Callback",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/google/callback?code={{oauth2_code}}&state={{oauth2_state}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"google",
+								"callback"
+							],
+							"query": [
+								{
+									"key": "code",
+									"value": "{{oauth2_code}}",
+									"description": "Authorization code from Google OAuth2"
+								},
+								{
+									"key": "state",
+									"value": "{{oauth2_state}}",
+									"description": "State parameter for security"
+								}
+							]
+						}
+					},
+					"description": "Handle Google OAuth2 callback and store access token. This endpoint is called after user completes authorization."
+				},
+				{
+					"name": "Check Google Calendar Access",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/google/check-access",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"google",
+								"check-access"
+							]
+						}
+					},
+					"description": "Check if the authenticated user has valid Google Calendar access and can create meetings."
+				},
+				{
+					"name": "Revoke Google Calendar Access",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/google/revoke-access",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"google",
+								"revoke-access"
+							]
+						}
+					},
+					"description": "Revoke Google Calendar access for the authenticated user. Clears stored access token."
+				},
+				{
+					"name": "Get OAuth2 Code from Session",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/google/oauth2-code",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"google",
+								"oauth2-code"
+							]
+						}
+					},
+					"description": "Get OAuth2 code from session after user completes authorization process."
+				}
+			]
+		},
+		{
+			"name": "Google Meet Management",
+			"item": [
+				{
+					"name": "List Meetings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/meetings?status=upcoming&created_by=1&training_id=1&per_page=15&page=1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"meetings"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "upcoming",
+									"description": "Filter by status: upcoming, live, past, scheduled, ended, cancelled"
+								},
+								{
+									"key": "created_by",
+									"value": "1",
+									"description": "Filter by creator user ID",
+									"disabled": true
+								},
+								{
+									"key": "training_id",
+									"value": "1",
+									"description": "Filter by training ID",
+									"disabled": true
+								},
+								{
+									"key": "per_page",
+									"value": "15",
+									"description": "Items per page"
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								}
+							]
+						}
+					},
+					"description": "List Google Meet meetings with filtering options. Admin/trainer access required."
+				},
+				{
+					"name": "Create Google Meet Meeting",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Advanced Crop Management Workshop\",\n  \"description\": \"Learn advanced farming techniques and best practices\",\n  \"start_time\": \"2024-08-20T10:00:00Z\",\n  \"end_time\": \"2024-08-20T12:00:00Z\",\n  \"timezone\": \"UTC\",\n  \"max_attendees\": 50,\n  \"training_id\": 1,\n  \"is_recurring\": false,\n  \"recurrence_rules\": null,\n  \"attendees\": [\n    {\n      \"email\": \"farmer1@example.com\",\n      \"name\": \"John Farmer\"\n    },\n    {\n      \"email\": \"farmer2@example.com\",\n      \"name\": \"Jane Farmer\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/meetings",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"meetings"
+							]
+						}
+					},
+					"description": "Create a new Google Meet meeting. Requires Google Calendar access. Admin/trainer access required."
+				},
+				{
+					"name": "Create Recurring Meeting",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Weekly Training Session\",\n  \"description\": \"Weekly training session for farmers\",\n  \"start_time\": \"2024-08-20T10:00:00Z\",\n  \"end_time\": \"2024-08-20T12:00:00Z\",\n  \"timezone\": \"UTC\",\n  \"max_attendees\": 30,\n  \"training_id\": 1,\n  \"is_recurring\": true,\n  \"recurrence_rules\": [\n    {\n      \"frequency\": \"weekly\",\n      \"interval\": 1,\n      \"count\": 10\n    }\n  ],\n  \"attendees\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/meetings",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"meetings"
+							]
+						}
+					},
+					"description": "Create a recurring Google Meet meeting with recurrence rules."
+				},
+				{
+					"name": "Get Meeting Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/meetings/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"meetings",
+								"1"
+							]
+						}
+					},
+					"description": "Get detailed information about a specific meeting including status and attendee count."
+				},
+				{
+					"name": "Update Meeting",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Meeting Title\",\n  \"description\": \"Updated meeting description\",\n  \"start_time\": \"2024-08-21T10:00:00Z\",\n  \"end_time\": \"2024-08-21T12:00:00Z\",\n  \"max_attendees\": 60,\n  \"status\": \"scheduled\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/meetings/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"meetings",
+								"1"
+							]
+						}
+					},
+					"description": "Update meeting details. Updates both Google Calendar event and database record."
+				},
+				{
+					"name": "Delete Meeting",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/meetings/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"meetings",
+								"1"
+							]
+						}
+					},
+					"description": "Delete meeting from both Google Calendar and database. Admin/trainer access required."
+				},
+				{
+					"name": "Get Meeting Attendees",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/meetings/1/attendees",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"meetings",
+								"1",
+								"attendees"
+							]
+						}
+					},
+					"description": "Get list of meeting attendees with registration status. Admin/trainer access required."
+				}
+			]
+		},
+		{
+			"name": "Meeting Registration",
+			"item": [
+				{
+					"name": "Register for Meeting",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/meetings/1/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"meetings",
+								"1",
+								"register"
+							]
+						}
+					},
+					"description": "Register the authenticated user for a meeting. Checks for available spots and meeting status."
+				},
+				{
+					"name": "Cancel Meeting Registration",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/meetings/1/cancel-registration",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"meetings",
+								"1",
+								"cancel-registration"
+							]
+						}
+					},
+					"description": "Cancel the authenticated user's registration for a meeting."
+				},
+				{
+					"name": "Get My Meeting Registrations",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/my-meetings?per_page=15&page=1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"my-meetings"
+							],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "15",
+									"description": "Items per page"
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								}
+							]
+						}
+					},
+					"description": "Get the authenticated user's meeting registrations with meeting details."
+				}
+			]
+		},
+		{
+			"name": "Training Media Management",
+			"item": [
+				{
+					"name": "Upload Media to Training",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "type",
+									"value": "image",
+									"type": "text"
+								},
+								{
+									"key": "title",
+									"value": "Training Cover Image",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "Cover image for the training",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/upload-media",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"trainings",
+								"1",
+								"upload-media"
+							]
+						}
+					},
+					"description": "Upload media files (images, videos, documents) to a training. Admin/trainer access required."
+				},
+				{
+					"name": "Get Training Media",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/media",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"trainings",
+								"1",
+								"media"
+							]
+						}
+					},
+					"description": "Get all media files associated with a training."
+				},
+				{
+					"name": "Remove Media from Training",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/media/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"trainings",
+								"1",
+								"media",
+								"1"
+							]
+						}
+					},
+					"description": "Remove a specific media file from a training."
+				}
+			]
+		},
+		{
+			"name": "Registration Management",
+			"item": [
+				{
+					"name": "Register for Training",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"trainings",
+								"1",
+								"register"
+							]
+						}
+					},
+					"description": "Register the authenticated user for a training program."
+				},
+				{
+					"name": "Register for Exam",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/exams/1/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"exams",
+								"1",
+								"register"
+							]
+						}
+					},
+					"description": "Register the authenticated user for an exam."
+				}
+			]
+		},
+		{
+			"name": "Enhanced Forum Management",
+			"item": [
+				{
+					"name": "List Questions (Enhanced)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/forum/questions?search=tomato&per_page=15&page=1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forum",
+								"questions"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "tomato",
+									"description": "Search in question title and body"
+								},
+								{
+									"key": "per_page",
+									"value": "15",
+									"description": "Items per page"
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								}
+							]
+						}
+					},
+					"description": "List forum questions with search and pagination support."
+				},
+				{
+					"name": "Get Question Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/forum/questions/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forum",
+								"questions",
+								"1"
+							]
+						}
+					},
+					"description": "Get detailed information about a specific forum question including answers."
+				},
+				{
+					"name": "Get Question Answers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/forum/questions/1/answers?per_page=10&page=1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forum",
+								"questions",
+								"1",
+								"answers"
+							],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "10",
+									"description": "Items per page"
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number"
+								}
+							]
+						}
+					},
+					"description": "Get all answers for a specific forum question with pagination."
+				},
+				{
+					"name": "Post Question (Enhanced)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Best time to plant tomatoes in this region?\",\n  \"body\": \"I'm new to farming and would like to know the optimal planting season for tomatoes. What factors should I consider for timing?\",\n  \"category\": \"Crop Management\",\n  \"tags\": [\"tomatoes\", \"planting\", \"season\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/forum/questions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forum",
+								"questions"
+							]
+						}
+					},
+					"description": "Post a new question to the forum with enhanced metadata support."
+				},
+				{
+					"name": "Answer Question (Enhanced)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"body\": \"Spring is the best time to plant tomatoes, typically after the last frost. Consider soil temperature (above 60°F), weather conditions, and your local climate zone. Start seeds indoors 6-8 weeks before the last frost date.\",\n  \"is_helpful\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/forum/questions/1/answers",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"forum",
+								"questions",
+								"1",
+								"answers"
+							]
+						}
+					},
+					"description": "Answer a forum question with enhanced response features."
+				}
+			]
+		},
+		{
 			"name": "Health Check",
 			"item": [
 				{
@@ -3126,7 +3938,8 @@
 								"health"
 							]
 						}
-					}
+					},
+					"description": "Check API health status and basic system information."
 				}
 			]
 		}
@@ -3199,6 +4012,31 @@
                 },
                 {
                         "key": "user_id",
+                        "value": "1",
+                        "type": "string"
+                },
+                {
+                        "key": "oauth2_code",
+                        "value": "YOUR_OAUTH2_CODE_HERE",
+                        "type": "string"
+                },
+                {
+                        "key": "oauth2_state",
+                        "value": "YOUR_OAUTH2_STATE_HERE",
+                        "type": "string"
+                },
+                {
+                        "key": "meeting_id",
+                        "value": "1",
+                        "type": "string"
+                },
+                {
+                        "key": "training_id",
+                        "value": "1",
+                        "type": "string"
+                },
+                {
+                        "key": "exam_id",
                         "value": "1",
                         "type": "string"
                 }

@@ -51,11 +51,11 @@ class Training extends Model
         return $this->hasMany(TrainingModule::class);
     }
 
-<<<<<<< HEAD
     public function category()
     {
         return $this->belongsTo(Category::class, 'category', 'name');
-=======
+    }
+
     public function registrations()
     {
         return $this->hasMany(TrainingRegistration::class);
@@ -204,6 +204,5 @@ class Training extends Model
         // Update media_files array
         $mediaFiles = collect($mediaFiles)->where('type', '!=', $type)->values()->toArray();
         $this->update(['media_files' => $mediaFiles]);
->>>>>>> 7834a2db9a6b803f777e9d2b9f1e141a8153e901
     }
 }
