@@ -93,12 +93,22 @@ Route::prefix('v1')->group(function () {
         Route::get('certificates', [\App\Http\Controllers\CertificateController::class, 'index']);
         Route::get('certificates/{certificate}', [\App\Http\Controllers\CertificateController::class, 'show']);
 
-        // Forum
+        // Forum (admin manages questions; users can view and answer)
         Route::get('forum/questions', [\App\Http\Controllers\ForumController::class, 'listQuestions']);
-        Route::post('forum/questions', [\App\Http\Controllers\ForumController::class, 'postQuestion']);
         Route::get('forum/questions/{question}', [\App\Http\Controllers\ForumController::class, 'showQuestion']);
-        Route::post('forum/questions/{question}/answers', [\App\Http\Controllers\ForumController::class, 'answerQuestion']);
         Route::get('forum/questions/{question}/answers', [\App\Http\Controllers\ForumController::class, 'getAnswers']);
+        
+        // User-side commenting (answers)
+        Route::post('forum/questions/{question}/answers', [\App\Http\Controllers\ForumController::class, 'answerQuestion']);
+
+        // Admin management of forum questions
+        Route::post('forum/questions', [\App\Http\Controllers\ForumController::class, 'postQuestion'])->middleware('role:admin');
+        Route::patch('forum/questions/{question}', [\App\Http\Controllers\ForumController::class, 'updateQuestion'])->middleware('role:admin');
+        Route::delete('forum/questions/{question}', [\App\Http\Controllers\ForumController::class, 'destroyQuestion'])->middleware('role:admin');
+
+        // User-side forum (users: list their questions, create question, write answers)
+        Route::get('my/forum/questions', [\App\Http\Controllers\ForumController::class, 'myQuestions']);
+        Route::post('my/forum/questions', [\App\Http\Controllers\ForumController::class, 'createMyQuestion']);
 
         // Notifications
         Route::get('notifications', [\App\Http\Controllers\NotificationController::class, 'index']);

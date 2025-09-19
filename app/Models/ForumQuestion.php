@@ -9,7 +9,29 @@ class ForumQuestion extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'title', 'body', 'status'];
+    protected $fillable = [
+        'user_id',
+        'title',
+        'summary',
+        'body',
+        'status',
+        'question_type',
+        'poll_options',
+        'tags',
+        'category',
+        'difficulty',
+        'is_pinned',
+        'allow_comments',
+        'is_open',
+    ];
+
+    protected $casts = [
+        'tags' => 'array',
+        'poll_options' => 'array',
+        'is_pinned' => 'boolean',
+        'allow_comments' => 'boolean',
+        'is_open' => 'boolean',
+    ];
 
     public function user()
     {

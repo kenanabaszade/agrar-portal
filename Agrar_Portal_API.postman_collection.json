@@ -3920,6 +3920,139 @@
 			]
 		},
 		{
+			"name": "My Forum",
+			"item": [
+				{
+					"name": "List My Questions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/my/forum/questions?per_page=10&page=1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"my",
+								"forum",
+								"questions"
+							],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "10"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create My Question",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Damcı suvarma sistemi üçün məsləhət\",\n  \"summary\": \"Qısa icmal...\",\n  \"body\": \"Detallı məzmun...\",\n  \"category\": \"suvarma\",\n  \"difficulty\": \"beginner\",\n  \"tags\": [\"suvarma\", \"texnologiya\"],\n  \"question_type\": \"general\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/my/forum/questions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"my",
+								"forum",
+								"questions"
+							]
+						}
+					}
+				},
+				{
+					"name": "Update My Question",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Yenilənmiş başlıq\",\n  \"tags\": [\"suvarma\", \"damcı\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/my/forum/questions/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"my",
+								"forum",
+								"questions",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete My Question",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/my/forum/questions/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"my",
+								"forum",
+								"questions",
+								"1"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
 			"name": "Health Check",
 			"item": [
 				{
