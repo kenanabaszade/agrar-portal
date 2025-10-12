@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TrainingLesson;
 use App\Models\TrainingModule;
 use App\Models\UserTrainingProgress;
+use App\Models\TempLessonFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -37,11 +38,8 @@ class TrainingLessonController extends Controller
             'description' => ['nullable', 'string'],
             'video_url' => ['nullable', 'url'],
             'pdf_url' => ['nullable', 'url'],
-            'media_files' => ['nullable', 'array'],
-            'media_files.*.type' => ['required_with:media_files', 'in:image,video,audio,document'],
-            'media_files.*.url' => ['required_with:media_files', 'url'],
-            'media_files.*.title' => ['nullable', 'string'],
-            'media_files.*.description' => ['nullable', 'string'],
+            'file_codes' => ['nullable', 'array'],
+            'file_codes.*' => ['string', 'regex:/^FILE_[A-F0-9]{8}$/'],
             'sequence' => ['nullable', 'integer', 'min:1'],
             'status' => ['nullable', 'in:draft,published,archived'],
             'is_required' => ['nullable', 'boolean'],
@@ -55,6 +53,43 @@ class TrainingLessonController extends Controller
         }
 
         $lesson = $module->lessons()->create($validated);
+
+        // Process file codes and move files to final location
+        if (isset($validated['file_codes']) && is_array($validated['file_codes'])) {
+            $finalMediaFiles = [];
+            
+            foreach ($validated['file_codes'] as $fileCode) {
+                // Find temp file by code
+                $tempFile = TempLessonFile::where('file_code', $fileCode)
+                    ->where('expires_at', '>', now())
+                    ->first();
+                
+                if ($tempFile) {
+                    // Move file from temp to final location
+                    $finalPath = 'lessons/' . $lesson->id . '/' . basename($tempFile->temp_path);
+                    Storage::disk('public')->move($tempFile->temp_path, $finalPath);
+                    
+                    // Create media file entry
+                    $mediaFile = [
+                        'type' => $tempFile->type,
+                        'url' => Storage::url($finalPath),
+                        'filename' => $tempFile->filename,
+                        'size' => $tempFile->size,
+                        'mime_type' => $tempFile->mime_type,
+                        'title' => $tempFile->title,
+                        'description' => $tempFile->description,
+                    ];
+                    
+                    $finalMediaFiles[] = $mediaFile;
+                    
+                    // Delete temp file record
+                    $tempFile->delete();
+                }
+            }
+            
+            // Update lesson with final media files
+            $lesson->update(['media_files' => $finalMediaFiles]);
+        }
 
         return response()->json($lesson->load('module'), 201);
     }
@@ -107,7 +142,7 @@ class TrainingLessonController extends Controller
             'pdf_url' => ['nullable', 'url'],
             'media_files' => ['nullable', 'array'],
             'media_files.*.type' => ['required_with:media_files', 'in:image,video,audio,document'],
-            'media_files.*.url' => ['required_with:media_files', 'url'],
+            'media_files.*.url' => ['required_with:media_files', 'string'],
             'media_files.*.title' => ['nullable', 'string'],
             'media_files.*.description' => ['nullable', 'string'],
             'sequence' => ['nullable', 'integer', 'min:1'],
@@ -116,6 +151,39 @@ class TrainingLessonController extends Controller
             'min_completion_time' => ['nullable', 'integer', 'min:1'],
             'metadata' => ['nullable', 'array'],
         ]);
+
+        // Handle media files update
+        if (isset($validated['media_files'])) {
+            $newMediaFiles = [];
+            $oldMediaFiles = $lesson->media_files ?? [];
+            
+            foreach ($validated['media_files'] as $mediaFile) {
+                if (isset($mediaFile['temp_path'])) {
+                    // This is a new file from temp directory
+                    $finalPath = 'lessons/' . $lesson->id . '/' . basename($mediaFile['temp_path']);
+                    Storage::disk('public')->move($mediaFile['temp_path'], $finalPath);
+                    
+                    // Update URL and remove temp_path
+                    $mediaFile['url'] = Storage::url($finalPath);
+                    unset($mediaFile['temp_path']);
+                }
+                $newMediaFiles[] = $mediaFile;
+            }
+            
+            // Delete old files that are not in the new list
+            $oldUrls = collect($oldMediaFiles)->pluck('url')->toArray();
+            $newUrls = collect($newMediaFiles)->pluck('url')->toArray();
+            $filesToDelete = array_diff($oldUrls, $newUrls);
+            
+            foreach ($filesToDelete as $url) {
+                $path = str_replace(Storage::url(''), '', $url);
+                if (Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
+            }
+            
+            $validated['media_files'] = $newMediaFiles;
+        }
 
         $lesson->update($validated);
 
@@ -127,8 +195,30 @@ class TrainingLessonController extends Controller
      */
     public function destroy(TrainingModule $module, TrainingLesson $lesson)
     {
+        // Delete all media files associated with this lesson
+        $mediaFiles = $lesson->media_files ?? [];
+        
+        foreach ($mediaFiles as $mediaFile) {
+            if (isset($mediaFile['url'])) {
+                // Extract file path from URL
+                $url = $mediaFile['url'];
+                $path = str_replace(Storage::url(''), '', $url);
+                
+                // Delete file from storage
+                if (Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
+            }
+        }
+        
+        // Delete the lesson directory if it exists
+        $lessonDir = 'lessons/' . $lesson->id;
+        if (Storage::disk('public')->exists($lessonDir)) {
+            Storage::disk('public')->deleteDirectory($lessonDir);
+        }
+        
         $lesson->delete();
-        return response()->json(['message' => 'Lesson deleted successfully']);
+        return response()->json(['message' => 'Lesson and all associated media files deleted successfully']);
     }
 
     /**
@@ -201,6 +291,88 @@ class TrainingLessonController extends Controller
             'progress' => $progress,
             'is_completed' => $progress && $progress->status === 'completed',
         ]);
+    }
+
+    /**
+     * Upload temporary media files (before lesson creation)
+     */
+    public function uploadTempMedia(Request $request)
+    {
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'max:102400'], // 100MB max
+            'type' => ['required', 'in:image,video,audio,document'],
+            'title' => ['nullable', 'string'],
+            'description' => ['nullable', 'string'],
+        ]);
+
+        $file = $request->file('file');
+        $tempPath = $file->store('temp/lessons', 'public');
+
+        $mediaFile = [
+            'type' => $validated['type'],
+            'url' => Storage::url($tempPath),
+            'filename' => $file->getClientOriginalName(),
+            'size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+            'title' => $validated['title'] ?? $file->getClientOriginalName(),
+            'description' => $validated['description'] ?? null,
+            'temp_path' => $tempPath, // Store temp path for later move
+        ];
+
+        // Generate unique code for this file
+        $fileCode = 'FILE_' . strtoupper(substr(md5(uniqid()), 0, 8));
+        
+        // Store temp file info in database
+        $tempFile = TempLessonFile::create([
+            'file_code' => $fileCode,
+            'temp_path' => $tempPath,
+            'type' => $validated['type'],
+            'filename' => $file->getClientOriginalName(),
+            'size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+            'title' => $validated['title'] ?? $file->getClientOriginalName(),
+            'description' => $validated['description'] ?? null,
+            'expires_at' => now()->addHours(24), // 24 saat sonra expire
+        ]);
+
+        return response()->json([
+            'message' => 'Media uploaded successfully',
+            'file_code' => $fileCode,
+            'temp_url' => Storage::url($tempPath)
+        ]);
+    }
+
+    /**
+     * Delete temporary media file
+     */
+    public function deleteTempMedia(Request $request)
+    {
+        $validated = $request->validate([
+            'file_code' => ['required', 'string'],
+        ]);
+
+        $fileCode = $validated['file_code'];
+        
+        // Find temp file by code
+        $tempFile = TempLessonFile::where('file_code', $fileCode)->first();
+        
+        if ($tempFile) {
+            // Delete physical file
+            if (Storage::disk('public')->exists($tempFile->temp_path)) {
+                Storage::disk('public')->delete($tempFile->temp_path);
+            }
+            
+            // Delete database record
+            $tempFile->delete();
+            
+            return response()->json([
+                'message' => 'Temporary media deleted successfully'
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'File not found'
+        ], 404);
     }
 
     /**

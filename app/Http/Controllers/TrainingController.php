@@ -11,9 +11,163 @@ use Illuminate\Validation\Rules\File;
 class TrainingController extends Controller
 {
     
-    public function index()
+    public function index(Request $request)
     {
-        return Training::with('modules.lessons')->paginate(15);
+        $query = Training::with(['modules.lessons', 'trainer', 'registrations'])
+            ->withCount(['registrations']);
+
+        // Search functionality
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('category', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by category
+        if ($request->filled('category')) {
+            $query->where('category', $request->get('category'));
+        }
+
+        // Filter by trainer
+        if ($request->filled('trainer_id')) {
+            $query->where('trainer_id', $request->get('trainer_id'));
+        }
+
+        // Filter by difficulty
+        if ($request->filled('difficulty')) {
+            $query->where('difficulty', $request->get('difficulty'));
+        }
+
+        // Filter by type (online/offline)
+        if ($request->filled('type')) {
+            $query->where('type', $request->get('type'));
+        }
+
+        // Sorting
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        
+        if (in_array($sortBy, ['title', 'created_at', 'start_date', 'end_date', 'difficulty'])) {
+            $query->orderBy($sortBy, $sortOrder);
+        }
+
+        $perPage = min($request->get('per_page', 15), 100);
+        $trainings = $query->paginate($perPage);
+
+        // Add statistics and media counts for each training
+        $trainings->getCollection()->transform(function ($training) {
+            // Calculate registration statistics
+            $totalRegistrations = $training->registrations_count;
+            $completedRegistrations = $training->registrations()
+                ->whereHas('userTrainingProgress', function ($query) {
+                    $query->where('status', 'completed');
+                })
+                ->count();
+            
+            $startedRegistrations = $training->registrations()
+                ->whereHas('userTrainingProgress', function ($query) {
+                    $query->where('status', 'in_progress');
+                })
+                ->count();
+
+            // Calculate completion percentage
+            $completionRate = $totalRegistrations > 0 ? round(($completedRegistrations / $totalRegistrations) * 100, 2) : 0;
+            $progressRate = $totalRegistrations > 0 ? round((($completedRegistrations + $startedRegistrations) / $totalRegistrations) * 100, 2) : 0;
+
+            // Count media files by type (training + modules + lessons)
+            $trainingMediaFiles = $training->media_files ?? [];
+            
+            // Get all modules and their lessons
+            $modules = $training->modules;
+            
+            // Initialize counters
+            $totalVideos = 0;
+            $totalDocuments = 0;
+            $totalImages = 0;
+            $totalAudio = 0;
+            
+            // Count training media files
+            foreach ($trainingMediaFiles as $file) {
+                $mimeType = $file['mime_type'] ?? '';
+                if ($file['type'] === 'intro_video' || str_contains($mimeType, 'video')) {
+                    $totalVideos++;
+                } elseif (str_contains($mimeType, 'pdf') || str_contains($mimeType, 'doc')) {
+                    $totalDocuments++;
+                } elseif ($file['type'] === 'banner' || str_contains($mimeType, 'image')) {
+                    $totalImages++;
+                } elseif (str_contains($mimeType, 'audio')) {
+                    $totalAudio++;
+                }
+            }
+            
+            // Count lesson media files and URLs
+            foreach ($modules as $module) {
+                $lessons = $module->lessons;
+                foreach ($lessons as $lesson) {
+                    // Count video_url
+                    if (!empty($lesson->video_url)) {
+                        $totalVideos++;
+                    }
+                    
+                    // Count pdf_url
+                    if (!empty($lesson->pdf_url)) {
+                        $totalDocuments++;
+                    }
+                    
+                    // Count lesson media_files
+                    $lessonMedia = $lesson->media_files ?? [];
+                    foreach ($lessonMedia as $file) {
+                        if (isset($file['type'])) {
+                            switch ($file['type']) {
+                                case 'video':
+                                    $totalVideos++;
+                                    break;
+                                case 'document':
+                                    $totalDocuments++;
+                                    break;
+                                case 'image':
+                                    $totalImages++;
+                                    break;
+                                case 'audio':
+                                    $totalAudio++;
+                                    break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            $mediaStats = [
+                'videos_count' => $totalVideos,
+                'documents_count' => $totalDocuments,
+                'images_count' => $totalImages,
+                'audio_count' => $totalAudio,
+                'total_media' => $totalVideos + $totalDocuments + $totalImages + $totalAudio,
+                'training_media_count' => count($trainingMediaFiles),
+                'modules_count' => $modules->count(),
+                'lessons_count' => $modules->sum(function ($module) {
+                    return $module->lessons->count();
+                })
+            ];
+
+            // Add statistics to training object
+            $training->statistics = [
+                'total_registrations' => $totalRegistrations,
+                'started_count' => $startedRegistrations,
+                'completed_count' => $completedRegistrations,
+                'completion_rate' => $completionRate,
+                'progress_rate' => $progressRate
+            ];
+
+            $training->media_statistics = $mediaStats;
+
+            return $training;
+        });
+
+        return $trainings;
     }
 
     public function store(Request $request)
@@ -26,7 +180,7 @@ class TrainingController extends Controller
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'is_online' => ['nullable', 'boolean'],
-            'type' => ['nullable', 'string', 'in:online,offline'],
+            'type' => ['nullable', 'string', 'regex:/^(online|offline|video)$/i'],
             'online_details' => ['nullable', 'array'],
             'online_details.participant_size' => ['nullable', 'string'],
             'online_details.google_meet_link' => ['nullable', 'string'],
@@ -115,7 +269,7 @@ class TrainingController extends Controller
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'is_online' => ['nullable', 'boolean'],
-            'type' => ['nullable', 'string', 'in:online,offline'],
+            'type' => ['nullable', 'string', 'regex:/^(online|offline|video)$/i'],
             'online_details' => ['nullable', 'array'],
             'online_details.participant_size' => ['nullable', 'string'],
             'online_details.google_meet_link' => ['nullable', 'string'],

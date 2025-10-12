@@ -37,6 +37,7 @@ class User extends Authenticatable
         'google_access_token',
         'google_refresh_token',
         'google_token_expires_at',
+        'last_login_at',
     ];
 
     /**
@@ -54,17 +55,18 @@ class User extends Authenticatable
      *
      * @return array<string, string>
      */
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'otp_expires_at' => 'datetime',
-            'google_token_expires_at' => 'datetime',
-            'is_active' => 'boolean',
-            'two_factor_enabled' => 'boolean',
-            'email_verified' => 'boolean',
-        ];
-    }
+        protected function casts(): array
+        {
+            return [
+                'email_verified_at' => 'datetime',
+                'otp_expires_at' => 'datetime',
+                'google_token_expires_at' => 'datetime',
+                'last_login_at' => 'datetime',
+                'is_active' => 'boolean',
+                'two_factor_enabled' => 'boolean',
+                'email_verified' => 'boolean',
+            ];
+        }
 
     public function roles()
     {
@@ -93,5 +95,15 @@ class User extends Authenticatable
     public function emailChangeRequests()
     {
         return $this->hasMany(EmailChangeRequest::class);
+    }
+
+    public function registrations()
+    {
+        return $this->hasMany(TrainingRegistration::class);
+    }
+
+    public function userTrainingProgress()
+    {
+        return $this->hasMany(UserTrainingProgress::class);
     }
 }

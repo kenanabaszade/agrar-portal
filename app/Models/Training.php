@@ -36,6 +36,14 @@ class Training extends Model
         'has_certificate' => 'boolean',
     ];
 
+    // Validation rules for training type
+    public static function getTypeValidationRules()
+    {
+        return [
+            'type' => 'nullable|string|in:online,offline,video,Online,Offline,Video,ONLINE,OFFLINE,VIDEO'
+        ];
+    }
+
     protected $attributes = [
         'is_online' => true,
         'has_certificate' => false,

@@ -307,6 +307,9 @@ class AuthController extends Controller
             ]);
         }
 
+        // Update last login time
+        $user->update(['last_login_at' => Carbon::now()]);
+
         $token = $user->createToken('api')->plainTextToken;
 
         return response()->json([

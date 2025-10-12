@@ -40,6 +40,10 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('auth/logout', [\App\Http\Controllers\AuthController::class, 'logout']);
         
+        // Dashboard
+        Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'index']);
+    Route::get('training-stats', [\App\Http\Controllers\TrainingStatsController::class, 'index']);
+        
         // 2FA Management (for authenticated users)
         Route::get('auth/2fa/status', [\App\Http\Controllers\AuthController::class, 'getTwoFactorStatus']);
         Route::post('auth/2fa/enable', [\App\Http\Controllers\AuthController::class, 'enableTwoFactor']);
@@ -59,6 +63,8 @@ Route::prefix('v1')->group(function () {
         
         // Training Lesson Management (admin,trainer only)
         Route::apiResource('modules.lessons', \App\Http\Controllers\TrainingLessonController::class)->middleware('role:admin,trainer');
+        Route::post('lessons/upload-temp-media', [\App\Http\Controllers\TrainingLessonController::class, 'uploadTempMedia'])->middleware('role:admin,trainer');
+        Route::delete('lessons/delete-temp-media', [\App\Http\Controllers\TrainingLessonController::class, 'deleteTempMedia'])->middleware('role:admin,trainer');
         Route::post('lessons/{lesson}/upload-media', [\App\Http\Controllers\TrainingLessonController::class, 'uploadMedia'])->middleware('role:admin,trainer');
         Route::delete('lessons/{lesson}/remove-media', [\App\Http\Controllers\TrainingLessonController::class, 'removeMedia'])->middleware('role:admin,trainer');
         Route::post('modules/{module}/reorder-lessons', [\App\Http\Controllers\TrainingLessonController::class, 'reorder'])->middleware('role:admin,trainer');
