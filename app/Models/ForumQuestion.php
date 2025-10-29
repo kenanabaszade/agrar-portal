@@ -23,6 +23,8 @@ class ForumQuestion extends Model
         'is_pinned',
         'allow_comments',
         'is_open',
+        'is_public',
+        'views',
     ];
 
     protected $casts = [
@@ -31,6 +33,7 @@ class ForumQuestion extends Model
         'is_pinned' => 'boolean',
         'allow_comments' => 'boolean',
         'is_open' => 'boolean',
+        'is_public' => 'boolean',
     ];
 
     public function user()
@@ -41,6 +44,11 @@ class ForumQuestion extends Model
     public function answers()
     {
         return $this->hasMany(ForumAnswer::class, 'question_id');
+    }
+
+    public function pollVotes()
+    {
+        return $this->hasMany(ForumPollVote::class, 'question_id');
     }
 }
 

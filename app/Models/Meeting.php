@@ -24,9 +24,19 @@ class Meeting extends Model
         'recurrence_rules',
         'status',
         'created_by',
-        'training_id',
+        'trainer_id',
         'attendees',
         'google_metadata',
+        // New enhanced fields
+        'category',
+        'image_url',
+        'has_materials',
+        'documents',
+        'level',
+        'language',
+        'hashtags',
+        'is_permanent',
+        'has_certificate',
     ];
 
     protected $casts = [
@@ -36,6 +46,12 @@ class Meeting extends Model
         'recurrence_rules' => 'array',
         'attendees' => 'array',
         'google_metadata' => 'array',
+        // New enhanced fields casts
+        'has_materials' => 'boolean',
+        'documents' => 'array',
+        'hashtags' => 'array',
+        'is_permanent' => 'boolean',
+        'has_certificate' => 'boolean',
     ];
 
     /**
@@ -47,11 +63,19 @@ class Meeting extends Model
     }
 
     /**
-     * Get the associated training (if any)
+     * Get the associated trainer (if any)
      */
-    public function training(): BelongsTo
+    public function trainer(): BelongsTo
     {
-        return $this->belongsTo(Training::class);
+        return $this->belongsTo(User::class, 'trainer_id');
+    }
+
+    /**
+     * Get the associated category (if any)
+     */
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
     }
 
     /**

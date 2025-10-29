@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\TrainingLesson;
 use App\Models\TrainingModule;
 use App\Models\UserTrainingProgress;
+use App\Models\{TrainingRegistration, Certificate};
 use App\Models\TempLessonFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class TrainingLessonController extends Controller
 {
@@ -232,26 +234,23 @@ class TrainingLessonController extends Controller
         ]);
 
         $user = auth()->user();
-
-        // Check if user is registered for the training
         $training = $lesson->module->training;
-        $registration = $training->registrations()
-            ->where('user_id', $user->id)
-            ->where('status', 'approved')
-            ->first();
 
-        if (!$registration) {
-            return response()->json(['message' => 'Access denied. Please register for this training.'], 403);
+        // For video trainings, registration is not required
+        if ($training->type !== 'video') {
+            // Check if user is registered for non-video trainings
+            $registration = $training->registrations()
+                ->where('user_id', $user->id)
+                ->where('status', 'approved')
+                ->first();
+
+            if (!$registration) {
+                return response()->json(['message' => 'Access denied. Please register for this training.'], 403);
+            }
         }
 
-        // Check minimum completion time if set
-        if ($lesson->min_completion_time && $validated['time_spent'] < $lesson->min_completion_time) {
-            return response()->json([
-                'message' => 'Minimum completion time not met',
-                'required_time' => $lesson->min_completion_time,
-                'spent_time' => $validated['time_spent']
-            ], 422);
-        }
+        // Minimum completion time check is disabled
+        // Users can complete lessons without time restrictions
 
         // Update or create progress
         $progress = UserTrainingProgress::updateOrCreate([
@@ -265,6 +264,60 @@ class TrainingLessonController extends Controller
             'time_spent' => $validated['time_spent'] ?? null,
             'notes' => $validated['notes'] ?? null,
         ]);
+
+        // Check if training has certificate and all required lessons completed
+        if ($training->has_certificate) {
+            $requiredLessonIds = $training->modules()->with(['lessons' => function ($q) {
+                $q->where('is_required', true);
+            }])->get()->pluck('lessons')->flatten()->pluck('id')->all();
+
+            $completedRequiredCount = UserTrainingProgress::where('user_id', $user->id)
+                ->where('training_id', $training->id)
+                ->whereIn('lesson_id', $requiredLessonIds)
+                ->where('status', 'completed')
+                ->count();
+
+            if (count($requiredLessonIds) > 0 && $completedRequiredCount === count($requiredLessonIds)) {
+                // For video trainings, create certificate without registration
+                if ($training->type === 'video') {
+                    // Check if certificate already exists
+                    $existingCert = Certificate::where('user_id', $user->id)
+                        ->where('related_training_id', $training->id)
+                        ->first();
+
+                    if (!$existingCert) {
+                        $cert = Certificate::create([
+                            'user_id' => $user->id,
+                            'related_training_id' => $training->id,
+                            'related_exam_id' => null,
+                            'certificate_number' => Str::uuid()->toString(),
+                            'issue_date' => now()->toDateString(),
+                            'issuer_name' => 'Aqrar Portal',
+                            'status' => 'active',
+                        ]);
+                    }
+                } else {
+                    // For non-video trainings, attach certificate to registration
+                    $registration = TrainingRegistration::where('user_id', $user->id)
+                        ->where('training_id', $training->id)
+                        ->where('status', 'approved')
+                        ->first();
+
+                    if ($registration && !$registration->certificate_id) {
+                        $cert = Certificate::create([
+                            'user_id' => $user->id,
+                            'related_training_id' => $training->id,
+                            'related_exam_id' => null,
+                            'certificate_number' => Str::uuid()->toString(),
+                            'issue_date' => now()->toDateString(),
+                            'issuer_name' => 'Aqrar Portal',
+                            'status' => 'active',
+                        ]);
+                        $registration->update(['certificate_id' => $cert->id, 'status' => 'completed']);
+                    }
+                }
+            }
+        }
 
         return response()->json([
             'message' => 'Lesson marked as completed',

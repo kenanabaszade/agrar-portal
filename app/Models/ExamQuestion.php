@@ -127,7 +127,7 @@ class ExamQuestion extends Model
                 
                 // Use already loaded choices from relationship to avoid query
                 $choice = $this->choices->where('id', $choiceId)->first();
-                return $choice && $choice->is_correct ? ($choice->points ?? $this->points) : 0;
+                return $choice && $choice->is_correct ? ($choice->points ?: $this->points) : 0;
             }
 
             if ($this->question_type === 'multiple_choice') {
@@ -150,10 +150,18 @@ class ExamQuestion extends Model
                 return 0;
             }
 
+            if ($this->question_type === 'true_false') {
+                $choiceId = $answer['choice_id'] ?? null;
+                if (!$choiceId) return 0;
+                
+                $choice = $this->choices->where('id', $choiceId)->first();
+                return $choice && $choice->is_correct ? ($choice->points ?: $this->points) : 0;
+            }
+
             if ($this->question_type === 'text') {
-                // For text questions, basic validation (non-empty)
+                // For text questions, return null to indicate manual grading needed
                 $answerText = trim($answer['answer_text'] ?? '');
-                return !empty($answerText) ? $this->points : 0;
+                return !empty($answerText) ? null : 0; // null means needs manual grading
             }
 
             return 0;
@@ -161,6 +169,81 @@ class ExamQuestion extends Model
             \Log::error('Error in calculatePoints for question ' . $this->id . ': ' . $e->getMessage());
             return 0; // Return 0 points if calculation fails
         }
+    }
+
+    /**
+     * Check if an answer is correct (for new scoring system)
+     */
+    public function isAnswerCorrect($answer)
+    {
+        try {
+            if ($this->question_type === 'single_choice') {
+                $choiceId = $answer['choice_id'] ?? null;
+                
+                // If choice_id is not provided, try to find by answer_text
+                if (!$choiceId && isset($answer['answer_text'])) {
+                    $choice = $this->choices->where('choice_text', $answer['answer_text'])->first();
+                    return $choice && $choice->is_correct;
+                }
+                
+                if (!$choiceId) return false;
+                
+                $choice = $this->choices->where('id', $choiceId)->first();
+                return $choice && $choice->is_correct;
+            }
+
+            if ($this->question_type === 'multiple_choice') {
+                // Handle both choice_ids array and single choice_id
+                $choiceIds = $answer['choice_ids'] ?? [];
+                if (empty($choiceIds) && isset($answer['choice_id'])) {
+                    $choiceIds = [$answer['choice_id']];
+                }
+                
+                // If choice_ids is still empty, try to find by answer_text
+                if (empty($choiceIds) && isset($answer['answer_text'])) {
+                    $choice = $this->choices->where('choice_text', $answer['answer_text'])->first();
+                    if ($choice) {
+                        $choiceIds = [$choice->id];
+                    }
+                }
+                
+                if (empty($choiceIds)) return false;
+                
+                $correctChoices = $this->choices->where('is_correct', true)->pluck('id')->toArray();
+                $selectedChoices = $choiceIds;
+                
+                // Check if all correct choices are selected and no incorrect ones
+                return count($correctChoices) === count($selectedChoices) && 
+                       empty(array_diff($correctChoices, $selectedChoices));
+            }
+
+            if ($this->question_type === 'true_false') {
+                $choiceId = $answer['choice_id'] ?? null;
+                if (!$choiceId) return false;
+                
+                $choice = $this->choices->where('id', $choiceId)->first();
+                return $choice && $choice->is_correct;
+            }
+
+            if ($this->question_type === 'text') {
+                // Text questions always return false for auto-grading
+                // They will be graded manually
+                return false;
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            \Log::error('Error in isAnswerCorrect for question ' . $this->id . ': ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Check if question needs manual grading
+     */
+    public function needsManualGrading()
+    {
+        return $this->question_type === 'text';
     }
 }
 

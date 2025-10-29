@@ -17,13 +17,30 @@ class Training extends Model
         'trainer_id',
         'start_date',
         'end_date',
+        'start_time',
+        'end_time',
+        'timezone',
         'is_online',
         'type',
         'online_details',
         'offline_details',
         'media_files',
         'has_certificate',
+        'require_email_verification',
+        'has_exam',
+        'exam_id',
+        'exam_required',
+        'min_exam_score',
+        'status',
         'difficulty',
+        // Google Meet integration fields
+        'google_meet_link',
+        'google_event_id',
+        'meeting_id',
+        // Recurring meeting fields
+        'is_recurring',
+        'recurrence_frequency',
+        'recurrence_end_date',
     ];
 
     protected $casts = [
@@ -32,8 +49,13 @@ class Training extends Model
         'offline_details' => 'array',
         'start_date' => 'date',
         'end_date' => 'date',
+        'start_time' => 'datetime:H:i',
+        'end_time' => 'datetime:H:i',
         'is_online' => 'boolean',
         'has_certificate' => 'boolean',
+        'require_email_verification' => 'boolean',
+        'has_exam' => 'boolean',
+        'exam_required' => 'boolean',
     ];
 
     // Validation rules for training type
@@ -47,7 +69,15 @@ class Training extends Model
     protected $attributes = [
         'is_online' => true,
         'has_certificate' => false,
+        'has_exam' => false,
+        'exam_required' => false,
     ];
+
+    // Relationships
+    public function exam()
+    {
+        return $this->belongsTo(\App\Models\Exam::class);
+    }
 
     public function trainer()
     {
@@ -70,7 +100,47 @@ class Training extends Model
     }
 
     /**
-     * Get all media files with full URLs
+     * Get banner image URL
+     */
+    public function getBannerUrlAttribute()
+    {
+        $mediaFiles = $this->media_files ?? [];
+        
+        foreach ($mediaFiles as $file) {
+            if ($file['type'] === 'banner') {
+                return Storage::url($file['path']);
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Get all banner images with full URLs
+     */
+    public function getBannerImagesAttribute()
+    {
+        $mediaFiles = $this->media_files ?? [];
+        $banners = [];
+        
+        foreach ($mediaFiles as $file) {
+            if ($file['type'] === 'banner') {
+                $banners[] = [
+                    'path' => $file['path'],
+                    'url' => Storage::url($file['path']),
+                    'original_name' => $file['original_name'] ?? null,
+                    'mime_type' => $file['mime_type'] ?? null,
+                    'size' => $file['size'] ?? null,
+                    'uploaded_at' => $file['uploaded_at'] ?? null,
+                ];
+            }
+        }
+        
+        return $banners;
+    }
+
+    /**
+     * Get all media files - raw data qaytar
      */
     public function getMediaFilesAttribute($value)
     {
@@ -78,16 +148,8 @@ class Training extends Model
             return [];
         }
 
-        $mediaFiles = json_decode($value, true);
-        
-        return collect($mediaFiles)->map(function ($file) {
-            if (isset($file['path']) && !str_starts_with($file['path'], 'http')) {
-                $file['url'] = Storage::url($file['path']);
-            } else {
-                $file['url'] = $file['path'] ?? null;
-            }
-            return $file;
-        })->toArray();
+        // Raw media files qaytar, URL formatlaşdırmasını TrainingController-də edək
+        return json_decode($value, true) ?? [];
     }
 
     /**
@@ -162,6 +224,7 @@ class Training extends Model
             'mime_type' => $mimeType,
             'size' => $size,
             'uploaded_at' => now()->toISOString(),
+            'url' => '/storage/' . $path, // Relative URL - TrainingController-də tam URL-ə çevrilir
         ];
 
         // If it's a banner or intro_video, replace existing one of same type
@@ -212,5 +275,87 @@ class Training extends Model
         // Update media_files array
         $mediaFiles = collect($mediaFiles)->where('type', '!=', $type)->values()->toArray();
         $this->update(['media_files' => $mediaFiles]);
+    }
+
+    /**
+     * Get training duration in days
+     */
+    public function getDurationDaysAttribute()
+    {
+        if (!$this->start_date || !$this->end_date) {
+            return null;
+        }
+
+        return $this->start_date->diffInDays($this->end_date) + 1; // +1 to include both start and end dates
+    }
+
+    /**
+     * Get training duration in human readable format
+     */
+    public function getDurationAttribute()
+    {
+        if (!$this->start_date || !$this->end_date) {
+            return null;
+        }
+
+        $days = $this->start_date->diffInDays($this->end_date) + 1;
+        
+        if ($days == 1) {
+            return '1 gün';
+        } elseif ($days < 7) {
+            return $days . ' gün';
+        } elseif ($days < 30) {
+            $weeks = floor($days / 7);
+            $remainingDays = $days % 7;
+            if ($remainingDays == 0) {
+                return $weeks . ' həftə';
+            } else {
+                return $weeks . ' həftə ' . $remainingDays . ' gün';
+            }
+        } else {
+            $months = floor($days / 30);
+            $remainingDays = $days % 30;
+            if ($remainingDays == 0) {
+                return $months . ' ay';
+            } else {
+                return $months . ' ay ' . $remainingDays . ' gün';
+            }
+        }
+    }
+
+    /**
+     * Get total lesson duration in minutes
+     */
+    public function getTotalLessonDurationMinutesAttribute()
+    {
+        return $this->modules()
+            ->with('lessons')
+            ->get()
+            ->pluck('lessons')
+            ->flatten()
+            ->sum('duration_minutes');
+    }
+
+    /**
+     * Get total lesson duration in human readable format
+     */
+    public function getTotalLessonDurationAttribute()
+    {
+        $totalMinutes = $this->total_lesson_duration_minutes;
+        
+        if ($totalMinutes == 0) {
+            return null;
+        }
+
+        $hours = floor($totalMinutes / 60);
+        $minutes = $totalMinutes % 60;
+
+        if ($hours == 0) {
+            return $minutes . ' dəqiqə';
+        } elseif ($minutes == 0) {
+            return $hours . ' saat';
+        } else {
+            return $hours . ' saat ' . $minutes . ' dəqiqə';
+        }
     }
 }

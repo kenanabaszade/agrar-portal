@@ -1,0 +1,390 @@
+{
+  "internship_programs": [
+    {
+      "id": 1,
+      "trainer_id": 1,
+      "title": "Müasir Bitki Yetişdiriciliyi Staj Proqramı",
+      "description": "Bitki yetişdiriciliyi sahəsində 12 həftəlik intensiv praktiki təlim proqramı. Müasir texnologiyalar və ən yaxşı təcrübələrlə tanışlıq.",
+      "image_url": "/images/wheat_grains.jpg",
+      "is_featured": true,
+      "registration_status": "open",
+      "category": "Bitki Yetişdiriciliyi",
+      "duration_weeks": 12,
+      "start_date": "2025-03-15",
+      "location": "Bakı və ətraf fermalar",
+      "current_enrollment": 12,
+      "max_capacity": 20,
+      "instructor_name": "Dr. Leyla Məhərrəmova",
+      "instructor_title": "Bitki Yetişdiriciliyi Mütəxəssisi",
+      "instructor_initials": "DLM",
+      "instructor_photo_url": "/images/instructors/leyla_maharramova.jpg",
+      "instructor_description": "15+ il təcrübəyə malik ekspert təlimçi. Çoxsaylı beynəlxalq layihələrdə iştirak etmiş və 300+ fermerin təlimində bilavasitə rol almışdır.",
+      "instructor_rating": 4.9,
+      "details_link": "/internship-programs/1",
+      "cv_requirements": "Aqrar və ya əlaqəli sahədə ali təhsil, əsas kompüter bilikləri, Azərbaycan və ya ingilis dilində danışıq, fiziki fəallıq və sahə işinə hazırlıq",
+      "is_active": true,
+      "created_at": "2025-01-15T10:00:00Z",
+      "updated_at": "2025-01-15T10:00:00Z",
+      "trainer": {
+        "id": 1,
+        "first_name": "Leyla",
+        "last_name": "Məhərrəmova",
+        "email": "leyla@example.com",
+        "phone": "+994501234567",
+        "profile_photo": "leyla_photo.jpg",
+        "profile_photo_url": "http://localhost:8000/storage/profile_photos/leyla_photo.jpg"
+      },
+      "modules": [
+        {
+          "id": 1,
+          "title": "Bitki biologiyası və fiziologiyası",
+          "description": "Bitkilərin bioloji quruluşu və fiziologiyası haqqında əsas biliklər",
+          "order": 1
+        },
+        {
+          "id": 2,
+          "title": "Torpaq elmləri və gübrələmə",
+          "description": "Torpaq təhlili və gübrələmə texnologiyaları",
+          "order": 2
+        },
+        {
+          "id": 3,
+          "title": "Suvarma və su idarəetməsi",
+          "description": "Müasir suvarma sistemləri və su resurslarının idarə edilməsi",
+          "order": 3
+        },
+        {
+          "id": 4,
+          "title": "Bitki mühafizəsi",
+          "description": "Zərərvericilər və xəstəliklərlə mübarizə üsulları",
+          "order": 4
+        },
+        {
+          "id": 5,
+          "title": "Məhsul yığımı və saxlanması",
+          "description": "Məhsul yığımı texnologiyaları və saxlanma üsulları",
+          "order": 5
+        }
+      ],
+      "requirements": [
+        {
+          "id": 1,
+          "requirement": "Aqrar və ya əlaqəli sahədə ali təhsil",
+          "order": 1
+        },
+        {
+          "id": 2,
+          "requirement": "Əsas kompüter bilikləri",
+          "order": 2
+        },
+        {
+          "id": 3,
+          "requirement": "Azərbaycan və ya ingilis dilində danışıq",
+          "order": 3
+        },
+        {
+          "id": 4,
+          "requirement": "Fiziki fəallıq və sahə işinə hazırlıq",
+          "order": 4
+        }
+      ],
+      "goals": [
+        {
+          "id": 1,
+          "goal": "Praktiki təcrübə qazanma",
+          "order": 1
+        },
+        {
+          "id": 2,
+          "goal": "Mentorluq dəstəyi",
+          "order": 2
+        },
+        {
+          "id": 3,
+          "goal": "Sertifikat alımı",
+          "order": 3
+        },
+        {
+          "id": 4,
+          "goal": "Networking imkanları",
+          "order": 4
+        },
+        {
+          "id": 5,
+          "goal": "İş yerləşdirilməsində yardım",
+          "order": 5
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Heyvandarlıq və Ferma İdarəetməsi Staj Proqramı",
+      "description": "Heyvandarlıq sahəsində 8 həftəlik praktiki təlim proqramı. Ferma idarəetməsi, heyvan sağlamlığı və məhsuldarlıq artırma texnikaları.",
+      "image_url": "/images/livestock_farming.jpg",
+      "is_featured": false,
+      "registration_status": "open",
+      "category": "Heyvandarlıq",
+      "duration_weeks": 8,
+      "start_date": "2025-04-01",
+      "location": "Gəncə və ətraf fermalar",
+      "current_enrollment": 8,
+      "max_capacity": 15,
+      "instructor_name": "Prof. Rəşad Əliyev",
+      "instructor_title": "Heyvandarlıq Mütəxəssisi",
+      "instructor_initials": "RA",
+      "instructor_photo_url": "/images/instructors/rashad_aliyev.jpg",
+      "instructor_description": "20+ il təcrübəyə malik heyvandarlıq eksperti. Beynəlxalq layihələrdə iştirak etmiş və 500+ fermerin təlimində rol almışdır.",
+      "instructor_rating": 4.8,
+      "details_link": "/internship-programs/2",
+      "cv_requirements": "Heyvandarlıq və ya bioloji sahədə təhsil, ferma işi təcrübəsi, kompüter bilikləri",
+      "is_active": true,
+      "created_at": "2025-01-20T10:00:00Z",
+      "updated_at": "2025-01-20T10:00:00Z",
+      "modules": [
+        {
+          "id": 6,
+          "title": "Heyvan anatomiyası və fiziologiyası",
+          "description": "Heyvanların bioloji quruluşu və fiziologiyası",
+          "order": 1
+        },
+        {
+          "id": 7,
+          "title": "Heyvan qidalanması",
+          "description": "Balanslı qidalanma və yem hazırlığı",
+          "order": 2
+        },
+        {
+          "id": 8,
+          "title": "Heyvan sağlamlığı",
+          "description": "Xəstəliklər və profilaktika",
+          "order": 3
+        },
+        {
+          "id": 9,
+          "title": "Ferma idarəetməsi",
+          "description": "Ferma işlərinin təşkili və idarə edilməsi",
+          "order": 4
+        }
+      ],
+      "requirements": [
+        {
+          "id": 5,
+          "requirement": "Heyvandarlıq və ya bioloji sahədə təhsil",
+          "order": 1
+        },
+        {
+          "id": 6,
+          "requirement": "Ferma işi təcrübəsi",
+          "order": 2
+        },
+        {
+          "id": 7,
+          "requirement": "Kompüter bilikləri",
+          "order": 3
+        }
+      ],
+      "goals": [
+        {
+          "id": 6,
+          "goal": "Heyvandarlıq sahəsində praktiki təcrübə",
+          "order": 1
+        },
+        {
+          "id": 7,
+          "goal": "Ferma idarəetmə bacarıqları",
+          "order": 2
+        },
+        {
+          "id": 8,
+          "goal": "Heyvan sağlamlığı bilikləri",
+          "order": 3
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Aqrar Texnologiyalar və İnnovasiyalar Staj Proqramı",
+      "description": "Aqrar texnologiyalar və innovasiyalar sahəsində 10 həftəlik təlim proqramı. Dron texnologiyaları, IoT həllər və aqrar analitika.",
+      "image_url": "/images/agri_technology.jpg",
+      "is_featured": true,
+      "registration_status": "open",
+      "category": "Aqrar Texnologiyalar",
+      "duration_weeks": 10,
+      "start_date": "2025-05-01",
+      "location": "Bakı Texnopark və təcrübə fermaları",
+      "current_enrollment": 5,
+      "max_capacity": 12,
+      "instructor_name": "Dr. Elnur Məmmədov",
+      "instructor_title": "Aqrar Texnologiyalar Mütəxəssisi",
+      "instructor_initials": "EM",
+      "instructor_photo_url": "/images/instructors/elnur_mammadov.jpg",
+      "instructor_description": "Aqrar texnologiyalar sahəsində 10+ il təcrübə. Beynəlxalq konfranslarda məruzələr etmiş və innovativ layihələrdə iştirak etmişdir.",
+      "instructor_rating": 4.7,
+      "details_link": "/internship-programs/3",
+      "cv_requirements": "Texniki təhsil, proqramlaşdırma bilikləri, ingilis dili, innovasiya marağı",
+      "is_active": true,
+      "created_at": "2025-01-25T10:00:00Z",
+      "updated_at": "2025-01-25T10:00:00Z",
+      "modules": [
+        {
+          "id": 10,
+          "title": "Dron texnologiyaları",
+          "description": "Aqrar dronların istifadəsi və idarə edilməsi",
+          "order": 1
+        },
+        {
+          "id": 11,
+          "title": "IoT və sensor texnologiyaları",
+          "description": "Aqrar IoT həllər və sensor sistemləri",
+          "order": 2
+        },
+        {
+          "id": 12,
+          "title": "Aqrar analitika",
+          "description": "Məlumat analizi və proqnozlaşdırma",
+          "order": 3
+        },
+        {
+          "id": 13,
+          "title": "Precision farming",
+          "description": "Dəqiq əkinçilik texnologiyaları",
+          "order": 4
+        }
+      ],
+      "requirements": [
+        {
+          "id": 8,
+          "requirement": "Texniki təhsil",
+          "order": 1
+        },
+        {
+          "id": 9,
+          "requirement": "Proqramlaşdırma bilikləri",
+          "order": 2
+        },
+        {
+          "id": 10,
+          "requirement": "İngilis dili",
+          "order": 3
+        },
+        {
+          "id": 11,
+          "requirement": "İnnovasiya marağı",
+          "order": 4
+        }
+      ],
+      "goals": [
+        {
+          "id": 9,
+          "goal": "Aqrar texnologiyalar təcrübəsi",
+          "order": 1
+        },
+        {
+          "id": 10,
+          "goal": "İnnovativ həllər inkişaf etdirmə",
+          "order": 2
+        },
+        {
+          "id": 11,
+          "goal": "Texnoloji layihələrdə iştirak",
+          "order": 3
+        }
+      ]
+    }
+  ],
+  "api_endpoints": {
+    "get_all_programs": {
+      "method": "GET",
+      "url": "/api/v1/internship-programs",
+      "description": "Bütün staj proqramlarının siyahısını gətirir",
+      "parameters": {
+        "category": "Kategoriya üzrə filtr",
+        "registration_status": "Qeydiyyat statusu üzrə filtr",
+        "featured": "Seçilmiş proqramlar",
+        "search": "Axtarış sözü",
+        "per_page": "Səhifə başına element sayı"
+      }
+    },
+    "get_featured_programs": {
+      "method": "GET",
+      "url": "/api/v1/internship-programs/featured",
+      "description": "Seçilmiş staj proqramlarını gətirir"
+    },
+    "get_categories": {
+      "method": "GET",
+      "url": "/api/v1/internship-programs/categories",
+      "description": "Mövcud kateqoriyaları gətirir"
+    },
+    "get_program_details": {
+      "method": "GET",
+      "url": "/api/v1/internship-programs/{id}",
+      "description": "Müəyyən staj proqramının ətraflı məlumatlarını gətirir"
+    },
+    "create_program": {
+      "method": "POST",
+      "url": "/api/v1/internship-programs",
+      "description": "Yeni staj proqramı yaradır (admin/trainer)",
+      "headers": {
+        "Authorization": "Bearer {token}",
+        "Content-Type": "application/json"
+      }
+    },
+    "update_program": {
+      "method": "PUT/PATCH",
+      "url": "/api/v1/internship-programs/{id}",
+      "description": "Staj proqramını yeniləyir (admin/trainer)",
+      "headers": {
+        "Authorization": "Bearer {token}",
+        "Content-Type": "application/json"
+      }
+    },
+    "delete_program": {
+      "method": "DELETE",
+      "url": "/api/v1/internship-programs/{id}",
+      "description": "Staj proqramını silir (admin/trainer)",
+      "headers": {
+        "Authorization": "Bearer {token}"
+      }
+    }
+  },
+  "sample_requests": {
+    "create_program": {
+      "trainer_id": 1,
+      "title": "Yeni Staj Proqramı",
+      "description": "Proqramın təfərrüatlı təsviri",
+      "image_url": "/images/program_image.jpg",
+      "is_featured": true,
+      "registration_status": "open",
+      "category": "Bitki Yetişdiriciliyi",
+      "duration_weeks": 12,
+      "start_date": "2025-06-01",
+      "location": "Bakı və ətraf fermalar",
+      "current_enrollment": 0,
+      "max_capacity": 20,
+      "instructor_title": "Aqrar Mütəxəssis",
+      "instructor_description": "Təcrübəli mütəxəssis",
+      "instructor_rating": 4.5,
+      "details_link": "/internship-programs/new",
+      "cv_requirements": "Tələblər",
+      "modules": [
+        {
+          "title": "Modul 1",
+          "description": "Modul təsviri",
+          "order": 1
+        }
+      ],
+      "requirements": [
+        {
+          "requirement": "Tələb 1",
+          "order": 1
+        }
+      ],
+      "goals": [
+        {
+          "goal": "Məqsəd 1",
+          "order": 1
+        }
+      ]
+    }
+  }
+}

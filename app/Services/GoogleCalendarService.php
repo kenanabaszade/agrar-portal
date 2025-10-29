@@ -96,11 +96,62 @@ class GoogleCalendarService
                 'message' => 'Token is valid'
             ];
         } catch (Exception $e) {
+            // If token is expired, try to refresh it
+            if (strpos($e->getMessage(), 'invalid_grant') !== false || 
+                strpos($e->getMessage(), 'invalid_token') !== false) {
+                
+                try {
+                    $this->refreshAccessToken();
+                    return [
+                        'valid' => true,
+                        'message' => 'Token refreshed successfully'
+                    ];
+                } catch (Exception $refreshError) {
+                    return [
+                        'valid' => false,
+                        'error' => $refreshError->getMessage(),
+                        'message' => 'Token refresh failed'
+                    ];
+                }
+            }
+            
             return [
                 'valid' => false,
                 'error' => $e->getMessage(),
                 'message' => 'Token validation failed'
             ];
+        }
+    }
+
+    /**
+     * Refresh the access token using refresh token
+     */
+    public function refreshAccessToken(): array
+    {
+        try {
+            $tokenData = json_decode($this->accessToken, true);
+            
+            if (!isset($tokenData['refresh_token'])) {
+                throw new Exception('No refresh token available');
+            }
+
+            $client = new \Google_Client();
+            $client->setClientId(config('services.google.client_id'));
+            $client->setClientSecret(config('services.google.client_secret'));
+            $client->setRedirectUri(config('services.google.redirect_uri'));
+
+            $newToken = $client->fetchAccessTokenWithRefreshToken($tokenData['refresh_token']);
+            
+            if (isset($newToken['error'])) {
+                throw new Exception($newToken['error_description'] ?? $newToken['error']);
+            }
+
+            // Update the stored token
+            $this->accessToken = json_encode($newToken);
+            
+            return $newToken;
+        } catch (Exception $e) {
+            throw new Exception('Token refresh failed: ' . $e->getMessage());
         }
     }
 
@@ -232,9 +283,47 @@ class GoogleCalendarService
                 $event
             );
 
+            // Extract meeting information from the updated event
+            $meetLink = null;
+            $meetingId = null;
+            $meetingPassword = null;
+
+            if ($updatedEvent->getConferenceData()) {
+                $conferenceData = $updatedEvent->getConferenceData();
+                if ($conferenceData->getEntryPoints()) {
+                    foreach ($conferenceData->getEntryPoints() as $entryPoint) {
+                        if ($entryPoint->getEntryPointType() === 'video') {
+                            $meetLink = $entryPoint->getUri();
+                            break;
+                        }
+                    }
+                }
+                $meetingId = $conferenceData->getConferenceId();
+            }
+
+            // If no conference was found, try to get from existing event
+            if (!$meetLink) {
+                $existingEvent = $this->service->events->get($this->calendarId, $eventId);
+                if ($existingEvent->getConferenceData()) {
+                    $conferenceData = $existingEvent->getConferenceData();
+                    if ($conferenceData->getEntryPoints()) {
+                        foreach ($conferenceData->getEntryPoints() as $entryPoint) {
+                            if ($entryPoint->getEntryPointType() === 'video') {
+                                $meetLink = $entryPoint->getUri();
+                                break;
+                            }
+                        }
+                    }
+                    $meetingId = $conferenceData->getConferenceId();
+                }
+            }
+
             return [
                 'success' => true,
                 'event_id' => $updatedEvent->getId(),
+                'meet_link' => $meetLink,
+                'meeting_id' => $meetingId,
+                'meeting_password' => $meetingPassword,
                 'event_data' => $updatedEvent->toSimpleObject(),
             ];
 
