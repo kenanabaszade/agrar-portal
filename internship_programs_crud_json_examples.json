@@ -1,0 +1,679 @@
+{
+  "internship_programs_crud_operations": {
+    "create_program": {
+      "endpoint": "POST /api/v1/internship-programs",
+      "description": "Yeni staj proqramı yaradır (admin/trainer)",
+      "headers": {
+        "Authorization": "Bearer {admin_token}",
+        "Content-Type": "multipart/form-data"
+      },
+      "request_body": {
+        "title": "Mobile App Development Stajı",
+        "description": "iOS və Android platformaları üçün mobil tətbiqlər yaratmaq üçün praktiki staj proqramı. Swift, Kotlin, React Native texnologiyaları öyrədilir.",
+        "category": "IT",
+        "duration_weeks": 10,
+        "start_date": "2024-03-01",
+        "last_register_date": "2024-02-25",
+        "location": "Bakı, Xətai rayonu",
+        "max_capacity": 15,
+        "instructor_name": "Rəşad Əliyev",
+        "instructor_title": "Senior Mobile Developer",
+        "instructor_description": "6 ildir mobil development sahəsində çalışır, 50+ tətbiq yaradıb",
+        "instructor_rating": 4.9,
+        "registration_status": "open",
+        "is_featured": true,
+        "cv_requirements": "OOP əsasları, JavaScript və ya Java bilikləri",
+        "details_link": "https://example.com/programs/mobile-dev",
+        "trainer_id": 12,
+        "image": "file_upload_here",
+        "modules": [
+          {
+            "title": "iOS Development (Swift)",
+            "description": "Swift proqramlaşdırma dili və iOS SDK",
+            "order": 1
+          },
+          {
+            "title": "Android Development (Kotlin)",
+            "description": "Kotlin dili və Android Studio",
+            "order": 2
+          },
+          {
+            "title": "React Native",
+            "description": "Cross-platform mobil tətbiqlər",
+            "order": 3
+          }
+        ],
+        "requirements": [
+          {
+            "requirement": "OOP proqramlaşdırma əsasları",
+            "order": 1
+          },
+          {
+            "requirement": "JavaScript və ya Java bilikləri",
+            "order": 2
+          },
+          {
+            "requirement": "Git versiya idarəetməsi",
+            "order": 3
+          }
+        ],
+        "goals": [
+          {
+            "goal": "iOS tətbiqi yarada bilmək",
+            "order": 1
+          },
+          {
+            "goal": "Android tətbiqi yarada bilmək",
+            "order": 2
+          },
+          {
+            "goal": "Cross-platform tətbiq yarada bilmək",
+            "order": 3
+          }
+        ]
+      },
+      "success_response": {
+        "message": "Internship program created successfully",
+        "program": {
+          "id": 3,
+          "trainer_id": 12,
+          "title": "Mobile App Development Stajı",
+          "description": "iOS və Android platformaları üçün mobil tətbiqlər yaratmaq üçün praktiki staj proqramı. Swift, Kotlin, React Native texnologiyaları öyrədilir.",
+          "image_url": "https://example.com/storage/internship_programs/program_3_1640995200.jpg",
+          "is_featured": true,
+          "registration_status": "open",
+          "category": "IT",
+          "duration_weeks": 10,
+          "start_date": "2024-03-01",
+          "last_register_date": "2024-02-25",
+          "location": "Bakı, Xətai rayonu",
+          "current_enrollment": 0,
+          "max_capacity": 15,
+          "instructor_name": "Rəşad Əliyev",
+          "instructor_title": "Senior Mobile Developer",
+          "instructor_initials": "RƏ",
+          "instructor_photo_url": "https://example.com/storage/profiles/instructor_12.jpg",
+          "instructor_description": "6 ildir mobil development sahəsində çalışır, 50+ tətbiq yaradıb",
+          "instructor_rating": 4.9,
+          "details_link": "https://example.com/programs/mobile-dev",
+          "cv_requirements": "OOP əsasları, JavaScript və ya Java bilikləri",
+          "is_active": true,
+          "created_at": "2024-01-15T10:30:00.000000Z",
+          "updated_at": "2024-01-15T10:30:00.000000Z",
+          "modules": [
+            {
+              "id": 4,
+              "title": "iOS Development (Swift)",
+              "description": "Swift proqramlaşdırma dili və iOS SDK",
+              "order": 1,
+              "created_at": "2024-01-15T10:30:00.000000Z",
+              "updated_at": "2024-01-15T10:30:00.000000Z"
+            },
+            {
+              "id": 5,
+              "title": "Android Development (Kotlin)",
+              "description": "Kotlin dili və Android Studio",
+              "order": 2,
+              "created_at": "2024-01-15T10:30:00.000000Z",
+              "updated_at": "2024-01-15T10:30:00.000000Z"
+            },
+            {
+              "id": 6,
+              "title": "React Native",
+              "description": "Cross-platform mobil tətbiqlər",
+              "order": 3,
+              "created_at": "2024-01-15T10:30:00.000000Z",
+              "updated_at": "2024-01-15T10:30:00.000000Z"
+            }
+          ],
+          "requirements": [
+            {
+              "id": 4,
+              "requirement": "OOP proqramlaşdırma əsasları",
+              "order": 1,
+              "created_at": "2024-01-15T10:30:00.000000Z",
+              "updated_at": "2024-01-15T10:30:00.000000Z"
+            },
+            {
+              "id": 5,
+              "requirement": "JavaScript və ya Java bilikləri",
+              "order": 2,
+              "created_at": "2024-01-15T10:30:00.000000Z",
+              "updated_at": "2024-01-15T10:30:00.000000Z"
+            },
+            {
+              "id": 6,
+              "requirement": "Git versiya idarəetməsi",
+              "order": 3,
+              "created_at": "2024-01-15T10:30:00.000000Z",
+              "updated_at": "2024-01-15T10:30:00.000000Z"
+            }
+          ],
+          "goals": [
+            {
+              "id": 4,
+              "goal": "iOS tətbiqi yarada bilmək",
+              "order": 1,
+              "created_at": "2024-01-15T10:30:00.000000Z",
+              "updated_at": "2024-01-15T10:30:00.000000Z"
+            },
+            {
+              "id": 5,
+              "goal": "Android tətbiqi yarada bilmək",
+              "order": 2,
+              "created_at": "2024-01-15T10:30:00.000000Z",
+              "updated_at": "2024-01-15T10:30:00.000000Z"
+            },
+            {
+              "id": 6,
+              "goal": "Cross-platform tətbiq yarada bilmək",
+              "order": 3,
+              "created_at": "2024-01-15T10:30:00.000000Z",
+              "updated_at": "2024-01-15T10:30:00.000000Z"
+            }
+          ]
+        }
+      },
+      "error_responses": {
+        "validation_error": {
+          "message": "The given data was invalid.",
+          "errors": {
+            "title": ["The title field is required."],
+            "description": ["The description field is required."],
+            "category": ["The category field is required."],
+            "duration_weeks": ["The duration weeks field is required."],
+            "start_date": ["The start date field is required."],
+            "location": ["The location field is required."],
+            "max_capacity": ["The max capacity field is required."],
+            "instructor_name": ["The instructor name field is required when trainer id is not present."],
+            "instructor_title": ["The instructor title field is required."],
+            "registration_status": ["The registration status field is required."]
+          }
+        },
+        "unauthorized": {
+          "message": "Unauthorized",
+          "status": 401
+        },
+        "forbidden": {
+          "message": "This action is unauthorized.",
+          "status": 403
+        }
+      }
+    },
+    "update_program": {
+      "endpoint": "PUT /api/v1/internship-programs/{id}",
+      "description": "Mövcud staj proqramını yeniləyir (admin/trainer)",
+      "headers": {
+        "Authorization": "Bearer {admin_token}",
+        "Content-Type": "multipart/form-data"
+      },
+      "request_body": {
+        "title": "Advanced Web Development Stajı",
+        "description": "Müasir web texnologiyaları və framework-lər üzrə təkmilləşmiş staj proqramı. React, Vue.js, Node.js, MongoDB və Docker texnologiyaları öyrədilir.",
+        "category": "IT",
+        "duration_weeks": 12,
+        "start_date": "2024-04-01",
+        "last_register_date": "2024-03-25",
+        "location": "Bakı, Nəsimi rayonu",
+        "max_capacity": 25,
+        "instructor_name": "Əli Məmmədov",
+        "instructor_title": "Lead Full-Stack Developer",
+        "instructor_description": "8 ildir web development sahəsində çalışır, 100+ layihə həyata keçirib",
+        "instructor_rating": 4.9,
+        "registration_status": "open",
+        "is_featured": true,
+        "cv_requirements": "HTML, CSS, JavaScript əsasları, React və ya Vue.js təcrübəsi",
+        "details_link": "https://example.com/programs/advanced-web-dev",
+        "trainer_id": 5,
+        "image": "new_image_file_upload_here",
+        "modules": [
+          {
+            "id": 1,
+            "title": "Advanced React.js",
+            "description": "React hooks, context API, performance optimization",
+            "order": 1
+          },
+          {
+            "id": 2,
+            "title": "Vue.js 3",
+            "description": "Composition API, Vuex, Nuxt.js",
+            "order": 2
+          },
+          {
+            "title": "Node.js Backend",
+            "description": "Express.js, RESTful API, authentication",
+            "order": 3
+          },
+          {
+            "title": "Database Design",
+            "description": "MongoDB, PostgreSQL, database optimization",
+            "order": 4
+          }
+        ],
+        "requirements": [
+          {
+            "id": 1,
+            "requirement": "HTML, CSS, JavaScript əsasları",
+            "order": 1
+          },
+          {
+            "id": 2,
+            "requirement": "React və ya Vue.js təcrübəsi",
+            "order": 2
+          },
+          {
+            "requirement": "Git və GitHub istifadəsi",
+            "order": 3
+          },
+          {
+            "requirement": "API istifadə təcrübəsi",
+            "order": 4
+          }
+        ],
+        "goals": [
+          {
+            "id": 1,
+            "goal": "Müasir frontend framework-ləri mükəmməl bilmək",
+            "order": 1
+          },
+          {
+            "id": 2,
+            "goal": "Backend API-lər yarada bilmək",
+            "order": 2
+          },
+          {
+            "goal": "Database dizaynı və optimallaşdırma",
+            "order": 3
+          },
+          {
+            "goal": "Docker ilə deployment",
+            "order": 4
+          }
+        ]
+      },
+      "success_response": {
+        "message": "Internship program updated successfully",
+        "program": {
+          "id": 1,
+          "trainer_id": 5,
+          "title": "Advanced Web Development Stajı",
+          "description": "Müasir web texnologiyaları və framework-lər üzrə təkmilləşmiş staj proqramı. React, Vue.js, Node.js, MongoDB və Docker texnologiyaları öyrədilir.",
+          "image_url": "https://example.com/storage/internship_programs/program_1_updated_1640995200.jpg",
+          "is_featured": true,
+          "registration_status": "open",
+          "category": "IT",
+          "duration_weeks": 12,
+          "start_date": "2024-04-01",
+          "last_register_date": "2024-03-25",
+          "location": "Bakı, Nəsimi rayonu",
+          "current_enrollment": 12,
+          "max_capacity": 25,
+          "instructor_name": "Əli Məmmədov",
+          "instructor_title": "Lead Full-Stack Developer",
+          "instructor_initials": "ƏM",
+          "instructor_photo_url": "https://example.com/storage/profiles/instructor_5.jpg",
+          "instructor_description": "8 ildir web development sahəsində çalışır, 100+ layihə həyata keçirib",
+          "instructor_rating": 4.9,
+          "details_link": "https://example.com/programs/advanced-web-dev",
+          "cv_requirements": "HTML, CSS, JavaScript əsasları, React və ya Vue.js təcrübəsi",
+          "is_active": true,
+          "created_at": "2024-01-01T10:00:00.000000Z",
+          "updated_at": "2024-01-20T15:45:00.000000Z",
+          "modules": [
+            {
+              "id": 1,
+              "title": "Advanced React.js",
+              "description": "React hooks, context API, performance optimization",
+              "order": 1,
+              "created_at": "2024-01-01T10:00:00.000000Z",
+              "updated_at": "2024-01-20T15:45:00.000000Z"
+            },
+            {
+              "id": 2,
+              "title": "Vue.js 3",
+              "description": "Composition API, Vuex, Nuxt.js",
+              "order": 2,
+              "created_at": "2024-01-01T10:00:00.000000Z",
+              "updated_at": "2024-01-20T15:45:00.000000Z"
+            },
+            {
+              "id": 7,
+              "title": "Node.js Backend",
+              "description": "Express.js, RESTful API, authentication",
+              "order": 3,
+              "created_at": "2024-01-20T15:45:00.000000Z",
+              "updated_at": "2024-01-20T15:45:00.000000Z"
+            },
+            {
+              "id": 8,
+              "title": "Database Design",
+              "description": "MongoDB, PostgreSQL, database optimization",
+              "order": 4,
+              "created_at": "2024-01-20T15:45:00.000000Z",
+              "updated_at": "2024-01-20T15:45:00.000000Z"
+            }
+          ],
+          "requirements": [
+            {
+              "id": 1,
+              "requirement": "HTML, CSS, JavaScript əsasları",
+              "order": 1,
+              "created_at": "2024-01-01T10:00:00.000000Z",
+              "updated_at": "2024-01-20T15:45:00.000000Z"
+            },
+            {
+              "id": 2,
+              "requirement": "React və ya Vue.js təcrübəsi",
+              "order": 2,
+              "created_at": "2024-01-01T10:00:00.000000Z",
+              "updated_at": "2024-01-20T15:45:00.000000Z"
+            },
+            {
+              "id": 7,
+              "requirement": "Git və GitHub istifadəsi",
+              "order": 3,
+              "created_at": "2024-01-20T15:45:00.000000Z",
+              "updated_at": "2024-01-20T15:45:00.000000Z"
+            },
+            {
+              "id": 8,
+              "requirement": "API istifadə təcrübəsi",
+              "order": 4,
+              "created_at": "2024-01-20T15:45:00.000000Z",
+              "updated_at": "2024-01-20T15:45:00.000000Z"
+            }
+          ],
+          "goals": [
+            {
+              "id": 1,
+              "goal": "Müasir frontend framework-ləri mükəmməl bilmək",
+              "order": 1,
+              "created_at": "2024-01-01T10:00:00.000000Z",
+              "updated_at": "2024-01-20T15:45:00.000000Z"
+            },
+            {
+              "id": 2,
+              "goal": "Backend API-lər yarada bilmək",
+              "order": 2,
+              "created_at": "2024-01-01T10:00:00.000000Z",
+              "updated_at": "2024-01-20T15:45:00.000000Z"
+            },
+            {
+              "id": 7,
+              "goal": "Database dizaynı və optimallaşdırma",
+              "order": 3,
+              "created_at": "2024-01-20T15:45:00.000000Z",
+              "updated_at": "2024-01-20T15:45:00.000000Z"
+            },
+            {
+              "id": 8,
+              "goal": "Docker ilə deployment",
+              "order": 4,
+              "created_at": "2024-01-20T15:45:00.000000Z",
+              "updated_at": "2024-01-20T15:45:00.000000Z"
+            }
+          ]
+        }
+      }
+    },
+    "delete_program": {
+      "endpoint": "DELETE /api/v1/internship-programs/{id}",
+      "description": "Staj proqramını silir (admin/trainer)",
+      "headers": {
+        "Authorization": "Bearer {admin_token}"
+      },
+      "success_response": {
+        "message": "Internship program deleted successfully"
+      },
+      "error_responses": {
+        "not_found": {
+          "message": "No query results for model [App\\Models\\InternshipProgram] 3",
+          "status": 404
+        },
+        "unauthorized": {
+          "message": "Unauthorized",
+          "status": 401
+        },
+        "forbidden": {
+          "message": "This action is unauthorized.",
+          "status": 403
+        }
+      }
+    },
+    "apply_for_program": {
+      "endpoint": "POST /api/v1/internship-programs/{id}/apply",
+      "description": "Staj proqramına müraciət edir (istifadəçi)",
+      "headers": {
+        "Authorization": "Bearer {user_token}",
+        "Content-Type": "multipart/form-data"
+      },
+      "request_body": {
+        "cv": "cv_file_upload_here",
+        "cover_letter": "Salam, mən bu staj proqramında iştirak etmək istəyirəm. HTML, CSS və JavaScript biliklərim var. React.js öyrənmək və real layihələrdə işləmək istəyirəm. Təşəkkürlər."
+      },
+      "success_response": {
+        "message": "Müraciətiniz uğurla göndərildi",
+        "application": {
+          "id": 4,
+          "user_id": 20,
+          "internship_program_id": 1,
+          "cv_file_path": "internship_cvs/cv_20_1_1640995200.pdf",
+          "cv_file_name": "aydan_cv.pdf",
+          "cv_file_size": "2048000",
+          "cv_mime_type": "application/pdf",
+          "cover_letter": "Salam, mən bu staj proqramında iştirak etmək istəyirəm. HTML, CSS və JavaScript biliklərim var. React.js öyrənmək və real layihələrdə işləmək istəyirəm. Təşəkkürlər.",
+          "status": "pending",
+          "admin_notes": null,
+          "reviewed_at": null,
+          "reviewed_by": null,
+          "created_at": "2024-01-20T16:30:00.000000Z",
+          "updated_at": "2024-01-20T16:30:00.000000Z",
+          "user": {
+            "id": 20,
+            "first_name": "Aydan",
+            "last_name": "Məmmədova",
+            "email": "aydan.mammadova@example.com",
+            "phone": "+994507654321"
+          },
+          "internshipProgram": {
+            "id": 1,
+            "title": "Advanced Web Development Stajı",
+            "description": "Müasir web texnologiyaları və framework-lər üzrə təkmilləşmiş staj proqramı",
+            "category": "IT",
+            "duration_weeks": 12,
+            "start_date": "2024-04-01",
+            "location": "Bakı, Nəsimi rayonu",
+            "registration_status": "open"
+          }
+        }
+      },
+      "error_responses": {
+        "unauthorized": {
+          "message": "Authentication required",
+          "status": 401
+        },
+        "registration_closed": {
+          "message": "Bu staj proqramına qeydiyyat bağlıdır",
+          "status": 400
+        },
+        "deadline_passed": {
+          "message": "Qeydiyyat müddəti bitmişdir",
+          "status": 400
+        },
+        "already_applied": {
+          "message": "Bu staj proqramına artıq müraciət etmisiniz",
+          "status": 400
+        },
+        "validation_error": {
+          "message": "The given data was invalid.",
+          "errors": {
+            "cv": ["The cv field is required."],
+            "cv": ["The cv must be a file."],
+            "cv": ["The cv must be a file of type: pdf, doc, docx."],
+            "cv": ["The cv may not be greater than 5120 kilobytes."],
+            "cover_letter": ["The cover letter may not be greater than 2000 characters."]
+          }
+        }
+      }
+    },
+    "update_application_status": {
+      "endpoint": "PUT /api/v1/admin/internship-applications/{id}/status",
+      "description": "Müraciət statusunu yeniləyir (admin)",
+      "headers": {
+        "Authorization": "Bearer {admin_token}",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "status": "accepted",
+        "admin_notes": "Çox yaxşı CV və təcrübə. React.js layihələri də var. Qəbul edilir."
+      },
+      "success_response": {
+        "message": "Application status updated successfully",
+        "application": {
+          "id": 4,
+          "user_id": 20,
+          "internship_program_id": 1,
+          "cv_file_path": "internship_cvs/cv_20_1_1640995200.pdf",
+          "cv_file_name": "aydan_cv.pdf",
+          "cv_file_size": "2048000",
+          "cv_mime_type": "application/pdf",
+          "cover_letter": "Salam, mən bu staj proqramında iştirak etmək istəyirəm...",
+          "status": "accepted",
+          "admin_notes": "Çox yaxşı CV və təcrübə. React.js layihələri də var. Qəbul edilir.",
+          "reviewed_at": "2024-01-21T10:15:00.000000Z",
+          "reviewed_by": 1,
+          "created_at": "2024-01-20T16:30:00.000000Z",
+          "updated_at": "2024-01-21T10:15:00.000000Z",
+          "user": {
+            "id": 20,
+            "first_name": "Aydan",
+            "last_name": "Məmmədova",
+            "email": "aydan.mammadova@example.com",
+            "phone": "+994507654321"
+          },
+          "internshipProgram": {
+            "id": 1,
+            "title": "Advanced Web Development Stajı",
+            "description": "Müasir web texnologiyaları və framework-lər üzrə təkmilləşmiş staj proqramı",
+            "category": "IT",
+            "duration_weeks": 12,
+            "start_date": "2024-04-01",
+            "location": "Bakı, Nəsimi rayonu",
+            "registration_status": "open"
+          },
+          "reviewer": {
+            "id": 1,
+            "first_name": "Admin",
+            "last_name": "Adminov",
+            "email": "admin@example.com"
+          }
+        }
+      },
+      "error_responses": {
+        "validation_error": {
+          "message": "The given data was invalid.",
+          "errors": {
+            "status": ["The status field is required."],
+            "status": ["The selected status is invalid."],
+            "admin_notes": ["The admin notes may not be greater than 1000 characters."]
+          }
+        },
+        "not_found": {
+          "message": "No query results for model [App\\Models\\InternshipApplication] 999",
+          "status": 404
+        },
+        "unauthorized": {
+          "message": "Unauthorized",
+          "status": 401
+        },
+        "forbidden": {
+          "message": "This action is unauthorized.",
+          "status": 403
+        }
+      }
+    },
+    "delete_application": {
+      "endpoint": "DELETE /api/v1/internship-applications/{id}",
+      "description": "Müraciəti silir (istifadəçi öz müraciətini silə bilər)",
+      "headers": {
+        "Authorization": "Bearer {user_token}"
+      },
+      "success_response": {
+        "message": "Application deleted successfully"
+      },
+      "error_responses": {
+        "not_found": {
+          "message": "No query results for model [App\\Models\\InternshipApplication] 999",
+          "status": 404
+        },
+        "unauthorized": {
+          "message": "Unauthorized",
+          "status": 401
+        },
+        "forbidden": {
+          "message": "Unauthorized",
+          "status": 403
+        },
+        "cannot_delete_reviewed": {
+          "message": "Yalnız gözləyən müraciətləri silə bilərsiniz",
+          "status": 400
+        }
+      }
+    }
+  },
+  "file_upload_examples": {
+    "image_upload": {
+      "field_name": "image",
+      "accepted_types": ["jpeg", "png", "jpg", "gif"],
+      "max_size": "2048 KB",
+      "example_request": {
+        "title": "Program Title",
+        "description": "Program Description",
+        "image": "binary_file_data_here"
+      }
+    },
+    "cv_upload": {
+      "field_name": "cv",
+      "accepted_types": ["pdf", "doc", "docx"],
+      "max_size": "5120 KB",
+      "example_request": {
+        "cv": "binary_file_data_here",
+        "cover_letter": "Optional cover letter"
+      }
+    }
+  },
+  "status_values": {
+    "program_registration_status": ["open", "closed", "full"],
+    "application_status": ["pending", "reviewed", "accepted", "rejected"]
+  },
+  "validation_rules": {
+    "create_program": {
+      "title": "required|string|max:255",
+      "description": "required|string",
+      "category": "required|string|max:100",
+      "duration_weeks": "required|integer|min:1",
+      "start_date": "required|date|after:today",
+      "last_register_date": "nullable|date|after:today",
+      "location": "required|string|max:255",
+      "max_capacity": "required|integer|min:1",
+      "instructor_name": "required_without:trainer_id|string|max:255",
+      "instructor_title": "required|string|max:255",
+      "instructor_description": "nullable|string",
+      "instructor_rating": "nullable|numeric|min:0|max:5",
+      "registration_status": "required|in:open,closed,full",
+      "is_featured": "boolean",
+      "cv_requirements": "nullable|string",
+      "details_link": "nullable|string|max:500",
+      "trainer_id": "nullable|integer|exists:users,id",
+      "image": "nullable|image|mimes:jpeg,png,jpg,gif|max:2048"
+    },
+    "apply_for_program": {
+      "cv": "required|file|mimes:pdf,doc,docx|max:5120",
+      "cover_letter": "nullable|string|max:2000"
+    },
+    "update_application_status": {
+      "status": "required|in:pending,reviewed,accepted,rejected",
+      "admin_notes": "nullable|string|max:1000"
+    }
+  }
+}

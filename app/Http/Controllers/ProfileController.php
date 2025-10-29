@@ -8,6 +8,7 @@ use App\Notifications\OtpNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 
@@ -44,7 +45,7 @@ class ProfileController extends Controller
             'father_name' => ['sometimes', 'string', 'max:255'],
             'region' => ['sometimes', 'string', 'max:255'],
             'phone' => ['sometimes', 'string', 'max:50'],
-            'user_type' => ['sometimes', 'in:farmer,trainer,admin'],
+            'user_type' => ['sometimes', 'in:farmer,trainer,admin,agronom,veterinary,government,entrepreneur,researcher'],
         ]);
 
         $user->update($validated);
@@ -236,6 +237,66 @@ class ProfileController extends Controller
 
         return response()->json([
             'message' => 'Email change request cancelled.',
+        ], 200);
+    }
+
+    /**
+     * Upload profile photo
+     */
+    public function uploadProfilePhoto(Request $request)
+    {
+        $user = $request->user();
+        
+        $validated = $request->validate([
+            'profile_photo' => ['required', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'], // 2MB max
+        ]);
+
+        // Delete old profile photo if exists
+        if ($user->profile_photo) {
+            Storage::disk('public')->delete('profile_photos/' . $user->profile_photo);
+        }
+
+        // Store new photo
+        $file = $request->file('profile_photo');
+        $filename = 'user_' . $user->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+        $path = $file->storeAs('profile_photos', $filename, 'public');
+
+        // Update user profile_photo field
+        $user->update([
+            'profile_photo' => $filename
+        ]);
+
+        return response()->json([
+            'message' => 'Profile photo uploaded successfully',
+            'profile_photo_url' => $user->profile_photo_url,
+            'user' => $user,
+        ], 200);
+    }
+
+    /**
+     * Delete profile photo
+     */
+    public function deleteProfilePhoto(Request $request)
+    {
+        $user = $request->user();
+        
+        if (!$user->profile_photo) {
+            return response()->json([
+                'message' => 'No profile photo to delete'
+            ], 400);
+        }
+
+        // Delete file from storage
+        Storage::disk('public')->delete('profile_photos/' . $user->profile_photo);
+
+        // Update user profile_photo field
+        $user->update([
+            'profile_photo' => null
+        ]);
+
+        return response()->json([
+            'message' => 'Profile photo deleted successfully',
+            'user' => $user,
         ], 200);
     }
 

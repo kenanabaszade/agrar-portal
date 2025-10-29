@@ -31,6 +31,12 @@ class TrainingRegistration extends Model
     {
         return $this->belongsTo(Certificate::class);
     }
+
+    public function userTrainingProgress()
+    {
+        return $this->hasMany(UserTrainingProgress::class, 'user_id', 'user_id')
+            ->where('training_id', $this->training_id);
+    }
 }
 
 

@@ -1,0 +1,310 @@
+{
+  "frontend_internship_program_create": {
+    "endpoint": "POST /api/v1/internship-programs",
+    "headers": {
+      "Authorization": "Bearer {admin_token}",
+      "Content-Type": "multipart/form-data"
+    },
+    "required_fields": {
+      "title": {
+        "type": "string",
+        "max_length": 255,
+        "example": "Web Development Stajı",
+        "description": "Proqramın adı"
+      },
+      "description": {
+        "type": "string",
+        "example": "Müasir web texnologiyaları öyrənmək üçün praktiki staj proqramı",
+        "description": "Proqramın təsviri"
+      },
+      "category": {
+        "type": "string",
+        "max_length": 100,
+        "example": "IT",
+        "description": "Kateqoriya"
+      },
+      "duration_weeks": {
+        "type": "integer",
+        "min": 1,
+        "example": 8,
+        "description": "Müddət (həftə)"
+      },
+      "start_date": {
+        "type": "date",
+        "format": "YYYY-MM-DD",
+        "rule": "after_or_equal:today",
+        "example": "2024-03-01",
+        "description": "Başlama tarixi (bu gün və ya gələcək)"
+      },
+      "location": {
+        "type": "string",
+        "max_length": 255,
+        "example": "Bakı, Nəsimi rayonu",
+        "description": "Məkan"
+      },
+      "max_capacity": {
+        "type": "integer",
+        "min": 1,
+        "example": 20,
+        "description": "Maksimum iştirakçı sayı"
+      },
+      "instructor_title": {
+        "type": "string",
+        "max_length": 255,
+        "example": "Senior Full-Stack Developer",
+        "description": "Məktəbçinin vəzifəsi"
+      },
+      "registration_status": {
+        "type": "enum",
+        "values": ["open", "closed", "full"],
+        "example": "open",
+        "description": "Qeydiyyat statusu"
+      },
+      "instructor_name": {
+        "type": "string",
+        "max_length": 255,
+        "example": "Əli Məmmədov",
+        "description": "Məktəbçinin adı (trainer_id yoxdursa məcburi)",
+        "note": "Yalnız trainer_id göndərilməyərsə məcburidir"
+      }
+    },
+    "optional_fields": {
+      "trainer_id": {
+        "type": "integer",
+        "example": 5,
+        "description": "Sistemdəki məktəbçinin ID-si"
+      },
+      "instructor_initials": {
+        "type": "string",
+        "max_length": 10,
+        "example": "ƏM",
+        "description": "Məktəbçinin baş hərfləri"
+      },
+      "instructor_photo_url": {
+        "type": "string",
+        "max_length": 500,
+        "example": "https://example.com/photo.jpg",
+        "description": "Məktəbçinin şəkli URL"
+      },
+      "instructor_description": {
+        "type": "string",
+        "example": "5 ildir web development sahəsində çalışır",
+        "description": "Məktəbçi haqqında"
+      },
+      "instructor_rating": {
+        "type": "numeric",
+        "min": 0,
+        "max": 5,
+        "example": 4.8,
+        "description": "Məktəbçinin reytinqi"
+      },
+      "end_date": {
+        "type": "date",
+        "format": "YYYY-MM-DD",
+        "rule": "after_or_equal:start_date",
+        "example": "2024-05-01",
+        "description": "Bitmə tarixi (start_date-dən sonra)"
+      },
+      "last_register_date": {
+        "type": "date",
+        "format": "YYYY-MM-DD",
+        "rule": "after_or_equal:today",
+        "example": "2024-02-25",
+        "description": "Son qeydiyyat tarixi"
+      },
+      "image": {
+        "type": "file",
+        "accepted_types": ["jpeg", "png", "jpg", "gif"],
+        "max_size": "2048 KB",
+        "description": "Proqram şəkli"
+      },
+      "image_url": {
+        "type": "string",
+        "max_length": 500,
+        "example": "https://example.com/image.jpg",
+        "description": "Proqram şəkli URL (image yoxdursa)"
+      },
+      "is_featured": {
+        "type": "boolean",
+        "example": true,
+        "description": "Təqdim edilən proqram"
+      },
+      "cv_requirements": {
+        "type": "string",
+        "example": "HTML, CSS əsasları, JavaScript bilikləri",
+        "description": "CV tələbləri"
+      },
+      "details_link": {
+        "type": "string",
+        "max_length": 500,
+        "example": "https://example.com/details",
+        "description": "Əlavə link"
+      },
+      "current_enrollment": {
+        "type": "integer",
+        "min": 0,
+        "default": 0,
+        "example": 0,
+        "description": "Cari iştirakçı sayı"
+      }
+    },
+    "array_fields": {
+      "modules": {
+        "type": "array",
+        "send_as": "JSON string",
+        "description": "Modullar",
+        "structure": {
+          "title": {
+            "type": "string",
+            "required": true,
+            "max_length": 255,
+            "example": "HTML/CSS əsasları"
+          },
+          "description": {
+            "type": "string",
+            "required": false,
+            "example": "Web dizaynın əsasları"
+          },
+          "order": {
+            "type": "integer",
+            "required": false,
+            "example": 1
+          }
+        },
+        "example": [
+          {
+            "title": "HTML/CSS əsasları",
+            "description": "Web dizaynın əsasları",
+            "order": 1
+          },
+          {
+            "title": "JavaScript Fundamentals",
+            "description": "JavaScript proqramlaşdırma",
+            "order": 2
+          }
+        ]
+      },
+      "requirements": {
+        "type": "array",
+        "send_as": "JSON string",
+        "description": "Tələblər",
+        "structure": {
+          "requirement": {
+            "type": "string",
+            "required": true,
+            "max_length": 500,
+            "example": "HTML və CSS əsasları"
+          },
+          "order": {
+            "type": "integer",
+            "required": false,
+            "example": 1
+          }
+        },
+        "example": [
+          {
+            "requirement": "HTML və CSS əsasları",
+            "order": 1
+          },
+          {
+            "requirement": "JavaScript bilikləri",
+            "order": 2
+          }
+        ]
+      },
+      "goals": {
+        "type": "array",
+        "send_as": "JSON string",
+        "description": "Məqsədlər",
+        "structure": {
+          "goal": {
+            "type": "string",
+            "required": true,
+            "max_length": 500,
+            "example": "Responsive web dizaynı yarada bilmək"
+          },
+          "order": {
+            "type": "integer",
+            "required": false,
+            "example": 1
+          }
+        },
+        "example": [
+          {
+            "goal": "Responsive web dizaynı yarada bilmək",
+            "order": 1
+          },
+          {
+            "goal": "JavaScript ilə interaktiv səhifələr yarada bilmək",
+            "order": 2
+          }
+        ]
+      }
+    },
+    "form_data_example": {
+      "method": "FormData",
+      "note": "Array sahələr JSON string kimi göndərilir",
+      "fields": {
+        "title": "Web Development Stajı",
+        "description": "Müasir web texnologiyaları öyrənmək üçün praktiki staj proqramı",
+        "category": "IT",
+        "duration_weeks": "8",
+        "start_date": "2024-03-01",
+        "end_date": "2024-05-01",
+        "location": "Bakı, Nəsimi rayonu",
+        "max_capacity": "20",
+        "instructor_title": "Senior Full-Stack Developer",
+        "registration_status": "open",
+        "trainer_id": "5",
+        "last_register_date": "2024-02-25",
+        "is_featured": "true",
+        "instructor_description": "5 ildir web development sahəsində çalışır",
+        "instructor_rating": "4.8",
+        "cv_requirements": "HTML, CSS əsasları, JavaScript bilikləri",
+        "image": "[File object]",
+        "modules": "[{\"title\":\"HTML/CSS əsasları\",\"description\":\"Web dizaynın əsasları\",\"order\":1}]",
+        "requirements": "[{\"requirement\":\"HTML və CSS əsasları\",\"order\":1}]",
+        "goals": "[{\"goal\":\"Responsive web dizaynı yarada bilmək\",\"order\":1}]"
+      }
+    },
+    "javascript_example": {
+      "code": "const formData = new FormData();\n\n// Məcburi sahələr\nformData.append('title', 'Web Development Stajı');\nformData.append('description', 'Müasir web texnologiyaları...');\nformData.append('category', 'IT');\nformData.append('duration_weeks', '8');\nformData.append('start_date', '2024-03-01');\nformData.append('location', 'Bakı, Nəsimi rayonu');\nformData.append('max_capacity', '20');\nformData.append('instructor_title', 'Senior Full-Stack Developer');\nformData.append('registration_status', 'open');\n\n// Opsional sahələr\nformData.append('trainer_id', '5');\nformData.append('end_date', '2024-05-01');\nformData.append('last_register_date', '2024-02-25');\nformData.append('is_featured', 'true');\n\n// Şəkil\nconst imageFile = document.querySelector('input[type=\"file\"]').files[0];\nif (imageFile) {\n  formData.append('image', imageFile);\n}\n\n// Array sahələr (JSON string)\nformData.append('modules', JSON.stringify([\n  {\n    title: 'HTML/CSS əsasları',\n    description: 'Web dizaynın əsasları',\n    order: 1\n  }\n]));\n\nformData.append('requirements', JSON.stringify([\n  {\n    requirement: 'HTML və CSS əsasları',\n    order: 1\n  }\n]));\n\nformData.append('goals', JSON.stringify([\n  {\n    goal: 'Responsive web dizaynı yarada bilmək',\n    order: 1\n  }\n]));\n\n// API çağırışı\nfetch('/api/v1/internship-programs', {\n  method: 'POST',\n  headers: {\n    'Authorization': 'Bearer ' + adminToken\n  },\n  body: formData\n})\n.then(response => response.json())\n.then(data => console.log(data));"
+    },
+    "success_response": {
+      "message": "Internship program created successfully",
+      "program": {
+        "id": 3,
+        "title": "Web Development Stajı",
+        "description": "...",
+        "category": "IT",
+        "duration_weeks": 8,
+        "start_date": "2024-03-01",
+        "end_date": "2024-05-01",
+        "location": "Bakı, Nəsimi rayonu",
+        "max_capacity": 20,
+        "registration_status": "open",
+        "modules": [],
+        "requirements": [],
+        "goals": []
+      }
+    },
+    "error_response": {
+      "message": "The given data was invalid.",
+      "errors": {
+        "title": ["The title field is required."],
+        "start_date": ["The start date field must be a date after or equal to today."],
+        "max_capacity": ["The max capacity must be at least 1."]
+      }
+    },
+    "important_notes": [
+      "Content-Type: multipart/form-data istifadə edilməlidir",
+      "Şəkil maksimum 2MB, formatlar: JPEG, PNG, JPG, GIF",
+      "Array sahələr JSON string kimi göndərilir",
+      "trainer_id varsa instructor_name tələb olunmur",
+      "trainer_id yoxdursa instructor_name məcburidir",
+      "Tarixlər ISO formatında (YYYY-MM-DD)",
+      "Boolean dəyərlər string kimi göndərilir (true/false)",
+      "Integer dəyərlər string kimi göndərilə bilər"
+    ]
+  }
+}

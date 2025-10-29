@@ -1,0 +1,37 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('forum_questions', function (Blueprint $table) {
+            $table->boolean('is_public')->default(true)->after('is_open');
+            $table->unsignedBigInteger('views')->default(0)->after('is_public');
+        });
+
+        Schema::create('forum_poll_votes', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('question_id')->constrained('forum_questions')->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->string('option')->index();
+            $table->timestamps();
+            $table->unique(['question_id', 'user_id']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('forum_poll_votes');
+
+        Schema::table('forum_questions', function (Blueprint $table) {
+            $table->dropColumn(['is_public', 'views']);
+        });
+    }
+};
+
+
+

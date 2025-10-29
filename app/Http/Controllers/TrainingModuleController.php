@@ -26,9 +26,19 @@ class TrainingModuleController extends Controller
             'sequence' => ['nullable', 'integer', 'min:1'],
         ]);
 
+        // Check if module with same title already exists
+        $existingModule = $training->modules()->where('title', $validated['title'])->first();
+        if ($existingModule) {
+            return response()->json([
+                'message' => 'Module with this title already exists',
+                'existing_module' => $existingModule
+            ], 409);
+        }
+
         // If no sequence provided, set it to the next available sequence
         if (!isset($validated['sequence'])) {
-            $validated['sequence'] = $training->modules()->max('sequence') + 1;
+            $maxSequence = $training->modules()->max('sequence') ?? 0;
+            $validated['sequence'] = $maxSequence + 1;
         }
 
         $validated['training_id'] = $training->id;

@@ -34,6 +34,33 @@ class TrainingLesson extends Model
         'duration_minutes' => 'integer',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($lesson) {
+            // Delete all media files when lesson is being deleted
+            $mediaFiles = $lesson->media_files ?? [];
+            
+            foreach ($mediaFiles as $mediaFile) {
+                if (isset($mediaFile['url'])) {
+                    $url = $mediaFile['url'];
+                    $path = str_replace(\Storage::url(''), '', $url);
+                    
+                    if (\Storage::disk('public')->exists($path)) {
+                        \Storage::disk('public')->delete($path);
+                    }
+                }
+            }
+            
+            // Delete the lesson directory
+            $lessonDir = 'lessons/' . $lesson->id;
+            if (\Storage::disk('public')->exists($lessonDir)) {
+                \Storage::disk('public')->deleteDirectory($lessonDir);
+            }
+        });
+    }
+
     public function module()
     {
         return $this->belongsTo(TrainingModule::class, 'module_id');

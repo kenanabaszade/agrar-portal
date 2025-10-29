@@ -25,8 +25,11 @@ class AuthController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:50'],
             'password' => ['required', 'string', 'min:8'],
-            'user_type' => ['nullable', Rule::in(['farmer', 'trainer', 'admin'])],
+            'user_type' => ['nullable', Rule::in(['farmer', 'trainer', 'admin', 'agronom', 'veterinary', 'government', 'entrepreneur', 'researcher'])],
             'region' => ['nullable', 'string', 'max:255'],
+            'birth_date' => ['nullable', 'date'],
+            'gender' => ['nullable', 'string', 'max:50'],
+            'how_did_you_hear' => ['nullable', 'string', 'max:255'],
         ]);
 
         // Check if user already exists but not verified
@@ -55,6 +58,9 @@ class AuthController extends Controller
         $user->email = $validated['email'];
         $user->phone = $validated['phone'] ?? null;
         $user->region = $validated['region'] ?? null;
+        $user->birth_date = $validated['birth_date'] ?? null;
+        $user->gender = $validated['gender'] ?? null;
+        $user->how_did_you_hear = $validated['how_did_you_hear'] ?? null;
         $user->password_hash = Hash::make($validated['password']);
         $user->user_type = $validated['user_type'] ?? 'farmer';
         $user->email_verified = false;
@@ -104,11 +110,11 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid OTP code'], 422);
         }
 
-        // Verify the user and enable 2FA
+        // Verify the user (2FA remains false by default)
         $user->update([
             'email_verified' => true,
             'email_verified_at' => Carbon::now(),
-            'two_factor_enabled' => true,
+            'two_factor_enabled' => false, // Default false, user can enable later
             'otp_code' => null,
             'otp_expires_at' => null,
         ]);
@@ -306,6 +312,9 @@ class AuthController extends Controller
                 'otp_expires_at' => null,
             ]);
         }
+
+        // Update last login time
+        $user->update(['last_login_at' => Carbon::now()]);
 
         $token = $user->createToken('api')->plainTextToken;
 

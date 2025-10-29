@@ -1,0 +1,396 @@
+{
+  "info": {
+    "name": "Meeting Management - Agrar Portal",
+    "description": "Complete meeting management with Google Meet integration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Google OAuth2 Setup",
+      "item": [
+        {
+          "name": "1. Get Google Auth URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/google/auth-url",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "google", "auth-url"]
+            }
+          }
+        },
+        {
+          "name": "2. Check Google Access",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/google/check-access",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "google", "check-access"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Meeting Management",
+      "item": [
+        {
+          "name": "Create Basic Meeting",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Advanced Crop Management Workshop\",\n  \"description\": \"Learn advanced farming techniques and best practices\",\n  \"start_time\": \"2025-10-14T02:22:00+04:00\",\n  \"end_time\": \"2025-10-14T04:22:00+04:00\",\n  \"timezone\": \"UTC\",\n  \"max_attendees\": 50,\n  \"training_id\": null,\n  \"is_recurring\": false,\n  \"attendees\": [\n    {\n      \"email\": \"farmer1@example.com\",\n      \"name\": \"John Farmer\"\n    },\n    {\n      \"email\": \"farmer2@example.com\",\n      \"name\": \"Jane Farmer\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meetings"]
+            }
+          }
+        },
+        {
+          "name": "Create Enhanced Meeting (with new fields)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Modern Agriculture Techniques\",\n  \"description\": \"Comprehensive workshop on modern farming methods\",\n  \"start_time\": \"2025-10-15T10:00:00+04:00\",\n  \"end_time\": \"2025-10-15T12:00:00+04:00\",\n  \"timezone\": \"UTC\",\n  \"max_attendees\": 30,\n  \"training_id\": null,\n  \"is_recurring\": false,\n  \"category_id\": 1,\n  \"image_url\": \"https://example.com/meeting-image.jpg\",\n  \"has_materials\": true,\n  \"documents\": [\n    {\n      \"name\": \"Training Manual\",\n      \"url\": \"https://example.com/manual.pdf\",\n      \"type\": \"pdf\"\n    },\n    {\n      \"name\": \"Presentation\",\n      \"url\": \"https://example.com/presentation.pptx\",\n      \"type\": \"pptx\"\n    }\n  ],\n  \"level\": \"intermediate\",\n  \"language\": \"az\",\n  \"hashtags\": [\"#agriculture\", \"#farming\", \"#training\"],\n  \"attendees\": [\n    {\n      \"email\": \"farmer1@example.com\",\n      \"name\": \"John Farmer\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meetings"]
+            }
+          }
+        },
+        {
+          "name": "List All Meetings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings?status=upcoming",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meetings"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "upcoming"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Meeting Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings/{{meeting_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meetings", "{{meeting_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Meeting",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Meeting Title\",\n  \"description\": \"Updated description\",\n  \"max_attendees\": 100,\n  \"level\": \"advanced\",\n  \"hashtags\": [\"#updated\", \"#meeting\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings/{{meeting_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meetings", "{{meeting_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Meeting",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings/{{meeting_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meetings", "{{meeting_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Meeting Registration",
+      "item": [
+        {
+          "name": "Register for Meeting",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings/{{meeting_id}}/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meetings", "{{meeting_id}}", "register"]
+            }
+          }
+        },
+        {
+          "name": "Cancel Meeting Registration",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings/{{meeting_id}}/cancel-registration",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meetings", "{{meeting_id}}", "cancel-registration"]
+            }
+          }
+        },
+        {
+          "name": "Get My Meeting Registrations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/my-meetings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "my-meetings"]
+            }
+          }
+        },
+        {
+          "name": "Get Meeting Attendees",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings/{{meeting_id}}/attendees",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meetings", "{{meeting_id}}", "attendees"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "auth_token",
+      "value": "YOUR_ACCESS_TOKEN_HERE"
+    },
+    {
+      "key": "meeting_id",
+      "value": "1"
+    },
+    {
+      "key": "trainer_id",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Webinar Statistics",
+      "item": [
+        {
+          "name": "Get Webinar Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/webinar-stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "webinar-stats"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Webinar Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/webinar-analytics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "webinar-analytics"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Meeting Cards",
+      "item": [
+        {
+          "name": "Get Meeting Cards",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/meetings/cards?status=upcoming&per_page=12",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "meetings", "cards"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "upcoming",
+                  "description": "Filter by status: upcoming, live, past, completed, cancelled"
+                },
+                {
+                  "key": "per_page",
+                  "value": "12",
+                  "description": "Number of cards per page"
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": "Filter by category",
+                  "disabled": true
+                },
+                {
+                  "key": "language",
+                  "value": "",
+                  "description": "Filter by language",
+                  "disabled": true
+                },
+                {
+                  "key": "level",
+                  "value": "",
+                  "description": "Filter by level: beginner, intermediate, advanced",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search by title",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

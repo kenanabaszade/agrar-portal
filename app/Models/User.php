@@ -24,8 +24,12 @@ class User extends Authenticatable
         'username',
         'father_name',
         'region',
+        'birth_date',
+        'gender',
+        'how_did_you_hear',
         'email',
         'phone',
+        'profile_photo',
         'password_hash',
         'user_type',
         'is_active',
@@ -37,6 +41,7 @@ class User extends Authenticatable
         'google_access_token',
         'google_refresh_token',
         'google_token_expires_at',
+        'last_login_at',
     ];
 
     /**
@@ -54,17 +59,19 @@ class User extends Authenticatable
      *
      * @return array<string, string>
      */
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'otp_expires_at' => 'datetime',
-            'google_token_expires_at' => 'datetime',
-            'is_active' => 'boolean',
-            'two_factor_enabled' => 'boolean',
-            'email_verified' => 'boolean',
-        ];
-    }
+        protected function casts(): array
+        {
+            return [
+                'email_verified_at' => 'datetime',
+                'otp_expires_at' => 'datetime',
+                'google_token_expires_at' => 'datetime',
+                'last_login_at' => 'datetime',
+                'birth_date' => 'date',
+                'is_active' => 'boolean',
+                'two_factor_enabled' => 'boolean',
+                'email_verified' => 'boolean',
+            ];
+        }
 
     public function roles()
     {
@@ -93,5 +100,31 @@ class User extends Authenticatable
     public function emailChangeRequests()
     {
         return $this->hasMany(EmailChangeRequest::class);
+    }
+
+    public function registrations()
+    {
+        return $this->hasMany(TrainingRegistration::class);
+    }
+
+    public function userTrainingProgress()
+    {
+        return $this->hasMany(UserTrainingProgress::class);
+    }
+
+    public function internshipPrograms()
+    {
+        return $this->hasMany(InternshipProgram::class, 'trainer_id');
+    }
+
+    /**
+     * Get the full URL for the profile photo
+     */
+    public function getProfilePhotoUrlAttribute()
+    {
+        if ($this->profile_photo) {
+            return asset('storage/profile_photos/' . $this->profile_photo);
+        }
+        return null;
     }
 }

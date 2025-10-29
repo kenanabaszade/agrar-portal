@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sertifikat - Azərbaycan Respublikası Kənd Təsərrüfatı Nazirliyi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #f9fafb 0%, #d1fae5 50%, #f9fafb 100%);
+            min-height: 100vh;
+            padding: 48px 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background: white;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(90deg, #065f46 0%, #047857 100%);
+            padding: 32px 48px;
+            position: relative;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-box {
+            background: white;
+            padding: 8px;
+            border-radius: 8px;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-box img {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+        }
+
+        .header-text {
+            color: white;
+        }
+
+        .header-text .country {
+            font-size: 14px;
+            letter-spacing: 0.05em;
+            opacity: 0.9;
+            margin-bottom: 4px;
+        }
+
+        .header-text .ministry {
+            font-size: 16px;
+            font-weight: 400;
+        }
+
+        .header-right {
+            color: white;
+            text-align: right;
+        }
+
+        .header-right .label {
+            font-size: 12px;
+            opacity: 0.75;
+            margin-bottom: 2px;
+        }
+
+        .header-right .cert-number {
+            font-size: 16px;
+            letter-spacing: 0.05em;
+        }
+
+        /* Decorative stripe */
+        .stripe {
+            height: 12px;
+            background: linear-gradient(90deg, #059669 0%, #10b981 50%, #059669 100%);
+        }
+
+        /* Main content */
+        .main-content {
+            padding: 40px 48px;
+            display: flex;
+            gap: 48px;
+        }
+
+        .content-left {
+            flex: 1;
+        }
+
+        .content-right {
+            width: 192px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 0;
+        }
+
+        /* Certificate title */
+        .cert-title {
+            margin-bottom: 32px;
+        }
+
+        .cert-title-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .cert-title-header svg {
+            width: 32px;
+            height: 32px;
+            color: #047857;
+        }
+
+        .cert-title-header h1 {
+            font-size: 32px;
+            color: #065f46;
+            letter-spacing: 0.025em;
+            font-weight: 700;
+        }
+
+        .cert-subtitle {
+            font-size: 14px;
+            color: #4b5563;
+        }
+
+        /* Recipient name */
+        .recipient-name {
+            margin-bottom: 32px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #047857;
+        }
+
+        .recipient-name h2 {
+            font-size: 28px;
+            color: #064e3b;
+            letter-spacing: 0.025em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        /* Certificate description */
+        .cert-description {
+            margin-bottom: 40px;
+            line-height: 1.75;
+            color: #374151;
+            font-size: 15px;
+        }
+
+        /* Organizations */
+        .organizations {
+            margin-bottom: 40px;
+        }
+
+        .org-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .org-logo {
+            background: #d1fae5;
+            padding: 6px;
+            border-radius: 4px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .org-logo img {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+        }
+
+        .org-item span {
+            color: #065f46;
+            font-size: 15px;
+        }
+
+        /* Date and signature section */
+        .date-signature {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-top: 32px;
+            border-top: 1px solid #d1d5db;
+        }
+
+        .date-box .date-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .date-box .date-value {
+            font-size: 16px;
+            color: #064e3b;
+            font-weight: 500;
+        }
+
+        .signature-box {
+            text-align: center;
+        }
+
+        .signature-container {
+            position: relative;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+        }
+
+        .signature-container svg {
+            height: 50px;
+            width: 120px;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .verified-badge {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: #047857;
+            color: white;
+            font-size: 8px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+
+        .signature-label {
+            border-top: 1px solid #9ca3af;
+            padding-top: 6px;
+            font-size: 12px;
+            color: #4b5563;
+            font-weight: 500;
+        }
+
+        /* QR Code section */
+        .qr-section {
+            text-align: center;
+        }
+
+        .qr-box {
+            background: white;
+            padding: 12px;
+            border: 2px solid #047857;
+            border-radius: 8px;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+
+        .qr-box img {
+            width: 128px;
+            height: 128px;
+            display: block;
+        }
+
+        .qr-title {
+            font-size: 12px;
+            color: #4b5563;
+            margin-bottom: 4px;
+        }
+
+        .qr-description {
+            font-size: 10px;
+            color: #6b7280;
+            line-height: 1.4;
+            max-width: 150px;
+            margin: 0 auto;
+        }
+
+        /* Verification button */
+        .verification-button {
+            margin-top: 24px;
+            text-align: center;
+        }
+
+        .verification-button a {
+            display: block;
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #6ee7b7;
+            text-decoration: none;
+            transition: box-shadow 0.2s;
+        }
+
+        .verification-button a:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .verification-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            margin-bottom: 4px;
+        }
+
+        .verification-icon svg {
+            width: 20px;
+            height: 20px;
+            color: #047857;
+        }
+
+        .verification-icon svg.external {
+            width: 12px;
+            height: 12px;
+            color: #059669;
+        }
+
+        .verification-title {
+            font-size: 10px;
+            color: #065f46;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .verification-desc {
+            font-size: 8px;
+            color: #047857;
+            line-height: 1.3;
+        }
+
+        /* Decorative dots */
+        .decorative-dots {
+            margin-top: 24px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            opacity: 0.2;
+        }
+
+        .decorative-dots .dot {
+            width: 8px;
+            height: 8px;
+            background: #059669;
+            border-radius: 2px;
+            transform: rotate(45deg);
+        }
+
+        /* Footer */
+        .footer {
+            background: linear-gradient(90deg, #f9fafb 0%, #f3f4f6 100%);
+            padding: 16px 48px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #4b5563;
+        }
+
+        .footer-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .footer-right .dot {
+            width: 8px;
+            height: 8px;
+            background: #059669;
+            border-radius: 50%;
+        }
+
+        /* Watermark */
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-15deg) scale(1.5);
+            pointer-events: none;
+            opacity: 0.03;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            gap: 16px;
+            padding: 32px;
+        }
+
+        .watermark .dot {
+            width: 4px;
+            height: 4px;
+            background: #047857;
+            border-radius: 50%;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="logo-box">
+                        <img src="./image.png" alt="Ministry Logo">
+                    </div>
+                    <div class="header-text">
+                        <div class="country">AZƏRBAYCAN RESPUBLİKASI</div>
+                        <div class="ministry">Kənd Təsərrüfatı Nazirliyi</div>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="label">SERTİFİKAT №</div>
+                    <div class="cert-number">AZ-2025-001234</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Decorative stripe -->
+        <div class="stripe"></div>
+
+        <!-- Main content -->
+        <div class="main-content">
+            <div class="content-left">
+                <!-- Certificate title -->
+                <div class="cert-title">
+                    <div class="cert-title-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="8" r="6"></circle>
+                            <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path>
+                        </svg>
+                        <h1>SERTİFİKAT</h1>
+                    </div>
+                    <div class="cert-subtitle">Bu sertifikatla təsdiqlənir ki</div>
+                </div>
+
+                <!-- Recipient name -->
+                <div class="recipient-name">
+                    <h2>CAHİD HÜMBƏTOV</h2>
+                </div>
+
+                <!-- Certificate description -->
+                <div class="cert-description">
+                    İşğaldan azad olunmuş ərazilərdə kənd təsərrüfatının potensialının 
+                    gücləndirməsi modulları üzrə təlimlərdə imtahanı uğurla başa vurmuşdur.
+                </div>
+
+                <!-- Organizations -->
+                <div class="organizations">
+                    <div class="org-item">
+                        <div class="org-logo">
+                            <img src="https://images.unsplash.com/photo-1560015534-cee980ba7e13?w=50&h=50&fit=crop" alt="AXA Logo">
+                        </div>
+                        <span>Aqrar Xidmətlər Agentliyi</span>
+                    </div>
+                    <div class="org-item">
+                        <div class="org-logo">
+                            <img src="https://images.unsplash.com/photo-1560015534-cee980ba7e13?w=50&h=50&fit=crop" alt="ATM Logo">
+                        </div>
+                        <span>Aqrar Təlim Mərkəzi</span>
+                    </div>
+                </div>
+
+                <!-- Date and signature -->
+                <div class="date-signature">
+                    <div class="date-box">
+                        <div class="date-label">TARİX</div>
+                        <div class="date-value">27 / 10 / 2025</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-container">
+                            <!-- Digital Signature SVG -->
+                            <svg viewBox="0 0 120 50" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Main signature curve -->
+                                <path d="M 10 35 Q 15 20, 25 28 Q 35 36, 45 25 Q 50 20, 58 30" 
+                                      stroke="#1a5f3f" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                                
+                                <!-- Secondary curve -->
+                                <path d="M 55 28 Q 65 18, 75 25 Q 85 32, 95 22" 
+                                      stroke="#1a5f3f" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                                
+                                <!-- Underline flourish -->
+                                <path d="M 18 38 Q 35 42, 52 38 Q 70 34, 88 38" 
+                                      stroke="#1a5f3f" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+                                
+                                <!-- Initial letter accent -->
+                                <path d="M 12 32 L 12 28 Q 12 25, 15 25 L 18 25" 
+                                      stroke="#1a5f3f" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                                
+                                <!-- Dot accent -->
+                                <circle cx="100" cy="20" r="1.5" fill="#1a5f3f"/>
+                            </svg>
+                            <div class="verified-badge">Təsdiqləndi</div>
+                        </div>
+                        <div class="signature-label">Rəqəmsal İmza</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-right">
+                <!-- QR Code section -->
+                <div class="qr-section">
+                    <div class="qr-box">
+                        <img src="PLACEHOLDER_QR_CODE" alt="QR Code">
+                    </div>
+                    <div class="qr-title">Doğrulama Kodu</div>
+                    <div class="qr-description">
+                        Sertifikatın orijinallığını yoxlamaq üçün QR kodu skan edin
+                    </div>
+                </div>
+
+                <!-- Verification button -->
+                <div class="verification-button">
+                    <a href="" target="_blank" rel="noopener noreferrer">
+                        <div class="verification-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            <svg class="external" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                        </div>
+                        <div class="verification-title">Rəqəmsal Təsdiq</div>
+                        <div class="verification-desc">Təsdiq: Aqrar Xidmətlər<br>Agentliyi tərəfindən</div>
+                    </a>
+                </div>
+
+                <!-- Decorative dots -->
+                <div class="decorative-dots">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-content">
+                <div>© 2025 Azərbaycan Respublikası Kənd Təsərrüfatı Nazirliyi</div>
+                <div class="footer-right">
+                    <div class="dot"></div>
+                    <span>Rəsmi Sənəd</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Watermark -->
+        <div class="watermark">
+            <!-- 400 dots for background pattern -->
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        </div>
+    </div>
+</body>
+</html>
