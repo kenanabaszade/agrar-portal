@@ -171,6 +171,8 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         // User-side forum (users: list their questions, create question, write answers)
         Route::get('my/forum/questions', [\App\Http\Controllers\ForumController::class, 'myQuestions']);
         Route::post('my/forum/questions', [\App\Http\Controllers\ForumController::class, 'createMyQuestion']);
+        Route::patch('my/forum/questions/{question}', [\App\Http\Controllers\ForumController::class, 'updateMyQuestion']);
+        Route::delete('my/forum/questions/{question}', [\App\Http\Controllers\ForumController::class, 'destroyMyQuestion']);
 
         // Forum stats and cards endpoints
         Route::get('forum/stats', [\App\Http\Controllers\ForumController::class, 'stats']);

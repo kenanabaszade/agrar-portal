@@ -1,0 +1,1569 @@
+{
+	"info": {
+		"_postman_id": "agrar-portal-api-collection-updated",
+		"name": "Agrar Portal API - Complete & Updated",
+		"description": "Complete and up-to-date API collection for Agrar Portal - Agricultural Training & Certification Platform. Includes all endpoints with 2FA, Google Meet integration, exams, FAQ, educational content, internship programs, trainings, forum, and user management. Last updated: January 2025.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "agrar-portal"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Register Admin (2FA Required)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"Admin\",\n  \"last_name\": \"User\",\n  \"email\": \"{{user_email}}\",\n  \"password\": \"password123\",\n  \"phone\": \"+123456789\",\n  \"region\": \"North Region\",\n  \"user_type\": \"admin\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Register Trainer (2FA Required)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"Tracy\",\n  \"last_name\": \"Trainer\",\n  \"email\": \"{{user_email}}\",\n  \"password\": \"password123\",\n  \"phone\": \"+123456789\",\n  \"region\": \"Central Region\",\n  \"user_type\": \"trainer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Register Farmer (2FA Required)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"Frank\",\n  \"last_name\": \"Farmer\",\n  \"email\": \"{{user_email}}\",\n  \"password\": \"password123\",\n  \"phone\": \"+123456789\",\n  \"region\": \"South Region\",\n  \"user_type\": \"farmer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Verify OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{user_email}}\",\n  \"otp\": \"{{otp_code}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/verify-otp",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "verify-otp"]
+						}
+					}
+				},
+				{
+					"name": "Resend OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{user_email}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/resend-otp",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "resend-otp"]
+						}
+					}
+				},
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Verify Login OTP (2FA)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"otp\": \"{{otp_code}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/verify-login-otp",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "verify-login-otp"]
+						}
+					}
+				},
+				{
+					"name": "Resend Login OTP (2FA)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"{{user_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/resend-login-otp",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "resend-login-otp"]
+						}
+					}
+				},
+				{
+					"name": "Logout User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/logout",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "logout"]
+						}
+					}
+				},
+				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{user_email}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/forgot-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "forgot-password"]
+						}
+					}
+				},
+				{
+					"name": "Verify Password Reset OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{user_email}}\",\n  \"otp\": \"{{otp_code}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/verify-password-reset-otp",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "verify-password-reset-otp"]
+						}
+					}
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{user_email}}\",\n  \"token\": \"{{reset_token}}\",\n  \"password\": \"newPassword123\",\n  \"password_confirmation\": \"newPassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/reset-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "reset-password"]
+						}
+					}
+				},
+				{
+					"name": "Resend Password Reset OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{user_email}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/resend-password-reset-otp",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "resend-password-reset-otp"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Development Authentication",
+			"item": [
+				{
+					"name": "Generate Test Token (Dev Only)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@example.com\",\n  \"user_type\": \"admin\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/generate-test-token",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "generate-test-token"]
+						},
+						"description": "Generate test token without email verification (development only)"
+					}
+				},
+				{
+					"name": "Verify OTP (Dev Bypass)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"{{user_email}}\",\n  \"otp\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/verify-otp-dev",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "verify-otp-dev"]
+						},
+						"description": "Development OTP verification - accepts any 6-digit code"
+					}
+				},
+				{
+					"name": "Verify Login OTP (Dev Bypass)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"otp\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/verify-login-otp-dev",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "verify-login-otp-dev"]
+						},
+						"description": "Development login OTP verification - accepts any 6-digit code"
+					}
+				}
+			]
+		},
+		{
+			"name": "2FA Management",
+			"item": [
+				{
+					"name": "Check 2FA Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/2fa/status",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "2fa", "status"]
+						}
+					}
+				},
+				{
+					"name": "Enable 2FA",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/2fa/enable",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "2fa", "enable"]
+						}
+					}
+				},
+				{
+					"name": "Verify 2FA Activation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"otp\": \"{{otp_code}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/2fa/verify-enable",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "2fa", "verify-enable"]
+						}
+					}
+				},
+				{
+					"name": "Disable 2FA",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"password\": \"{{default_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/2fa/disable",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "2fa", "disable"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Dashboard & Statistics",
+			"item": [
+				{
+					"name": "Get Dashboard",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/dashboard",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "dashboard"]
+						},
+						"description": "Get main dashboard data for the authenticated user"
+					}
+				},
+				{
+					"name": "Get Training Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/training-stats",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "training-stats"]
+						},
+						"description": "Get training statistics and analytics"
+					}
+				},
+				{
+					"name": "Get Webinar Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/webinar-stats",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "webinar-stats"]
+						},
+						"description": "Get webinar statistics"
+					}
+				},
+				{
+					"name": "Get Webinar Analytics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/webinar-analytics",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "webinar-analytics"]
+						},
+						"description": "Get detailed webinar analytics"
+					}
+				}
+			]
+		},
+		{
+			"name": "Training Management",
+			"item": [
+				{
+					"name": "List Public Trainings",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/public?page=1&per_page=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "public"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "per_page",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Public endpoint - no authentication required. Optional auth token for user-specific data."
+					}
+				},
+				{
+					"name": "List Online Trainings",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/online",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "online"]
+						},
+						"description": "Public endpoint - list all online trainings"
+					}
+				},
+				{
+					"name": "List Offline Trainings",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/offline",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "offline"]
+						},
+						"description": "Public endpoint - list all offline trainings"
+					}
+				},
+				{
+					"name": "Get Offline Training Detail",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/offline/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "offline", "1"]
+						},
+						"description": "Get detailed offline training information. Optional auth for user-specific data."
+					}
+				},
+				{
+					"name": "Get Training Detailed View",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/detailed",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "1", "detailed"]
+						},
+						"description": "Get detailed training information with optional auth"
+					}
+				},
+				{
+					"name": "List Future Trainings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/future",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "future"]
+						},
+						"description": "List future trainings"
+					}
+				},
+				{
+					"name": "List Ongoing Trainings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/ongoing",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "ongoing"]
+						},
+						"description": "List ongoing trainings"
+					}
+				},
+				{
+					"name": "Get All Trainings (No Pagination)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/all",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "all"]
+						},
+						"description": "Get all trainings without pagination"
+					}
+				},
+				{
+					"name": "Get Trainings Dropdown",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/dropdown",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "dropdown"]
+						},
+						"description": "Get trainings for dropdown (admin/trainer only)"
+					}
+				},
+				{
+					"name": "List Trainings (Admin/Trainer)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings"]
+						},
+						"description": "Admin/Trainer: List all trainings with management features"
+					}
+				},
+				{
+					"name": "Create Training",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Advanced Crop Management\",\n  \"description\": \"Learn advanced farming techniques\",\n  \"category\": \"Crop Management\",\n  \"trainer_id\": 2,\n  \"start_date\": \"2025-01-01\",\n  \"end_date\": \"2025-12-31\",\n  \"is_online\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings"]
+						}
+					}
+				},
+				{
+					"name": "Get Training Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "1"]
+						}
+					}
+				},
+				{
+					"name": "Update Training",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Training Title\",\n  \"description\": \"Updated description\",\n  \"category\": \"Updated Category\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Training",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "1"]
+						}
+					}
+				},
+				{
+					"name": "Mark Training as Completed",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/complete",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "1", "complete"]
+						},
+						"description": "Mark a training as completed for the authenticated user"
+					}
+				},
+				{
+					"name": "Get Training Completion Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/completion-status",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "1", "completion-status"]
+						},
+						"description": "Get training completion status for the authenticated user"
+					}
+				}
+			]
+		},
+		{
+			"name": "Training Media Management",
+			"item": [
+				{
+					"name": "Upload Media to Training",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "type",
+									"value": "image",
+									"type": "text"
+								},
+								{
+									"key": "title",
+									"value": "Training Cover Image",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "Cover image for the training",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/upload-media",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "1", "upload-media"]
+						}
+					}
+				},
+				{
+					"name": "Get Training Media",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/media",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "1", "media"]
+						}
+					}
+				},
+				{
+					"name": "Remove Media from Training",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/media/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "1", "media", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Training Module Management",
+			"item": [
+				{
+					"name": "List Modules for Training",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/modules",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "1", "modules"]
+						}
+					}
+				},
+				{
+					"name": "Create Module",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Soil Health Fundamentals\",\n  \"sequence\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/modules",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "1", "modules"]
+						}
+					}
+				},
+				{
+					"name": "Get Module Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/modules/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "1", "modules", "1"]
+						}
+					}
+				},
+				{
+					"name": "Update Module",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Module Title\",\n  \"sequence\": 2\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/modules/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "1", "modules", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Module",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/trainings/1/modules/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "trainings", "1", "modules", "1"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Training Lesson Management",
+			"item": [
+				{
+					"name": "List Lessons for Module",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/modules/1/lessons",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "modules", "1", "lessons"]
+						}
+					}
+				},
+				{
+					"name": "Create Lesson",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Understanding Soil pH\",\n  \"lesson_type\": \"mixed\",\n  \"duration_minutes\": 30,\n  \"content\": \"Soil pH is a measure of soil acidity or alkalinity...\",\n  \"description\": \"Learn about soil pH and its importance\",\n  \"video_url\": \"https://example.com/ph-video.mp4\",\n  \"status\": \"published\",\n  \"is_required\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/modules/1/lessons",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "modules", "1", "lessons"]
+						}
+					}
+				},
+				{
+					"name": "Get Lesson Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/modules/1/lessons/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "modules", "1", "lessons", "1"]
+						}
+					}
+				},
+				{
+					"name": "Update Lesson",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Lesson Title\",\n  \"content\": \"Updated content\",\n  \"duration_minutes\": 45\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/modules/1/lessons/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "modules", "1", "lessons", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Lesson",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/modules/1/lessons/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "modules", "1", "lessons", "1"]
+						}
+					}
+				},
+				{
+					"name": "Upload Temporary Lesson Media",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "type",
+									"value": "image",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/upload-temp-media",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "lessons", "upload-temp-media"]
+						},
+						"description": "Upload temporary media during lesson creation"
+					}
+				},
+				{
+					"name": "Delete Temporary Lesson Media",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"file_path\": \"temp/media/abc123.jpg\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/delete-temp-media",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "lessons", "delete-temp-media"]
+						},
+						"description": "Delete temporary media file"
+					}
+				},
+				{
+					"name": "Upload Media to Lesson",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "type",
+									"value": "image",
+									"type": "text"
+								},
+								{
+									"key": "title",
+									"value": "Soil Sample Image",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1/upload-media",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "lessons", "1", "upload-media"]
+						}
+					}
+				},
+				{
+					"name": "Remove Media from Lesson",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"media_index\": 0\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1/remove-media",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "lessons", "1", "remove-media"]
+						}
+					}
+				},
+				{
+					"name": "Reorder Lessons",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"lesson_order\": [3, 1, 2, 4]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/modules/1/reorder-lessons",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "modules", "1", "reorder-lessons"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Lesson Progress & Notes",
+			"item": [
+				{
+					"name": "Get Lesson Progress",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1/progress",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "lessons", "1", "progress"]
+						}
+					}
+				},
+				{
+					"name": "Mark Lesson as Completed",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"time_spent\": 1800,\n  \"notes\": \"Learned a lot about soil pH testing\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1/complete",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "lessons", "1", "complete"]
+						}
+					}
+				},
+				{
+					"name": "Add Lesson Notes",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"notes\": \"Important points to remember: pH affects nutrient availability\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1/notes",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "lessons", "1", "notes"]
+						},
+						"description": "Add personal notes for a lesson"
+					}
+				},
+				{
+					"name": "Get Lesson Notes",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1/notes",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "lessons", "1", "notes"]
+						},
+						"description": "Get user's personal notes for a lesson"
+					}
+				},
+				{
+					"name": "Update Lesson Notes",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"notes\": \"Updated notes with additional information\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1/notes",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "lessons", "1", "notes"]
+						},
+						"description": "Update personal lesson notes"
+					}
+				},
+				{
+					"name": "Delete Lesson Notes",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/lessons/1/notes",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "lessons", "1", "notes"]
+						},
+						"description": "Delete personal lesson notes"
+					}
+				}
+			]
+		},
+		{
+			"name": "Category Management",
+			"item": [
+				{
+					"name": "List Categories",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/categories?search=&is_active=true&sort_by=sort_order&sort_order=asc&per_page=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "categories"],
+							"query": [
+								{
+									"key": "search",
+									"value": ""
+								},
+								{
+									"key": "is_active",
+									"value": "true"
+								},
+								{
+									"key": "sort_by",
+									"value": "sort_order"
+								},
+								{
+									"key": "sort_order",
+									"value": "asc"
+								},
+								{
+									"key": "per_page",
+									"value": "20"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Categories Dropdown",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/categories/dropdown",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "categories", "dropdown"]
+						}
+					}
+				},
+				{
+					"name": "Create Category",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Bitki Becerilmesi\",\n  \"description\": \"Plant cultivation and management techniques\",\n  \"is_active\": true,\n  \"sort_order\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/categories",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "categories"]
+						}
+					}
+				},
+				{
+					"name": "Get Category Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/categories/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "categories", "1"]
+						}
+					}
+				},
+				{
+					"name": "Update Category",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Category Name\",\n  \"description\": \"Updated description\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/categories/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "categories", "1"]
+						}
+					}
+				},
+				{
+					"name": "Delete Category",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/categories/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "categories", "1"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "YOUR_AUTH_TOKEN_HERE",
+			"type": "string"
+		},
+		{
+			"key": "user_email",
+			"value": "test@example.com",
+			"type": "string"
+		},
+		{
+			"key": "otp_code",
+			"value": "123456",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "default_password",
+			"value": "password123",
+			"type": "string"
+		},
+		{
+			"key": "reset_token",
+			"value": "YOUR_RESET_TOKEN_HERE",
+			"type": "string"
+		}
+	]
+}
+

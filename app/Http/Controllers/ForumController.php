@@ -12,7 +12,7 @@ class ForumController extends Controller
     
     public function listQuestions(Request $request)
     {
-        $query = ForumQuestion::with('user')
+        $query = ForumQuestion::with('user:id,first_name,last_name,username,profile_photo,user_type')
             ->when(!$request->user() || !$request->user()->hasRole(['admin','trainer']), function ($q) {
                 $q->where('is_public', true);
             });
@@ -84,7 +84,7 @@ class ForumController extends Controller
             'is_public' => $validated['is_public'] ?? true,
         ]);
 
-        return response()->json($question->load('user'), 201);
+        return response()->json($question->load('user:id,first_name,last_name,username,profile_photo,user_type'), 201);
     }
 
     public function showQuestion(ForumQuestion $question)
@@ -94,7 +94,10 @@ class ForumController extends Controller
         if ($canView) {
             $question->increment('views');
         }
-        return $question->load(['user', 'answers.user']);
+        return $question->load([
+            'user:id,first_name,last_name,username,profile_photo,user_type',
+            'answers.user:id,first_name,last_name,username,profile_photo,user_type'
+        ]);
     }
 
     public function answerQuestion(Request $request, ForumQuestion $question)
@@ -112,12 +115,15 @@ class ForumController extends Controller
             'body' => $validated['body'],
             'is_accepted' => false,
         ]);
-        return response()->json($answer, 201);
+        return response()->json($answer->load('user:id,first_name,last_name,username,profile_photo,user_type'), 201);
     }
 
     public function getAnswers(ForumQuestion $question)
     {
-        return $question->answers()->with('user')->latest()->paginate(20);
+        return $question->answers()
+            ->with('user:id,first_name,last_name,username,profile_photo,user_type')
+            ->latest()
+            ->paginate(20);
     }
 
     public function updateQuestion(Request $request, ForumQuestion $question)
@@ -141,7 +147,7 @@ class ForumController extends Controller
         ]);
 
         $question->update($validated);
-        return response()->json($question->fresh()->load('user'));
+        return response()->json($question->fresh()->load('user:id,first_name,last_name,username,profile_photo,user_type'));
     }
 
     public function destroyQuestion(ForumQuestion $question)
@@ -192,7 +198,42 @@ class ForumController extends Controller
             'is_public' => $validated['is_public'] ?? true,
         ]);
 
-        return response()->json($question->load('user'), 201);
+        return response()->json($question->load('user:id,first_name,last_name,username,profile_photo,user_type'), 201);
+    }
+
+    public function updateMyQuestion(Request $request, ForumQuestion $question)
+    {
+        // Check ownership
+        if ($question->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized - You can only edit your own questions'], 403);
+        }
+
+        $validated = $request->validate([
+            'title' => ['sometimes', 'string', 'max:255'],
+            'summary' => ['nullable', 'string', 'max:300'],
+            'body' => ['sometimes', 'string'],
+            'category' => ['nullable', 'string', 'max:120'],
+            'difficulty' => ['nullable', 'in:beginner,intermediate,advanced'],
+            'tags' => ['nullable', 'array'],
+            'tags.*' => ['string', 'max:30'],
+            'question_type' => ['sometimes', 'in:general,technical,discussion,poll'],
+            'poll_options' => ['nullable', 'array'],
+            'poll_options.*' => ['string', 'max:120'],
+        ]);
+
+        $question->update($validated);
+        return response()->json($question->fresh()->load('user:id,first_name,last_name,username,profile_photo,user_type'));
+    }
+
+    public function destroyMyQuestion(Request $request, ForumQuestion $question)
+    {
+        // Check ownership
+        if ($question->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized - You can only delete your own questions'], 403);
+        }
+
+        $question->delete();
+        return response()->json(['message' => 'Question deleted successfully']);
     }
 
     public function vote(Request $request, ForumQuestion $question)
@@ -267,7 +308,7 @@ class ForumController extends Controller
 
     public function cards(Request $request)
     {
-        $query = ForumQuestion::with('user')
+        $query = ForumQuestion::with('user:id,first_name,last_name,username,profile_photo,user_type')
             ->when(!$request->user() || !$request->user()->hasRole(['admin','trainer']), function ($q) {
                 $q->where('is_public', true);
             });
@@ -284,6 +325,9 @@ class ForumController extends Controller
                     'title' => $q->title,
                     'summary' => $q->summary,
                     'author' => $authorDisplay,
+                    'author_user_type' => optional($q->user)->user_type,
+                    'author_profile_photo' => optional($q->user)->profile_photo,
+                    'author_profile_photo_url' => optional($q->user)->profile_photo_url,
                     'created_date' => $createdAtBaku->toDateString(),
                     'created_time' => $createdAtBaku->format('H:i'),
                     'views' => $q->views,
