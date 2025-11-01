@@ -15,9 +15,7 @@ class ForumController extends Controller
     
     public function listQuestions(Request $request)
     {
-        $query = ForumQuestion::with(['user', 'answers'])
-            ->withCount('answers')
-            ->withCount('questionViews as unique_viewers_count')
+        $query = ForumQuestion::with('user:id,first_name,last_name,username,profile_photo,user_type')
             ->when(!$request->user() || !$request->user()->hasRole(['admin','trainer']), function ($q) {
                 $q->where('is_public', true);
             });
@@ -102,7 +100,7 @@ class ForumController extends Controller
             'is_public' => $validated['is_public'] ?? true,
         ]);
 
-        return response()->json($question->load('user'), 201);
+        return response()->json($question->load('user:id,first_name,last_name,username,profile_photo,user_type'), 201);
     }
 
     public function showQuestion(Request $request, ForumQuestion $question)
@@ -142,51 +140,9 @@ class ForumController extends Controller
                 \Log::info('Forum view tracking error: ' . $e->getMessage());
             }
         }
-        
-        // Load question with relationships and stats
-        $question->load(['user', 'answers.user']);
-        $uniqueViewersCount = $question->questionViews()->whereNotNull('user_id')->distinct('user_id')->count('user_id');
-        $answersCount = $question->answers()->count();
-        
-        $user = $request->user();
-        $isLiked = $user ? $question->isLikedBy($user->id) : false;
-        
-        // Add like info to each answer
-        $answers = $question->answers->map(function ($answer) use ($user) {
-            $answer->likes_count = $answer->likes_count ?? 0;
-            $answer->is_liked = $user ? $answer->isLikedBy($user->id) : false;
-            return $answer;
-        });
-        
-        // Build comprehensive response
-        return response()->json([
-            'id' => $question->id,
-            'title' => $question->title,
-            'summary' => $question->summary,
-            'body' => $question->body,
-            'category' => $question->category,
-            'difficulty' => $question->difficulty,
-            'tags' => $question->tags ?? [],
-            'question_type' => $question->question_type,
-            'poll_options' => $question->poll_options,
-            'status' => $question->status,
-            'is_pinned' => $question->is_pinned,
-            'allow_comments' => $question->allow_comments,
-            'is_open' => $question->is_open,
-            'is_public' => $question->is_public,
-            'created_at' => $question->created_at,
-            'updated_at' => $question->updated_at,
-            'user' => $question->user,
-            'is_liked' => $isLiked,
-            'likes_count' => $question->likes_count ?? 0,
-            'views' => $question->views ?? 0,
-            'answers' => $answers,
-            'stats' => [
-                'views' => $question->views ?? 0, // Ümumi baxış sayı
-                'unique_viewers' => $uniqueViewersCount, // Neçə nəfər baxıb
-                'answers_count' => $answersCount,
-                'likes_count' => $question->likes_count ?? 0,
-            ]
+        return $question->load([
+            'user:id,first_name,last_name,username,profile_photo,user_type',
+            'answers.user:id,first_name,last_name,username,profile_photo,user_type'
         ]);
     }
 
@@ -205,21 +161,15 @@ class ForumController extends Controller
             'body' => $validated['body'],
             'is_accepted' => false,
         ]);
-        return response()->json($answer, 201);
+        return response()->json($answer->load('user:id,first_name,last_name,username,profile_photo,user_type'), 201);
     }
 
     public function getAnswers(Request $request, ForumQuestion $question)
     {
-        $paginator = $question->answers()->with('user')->latest()->paginate(20);
-        
-        $user = $request->user();
-        $paginator->getCollection()->transform(function ($answer) use ($user) {
-            $answer->likes_count = $answer->likes_count ?? 0;
-            $answer->is_liked = $user ? $answer->isLikedBy($user->id) : false;
-            return $answer;
-        });
-        
-        return $paginator;
+        return $question->answers()
+            ->with('user:id,first_name,last_name,username,profile_photo,user_type')
+            ->latest()
+            ->paginate(20);
     }
 
     public function updateQuestion(Request $request, ForumQuestion $question)
@@ -243,7 +193,7 @@ class ForumController extends Controller
         ]);
 
         $question->update($validated);
-        return response()->json($question->fresh()->load('user'));
+        return response()->json($question->fresh()->load('user:id,first_name,last_name,username,profile_photo,user_type'));
     }
 
     public function destroyQuestion(ForumQuestion $question)
@@ -340,7 +290,42 @@ class ForumController extends Controller
             'is_public' => $validated['is_public'] ?? true,
         ]);
 
-        return response()->json($question->load('user'), 201);
+        return response()->json($question->load('user:id,first_name,last_name,username,profile_photo,user_type'), 201);
+    }
+
+    public function updateMyQuestion(Request $request, ForumQuestion $question)
+    {
+        // Check ownership
+        if ($question->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized - You can only edit your own questions'], 403);
+        }
+
+        $validated = $request->validate([
+            'title' => ['sometimes', 'string', 'max:255'],
+            'summary' => ['nullable', 'string', 'max:300'],
+            'body' => ['sometimes', 'string'],
+            'category' => ['nullable', 'string', 'max:120'],
+            'difficulty' => ['nullable', 'in:beginner,intermediate,advanced'],
+            'tags' => ['nullable', 'array'],
+            'tags.*' => ['string', 'max:30'],
+            'question_type' => ['sometimes', 'in:general,technical,discussion,poll'],
+            'poll_options' => ['nullable', 'array'],
+            'poll_options.*' => ['string', 'max:120'],
+        ]);
+
+        $question->update($validated);
+        return response()->json($question->fresh()->load('user:id,first_name,last_name,username,profile_photo,user_type'));
+    }
+
+    public function destroyMyQuestion(Request $request, ForumQuestion $question)
+    {
+        // Check ownership
+        if ($question->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized - You can only delete your own questions'], 403);
+        }
+
+        $question->delete();
+        return response()->json(['message' => 'Question deleted successfully']);
     }
 
     public function vote(Request $request, ForumQuestion $question)
@@ -415,8 +400,7 @@ class ForumController extends Controller
 
     public function cards(Request $request)
     {
-        $query = ForumQuestion::with('user')
-            ->withCount('answers')
+        $query = ForumQuestion::with('user:id,first_name,last_name,username,profile_photo,user_type')
             ->when(!$request->user() || !$request->user()->hasRole(['admin','trainer']), function ($q) {
                 $q->where('is_public', true);
             });
@@ -438,6 +422,9 @@ class ForumController extends Controller
                     'title' => $q->title,
                     'summary' => $q->summary,
                     'author' => $authorDisplay,
+                    'author_user_type' => optional($q->user)->user_type,
+                    'author_profile_photo' => optional($q->user)->profile_photo,
+                    'author_profile_photo_url' => optional($q->user)->profile_photo_url,
                     'created_date' => $createdAtBaku->toDateString(),
                     'created_time' => $createdAtBaku->format('H:i'),
                     'views' => $q->views ?? 0, // Ümumi baxış sayı

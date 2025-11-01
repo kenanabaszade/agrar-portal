@@ -26,8 +26,20 @@ class ExamController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Exam::with(['training.trainer', 'questions'])
-            ->withCount(['questions', 'registrations']);
+        $query = Exam::with(['training.trainer:id,first_name,last_name'])
+            ->withCount([
+                'questions',
+                'registrations',
+                'registrations as completed_registrations_count' => function ($q) {
+                    $q->whereIn('status', ['passed', 'failed', 'completed']);
+                },
+                'registrations as passed_registrations_count' => function ($q) {
+                    $q->where('status', 'passed');
+                }
+            ])
+            ->when($request->boolean('include_questions'), function ($q) {
+                $q->with('questions:id,exam_id,question_text,question_type,points');
+            });
 
         // Search functionality
         if ($request->filled('search')) {
@@ -122,19 +134,15 @@ class ExamController extends Controller
                 $exam->training_title = null;
             }
 
-            // Calculate completion rate
-            $totalRegistrations = $exam->registrations_count;
-            $completedRegistrations = $exam->registrations()
-                ->whereIn('status', ['passed', 'failed', 'completed'])->count();
+            // Use cached count attributes from withCount (no additional queries!)
+            $totalRegistrations = $exam->registrations_count ?? 0;
+            $completedRegistrations = $exam->completed_registrations_count ?? 0;
+            $passedRegistrations = $exam->passed_registrations_count ?? 0;
             
             $exam->completion_rate = $totalRegistrations > 0 
                 ? round(($completedRegistrations / $totalRegistrations) * 100, 1) 
                 : 0;
 
-            // Pass rate
-            $passedRegistrations = $exam->registrations()
-                ->where('status', 'passed')->count();
-            
             $exam->pass_rate = $completedRegistrations > 0 
                 ? round(($passedRegistrations / $completedRegistrations) * 100, 1) 
                 : 0;
