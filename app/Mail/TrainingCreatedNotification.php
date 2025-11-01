@@ -59,3 +59,6 @@ class TrainingCreatedNotification extends Mailable
 }
 
 
+
+
+

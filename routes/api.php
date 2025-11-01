@@ -54,6 +54,33 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
     Route::get('trainings/offline/{training}', [\App\Http\Controllers\TrainingController::class, 'offlineDetail'])
         ->middleware('optional.auth'); // Offline training detalları - token varsa user məlumatlarını qaytarır
     
+    // Telimats endpoint (public access)
+    Route::get('telimats', [\App\Http\Controllers\EducationalContentController::class, 'telimats']);
+    Route::get('education/telimats', [\App\Http\Controllers\EducationalContentController::class, 'telimats']);
+    
+    // Meqaleler endpoint (public access)
+    Route::get('meqaleler', [\App\Http\Controllers\EducationalContentController::class, 'articles']);
+    Route::get('education/articles', [\App\Http\Controllers\EducationalContentController::class, 'articles']);
+    
+    // Get all content (trainings, webinars, internship programs, articles) - Public access
+    Route::get('content/all', [\App\Http\Controllers\ContentController::class, 'getAllContent']);
+    
+    // Service Packages - Public read access
+    Route::get('service-packages', [\App\Http\Controllers\ServicePackageController::class, 'index']);
+    Route::get('service-packages/{servicePackage}', [\App\Http\Controllers\ServicePackageController::class, 'show']);
+    
+    // Single educational content detail (public access)
+    Route::get('education/{id}', [\App\Http\Controllers\EducationalContentController::class, 'show'])
+        ->whereNumber('id')
+        ->name('education.show');
+    
+    // About Page (Haqqımızda) - Public access (optional auth)
+    Route::get('about', [\App\Http\Controllers\AboutPageController::class, 'index']);
+    
+    // Upload endpoint (for authenticated users)
+    Route::post('upload', [\App\Http\Controllers\UploadController::class, 'upload'])
+        ->middleware('auth:sanctum');
+    
     // Optional authentication endpoints (works with or without token)
     Route::get('trainings/{training}/detailed', [\App\Http\Controllers\TrainingController::class, 'detailed'])
         ->middleware('optional.auth'); // Ətraflı training məlumatları - token varsa user məlumatlarını qaytarır
@@ -64,7 +91,8 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         
         // Dashboard
         Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'index']);
-    Route::get('training-stats', [\App\Http\Controllers\TrainingStatsController::class, 'index']);
+        Route::get('user-statistics', [\App\Http\Controllers\DashboardController::class, 'userStatistics']);
+        Route::get('training-stats', [\App\Http\Controllers\TrainingStatsController::class, 'index']);
         
         // 2FA Management (for authenticated users)
         Route::get('auth/2fa/status', [\App\Http\Controllers\AuthController::class, 'getTwoFactorStatus']);
@@ -118,6 +146,9 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         Route::post('faqs/{faq}/helpful', [\App\Http\Controllers\FaqController::class, 'markHelpful']);
         Route::apiResource('faqs', \App\Http\Controllers\FaqController::class)->middleware('role:admin');
 
+        // About Page Management (admin only)
+        Route::post('about/blocks', [\App\Http\Controllers\AboutPageController::class, 'store'])->middleware('role:admin');
+
         // Exams CRUD (admin only for management, admin/trainer for questions)
         Route::get('exams/stats', [\App\Http\Controllers\ExamController::class, 'getStats'])->middleware('role:admin');
         Route::get('exams/comprehensive-stats', [\App\Http\Controllers\ExamController::class, 'getComprehensiveStats'])->middleware('role:admin');
@@ -168,7 +199,7 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         Route::patch('forum/questions/{question}', [\App\Http\Controllers\ForumController::class, 'updateQuestion'])->middleware('role:admin');
         Route::delete('forum/questions/{question}', [\App\Http\Controllers\ForumController::class, 'destroyQuestion'])->middleware('role:admin');
 
-        // User-side forum (users: list their questions, create question, write answers)
+        // User-side forum (users: list their questions, create question, write answers, delete own questions)
         Route::get('my/forum/questions', [\App\Http\Controllers\ForumController::class, 'myQuestions']);
         Route::post('my/forum/questions', [\App\Http\Controllers\ForumController::class, 'createMyQuestion']);
         Route::patch('my/forum/questions/{question}', [\App\Http\Controllers\ForumController::class, 'updateMyQuestion']);
@@ -177,6 +208,12 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         // Forum stats and cards endpoints
         Route::get('forum/stats', [\App\Http\Controllers\ForumController::class, 'stats']);
         Route::get('forum/cards', [\App\Http\Controllers\ForumController::class, 'cards']);
+
+        // Like/Unlike endpoints for questions and answers
+        Route::post('forum/questions/{question}/like', [\App\Http\Controllers\ForumController::class, 'likeQuestion']);
+        Route::post('forum/questions/{question}/unlike', [\App\Http\Controllers\ForumController::class, 'unlikeQuestion']);
+        Route::post('forum/answers/{answer}/like', [\App\Http\Controllers\ForumController::class, 'likeAnswer']);
+        Route::post('forum/answers/{answer}/unlike', [\App\Http\Controllers\ForumController::class, 'unlikeAnswer']);
 
         // Notifications
         Route::get('notifications', [\App\Http\Controllers\NotificationController::class, 'index']);
@@ -265,6 +302,13 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         Route::get('education/articles', [\App\Http\Controllers\EducationalContentController::class, 'articles']);
         Route::get('education/telimats', [\App\Http\Controllers\EducationalContentController::class, 'telimats']);
 
+        // Like/Save/Unsave endpoints
+        Route::post('education/{id}/like', [\App\Http\Controllers\EducationalContentController::class, 'like']);
+        Route::post('education/{id}/unlike', [\App\Http\Controllers\EducationalContentController::class, 'unlike']);
+        Route::post('education/{id}/save', [\App\Http\Controllers\EducationalContentController::class, 'save']);
+        Route::post('education/{id}/unsave', [\App\Http\Controllers\EducationalContentController::class, 'unsave']);
+        Route::get('my-saved-articles', [\App\Http\Controllers\EducationalContentController::class, 'mySaved']);
+
         // Admin/Trainer CRUD
         Route::apiResource('education', \App\Http\Controllers\EducationalContentController::class)->middleware('role:admin,trainer');
 
@@ -303,6 +347,11 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
             Route::get('exams/{registrationId}/for-grading', [\App\Http\Controllers\AdminExamController::class, 'getExamForGrading']);
             Route::post('exams/{registrationId}/grade-text-questions', [\App\Http\Controllers\AdminExamController::class, 'gradeTextQuestions']);
         });
+        
+        // Service Packages CRUD (admin only)
+        Route::apiResource('service-packages', \App\Http\Controllers\ServicePackageController::class)
+            ->except(['index', 'show'])
+            ->middleware('role:admin');
     });
 });
 
