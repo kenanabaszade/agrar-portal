@@ -1298,7 +1298,7 @@ class TrainingController extends Controller
             if ($userRegistration && $userRegistration->status === 'completed') {
                 // For non-video trainings with registration
                 $isTrainingCompleted = true;
-                $completionDate = $userRegistration->completed_at;
+                $completionDate = $userRegistration->updated_at;
                 $certificateId = $userRegistration->certificate_id;
             } elseif ($training->type === 'video') {
                 // For video trainings, check if user has certificate

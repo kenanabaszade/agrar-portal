@@ -25,6 +25,7 @@ class ForumQuestion extends Model
         'is_open',
         'is_public',
         'views',
+        'likes_count',
     ];
 
     protected $casts = [
@@ -49,6 +50,32 @@ class ForumQuestion extends Model
     public function pollVotes()
     {
         return $this->hasMany(ForumPollVote::class, 'question_id');
+    }
+
+    public function questionViews()
+    {
+        return $this->hasMany(ForumQuestionView::class, 'question_id');
+    }
+
+    public function likes()
+    {
+        return $this->hasMany(ForumQuestionLike::class, 'question_id');
+    }
+
+    public function isLikedBy($userId)
+    {
+        return $this->likes()->where('user_id', $userId)->exists();
+    }
+
+    /**
+     * Benzersiz istifadəçilərin sayı (neçə nəfər baxıb)
+     */
+    public function getUniqueViewersCountAttribute()
+    {
+        return $this->questionViews()
+            ->whereNotNull('user_id')
+            ->distinct('user_id')
+            ->count('user_id');
     }
 }
 

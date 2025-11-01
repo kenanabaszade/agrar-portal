@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\ForumQuestion;
 use App\Models\ForumAnswer;
 use App\Models\ForumPollVote;
+use App\Models\ForumQuestionView;
+use App\Models\ForumQuestionLike;
+use App\Models\ForumAnswerLike;
 use Illuminate\Http\Request;
 
 class ForumController extends Controller
@@ -12,7 +15,9 @@ class ForumController extends Controller
     
     public function listQuestions(Request $request)
     {
-        $query = ForumQuestion::with('user')
+        $query = ForumQuestion::with(['user', 'answers'])
+            ->withCount('answers')
+            ->withCount('questionViews as unique_viewers_count')
             ->when(!$request->user() || !$request->user()->hasRole(['admin','trainer']), function ($q) {
                 $q->where('is_public', true);
             });
@@ -45,7 +50,20 @@ class ForumController extends Controller
 
         $query->latest();
 
-        return $query->paginate($request->integer('per_page', 20));
+        $paginator = $query->paginate($request->integer('per_page', 20));
+        
+        // Transform data to include stats
+        $user = $request->user();
+        $paginator->getCollection()->transform(function ($question) use ($user) {
+            $uniqueViewersCount = $question->questionViews()->whereNotNull('user_id')->distinct('user_id')->count('user_id');
+            $question->unique_viewers_count = $uniqueViewersCount;
+            $question->views_count = $question->views ?? 0;
+            $question->likes_count = $question->likes_count ?? 0;
+            $question->is_liked = $user ? $question->isLikedBy($user->id) : false;
+            return $question;
+        });
+
+        return $paginator;
     }
 
     public function postQuestion(Request $request)
@@ -87,14 +105,89 @@ class ForumController extends Controller
         return response()->json($question->load('user'), 201);
     }
 
-    public function showQuestion(ForumQuestion $question)
+    public function showQuestion(Request $request, ForumQuestion $question)
     {
-        // increment views if question is visible for current user
-        $canView = $question->is_public || ($requestUser = request()->user()) && $requestUser->hasRole(['admin','trainer']);
+        // Check if user can view this question
+        $canView = $question->is_public || ($requestUser = $request->user()) && $requestUser->hasRole(['admin','trainer']);
+        
         if ($canView) {
-            $question->increment('views');
+            $user = $request->user();
+            $ipAddress = $request->ip();
+            
+            // Track view: hər istifadəçi bir dəfə sayılır
+            try {
+                if ($user) {
+                    // Authenticated user - user_id ilə track et
+                    ForumQuestionView::firstOrCreate(
+                        [
+                            'question_id' => $question->id,
+                            'user_id' => $user->id,
+                        ]
+                    );
+                } else {
+                    // Unauthenticated user - ip_address ilə track et
+                    ForumQuestionView::firstOrCreate(
+                        [
+                            'question_id' => $question->id,
+                            'ip_address' => $ipAddress,
+                        ]
+                    );
+                }
+                
+                // Update views count
+                $question->views = $question->questionViews()->count();
+                $question->save();
+            } catch (\Exception $e) {
+                // Unique constraint violation - istifadəçi artıq baxıb, heç nə etmirik
+                \Log::info('Forum view tracking error: ' . $e->getMessage());
+            }
         }
-        return $question->load(['user', 'answers.user']);
+        
+        // Load question with relationships and stats
+        $question->load(['user', 'answers.user']);
+        $uniqueViewersCount = $question->questionViews()->whereNotNull('user_id')->distinct('user_id')->count('user_id');
+        $answersCount = $question->answers()->count();
+        
+        $user = $request->user();
+        $isLiked = $user ? $question->isLikedBy($user->id) : false;
+        
+        // Add like info to each answer
+        $answers = $question->answers->map(function ($answer) use ($user) {
+            $answer->likes_count = $answer->likes_count ?? 0;
+            $answer->is_liked = $user ? $answer->isLikedBy($user->id) : false;
+            return $answer;
+        });
+        
+        // Build comprehensive response
+        return response()->json([
+            'id' => $question->id,
+            'title' => $question->title,
+            'summary' => $question->summary,
+            'body' => $question->body,
+            'category' => $question->category,
+            'difficulty' => $question->difficulty,
+            'tags' => $question->tags ?? [],
+            'question_type' => $question->question_type,
+            'poll_options' => $question->poll_options,
+            'status' => $question->status,
+            'is_pinned' => $question->is_pinned,
+            'allow_comments' => $question->allow_comments,
+            'is_open' => $question->is_open,
+            'is_public' => $question->is_public,
+            'created_at' => $question->created_at,
+            'updated_at' => $question->updated_at,
+            'user' => $question->user,
+            'is_liked' => $isLiked,
+            'likes_count' => $question->likes_count ?? 0,
+            'views' => $question->views ?? 0,
+            'answers' => $answers,
+            'stats' => [
+                'views' => $question->views ?? 0, // Ümumi baxış sayı
+                'unique_viewers' => $uniqueViewersCount, // Neçə nəfər baxıb
+                'answers_count' => $answersCount,
+                'likes_count' => $question->likes_count ?? 0,
+            ]
+        ]);
     }
 
     public function answerQuestion(Request $request, ForumQuestion $question)
@@ -115,9 +208,18 @@ class ForumController extends Controller
         return response()->json($answer, 201);
     }
 
-    public function getAnswers(ForumQuestion $question)
+    public function getAnswers(Request $request, ForumQuestion $question)
     {
-        return $question->answers()->with('user')->latest()->paginate(20);
+        $paginator = $question->answers()->with('user')->latest()->paginate(20);
+        
+        $user = $request->user();
+        $paginator->getCollection()->transform(function ($answer) use ($user) {
+            $answer->likes_count = $answer->likes_count ?? 0;
+            $answer->is_liked = $user ? $answer->isLikedBy($user->id) : false;
+            return $answer;
+        });
+        
+        return $paginator;
     }
 
     public function updateQuestion(Request $request, ForumQuestion $question)
@@ -147,15 +249,61 @@ class ForumController extends Controller
     public function destroyQuestion(ForumQuestion $question)
     {
         $question->delete();
-        return response()->json(['message' => 'Question deleted']);
+        return response()->json(['message' => 'Question deleted successfully']);
+    }
+
+    // User-side: Delete own question
+    public function deleteMyQuestion(Request $request, ForumQuestion $question)
+    {
+        // Check if user owns this question
+        if ($question->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'You can only delete your own questions'], 403);
+        }
+
+        $question->delete();
+        return response()->json(['message' => 'Question deleted successfully']);
+    }
+
+    // Admin: Delete any answer
+    public function destroyAnswer(ForumAnswer $answer)
+    {
+        $answer->delete();
+        return response()->json(['message' => 'Answer deleted successfully']);
+    }
+
+    // User-side: Delete own answer
+    public function deleteMyAnswer(Request $request, ForumAnswer $answer)
+    {
+        // Check if user owns this answer
+        if ($answer->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'You can only delete your own answers'], 403);
+        }
+
+        $answer->delete();
+        return response()->json(['message' => 'Answer deleted successfully']);
     }
 
     // User-side endpoints
     public function myQuestions(Request $request)
     {
-        return ForumQuestion::where('user_id', $request->user()->id)
+        $paginator = ForumQuestion::where('user_id', $request->user()->id)
+            ->withCount('answers')
             ->latest()
             ->paginate($request->integer('per_page', 20));
+        
+        // Transform data to include stats
+        $user = $request->user();
+        $paginator->getCollection()->transform(function ($question) use ($user) {
+            $uniqueViewersCount = $question->questionViews()->whereNotNull('user_id')->distinct('user_id')->count('user_id');
+            $question->unique_viewers_count = $uniqueViewersCount;
+            $question->views_count = $question->views ?? 0;
+            $question->answers_count = $question->answers_count ?? 0;
+            $question->likes_count = $question->likes_count ?? 0;
+            $question->is_liked = $user ? $question->isLikedBy($user->id) : false;
+            return $question;
+        });
+        
+        return $paginator;
     }
 
     public function createMyQuestion(Request $request)
@@ -268,6 +416,7 @@ class ForumController extends Controller
     public function cards(Request $request)
     {
         $query = ForumQuestion::with('user')
+            ->withCount('answers')
             ->when(!$request->user() || !$request->user()->hasRole(['admin','trainer']), function ($q) {
                 $q->where('is_public', true);
             });
@@ -279,6 +428,11 @@ class ForumController extends Controller
                 $createdAtBaku = $q->created_at->timezone('Asia/Baku');
                 $authorFullName = trim(((string) optional($q->user)->first_name).' '.((string) optional($q->user)->last_name));
                 $authorDisplay = $authorFullName !== '' ? $authorFullName : ((string) optional($q->user)->username);
+                
+                // Calculate unique viewers count
+                $uniqueViewersCount = $q->questionViews()->whereNotNull('user_id')->distinct('user_id')->count('user_id');
+                $currentUser = $request->user();
+                
                 return [
                     'id' => $q->id,
                     'title' => $q->title,
@@ -286,11 +440,15 @@ class ForumController extends Controller
                     'author' => $authorDisplay,
                     'created_date' => $createdAtBaku->toDateString(),
                     'created_time' => $createdAtBaku->format('H:i'),
-                    'views' => $q->views,
-                    'comments' => $q->answers()->count(),
+                    'views' => $q->views ?? 0, // Ümumi baxış sayı
+                    'unique_viewers' => $uniqueViewersCount, // Neçə nəfər baxıb
+                    'comments' => $q->answers_count ?? $q->answers()->count(), // Cavab sayı
+                    'likes_count' => $q->likes_count ?? 0, // Like sayı
+                    'is_liked' => $currentUser ? $q->isLikedBy($currentUser->id) : false, // User like edibmi?
                     'type' => $q->question_type,
                     'hashtags' => array_slice($q->tags ?? [], 0, 2),
                     'status' => $q->status,
+                    'is_public' => $q->is_public,
                 ];
             });
             return response()->json(['data' => $items, 'meta' => ['total' => $items->count(), 'per_page' => 'all']]);
@@ -301,6 +459,11 @@ class ForumController extends Controller
             $createdAtBaku = $q->created_at->timezone('Asia/Baku');
             $authorFullName = trim(((string) optional($q->user)->first_name).' '.((string) optional($q->user)->last_name));
             $authorDisplay = $authorFullName !== '' ? $authorFullName : ((string) optional($q->user)->username);
+            
+            // Calculate unique viewers count
+            $uniqueViewersCount = $q->questionViews()->whereNotNull('user_id')->distinct('user_id')->count('user_id');
+            $currentUser = $request->user();
+            
             return [
                 'id' => $q->id,
                 'title' => $q->title,
@@ -308,11 +471,15 @@ class ForumController extends Controller
                 'author' => $authorDisplay,
                 'created_date' => $createdAtBaku->toDateString(),
                 'created_time' => $createdAtBaku->format('H:i'),
-                'views' => $q->views,
-                'comments' => $q->answers()->count(),
+                'views' => $q->views ?? 0, // Ümumi baxış sayı
+                'unique_viewers' => $uniqueViewersCount, // Neçə nəfər baxıb
+                'comments' => $q->answers_count ?? $q->answers()->count(), // Cavab sayı
+                'likes_count' => $q->likes_count ?? 0, // Like sayı
+                'is_liked' => $currentUser ? $q->isLikedBy($currentUser->id) : false, // User like edibmi?
                 'type' => $q->question_type,
                 'hashtags' => array_slice($q->tags ?? [], 0, 2),
                 'status' => $q->status,
+                'is_public' => $q->is_public,
             ];
         });
 
@@ -327,6 +494,116 @@ class ForumController extends Controller
     }
 
     // NOTE: Admin yönümlü CRUD mövcud olduğundan, istifadəçi tərəfində update/delete dəstəyi bu mərhələdə çıxarıldı.
+
+    // Like/Unlike endpoints for questions
+    public function likeQuestion(Request $request, ForumQuestion $question)
+    {
+        $user = $request->user();
+
+        $existingLike = ForumQuestionLike::where('user_id', $user->id)
+            ->where('question_id', $question->id)
+            ->first();
+
+        if ($existingLike) {
+            return response()->json([
+                'message' => 'Question already liked',
+                'is_liked' => true,
+            ], 400);
+        }
+
+        ForumQuestionLike::create([
+            'user_id' => $user->id,
+            'question_id' => $question->id,
+        ]);
+
+        $question->increment('likes_count');
+
+        return response()->json([
+            'message' => 'Question liked successfully',
+            'is_liked' => true,
+            'likes_count' => $question->fresh()->likes_count,
+        ]);
+    }
+
+    public function unlikeQuestion(Request $request, ForumQuestion $question)
+    {
+        $user = $request->user();
+
+        $like = ForumQuestionLike::where('user_id', $user->id)
+            ->where('question_id', $question->id)
+            ->first();
+
+        if (!$like) {
+            return response()->json([
+                'message' => 'Question not liked',
+                'is_liked' => false,
+            ], 400);
+        }
+
+        $like->delete();
+        $question->decrement('likes_count');
+
+        return response()->json([
+            'message' => 'Question unliked successfully',
+            'is_liked' => false,
+            'likes_count' => $question->fresh()->likes_count,
+        ]);
+    }
+
+    // Like/Unlike endpoints for answers
+    public function likeAnswer(Request $request, ForumAnswer $answer)
+    {
+        $user = $request->user();
+
+        $existingLike = ForumAnswerLike::where('user_id', $user->id)
+            ->where('answer_id', $answer->id)
+            ->first();
+
+        if ($existingLike) {
+            return response()->json([
+                'message' => 'Answer already liked',
+                'is_liked' => true,
+            ], 400);
+        }
+
+        ForumAnswerLike::create([
+            'user_id' => $user->id,
+            'answer_id' => $answer->id,
+        ]);
+
+        $answer->increment('likes_count');
+
+        return response()->json([
+            'message' => 'Answer liked successfully',
+            'is_liked' => true,
+            'likes_count' => $answer->fresh()->likes_count,
+        ]);
+    }
+
+    public function unlikeAnswer(Request $request, ForumAnswer $answer)
+    {
+        $user = $request->user();
+
+        $like = ForumAnswerLike::where('user_id', $user->id)
+            ->where('answer_id', $answer->id)
+            ->first();
+
+        if (!$like) {
+            return response()->json([
+                'message' => 'Answer not liked',
+                'is_liked' => false,
+            ], 400);
+        }
+
+        $like->delete();
+        $answer->decrement('likes_count');
+
+        return response()->json([
+            'message' => 'Answer unliked successfully',
+            'is_liked' => false,
+            'likes_count' => $answer->fresh()->likes_count,
+        ]);
+    }
 }
 
 

@@ -36,3 +36,6 @@ class ExamFailedMail extends Mailable
     }
 }
 
+
+
+

@@ -134,6 +134,7 @@ class MeetingController extends Controller
                     ],
                     'schedule' => [
                         'date' => $meeting->start_time->format('Y-m-d'),
+                        'date_formatted' => $this->formatDateAz($meeting->start_time),
                         'time' => $meeting->start_time->format('H:i'),
                         'timezone' => $meeting->timezone,
                         'duration' => $meeting->start_time->diffInMinutes($meeting->end_time),
@@ -323,6 +324,35 @@ class MeetingController extends Controller
             'url' => null,
             'icon' => 'calendar'
         ];
+    }
+
+    /**
+     * Format date in Azerbaijani format
+     * Example: "28 Yanvar" (28 January)
+     */
+    private function formatDateAz($date): string
+    {
+        $carbon = Carbon::parse($date);
+        
+        $months = [
+            1 => 'Yanvar',
+            2 => 'Fevral',
+            3 => 'Mart',
+            4 => 'Aprel',
+            5 => 'May',
+            6 => 'İyun',
+            7 => 'İyul',
+            8 => 'Avqust',
+            9 => 'Sentyabr',
+            10 => 'Oktyabr',
+            11 => 'Noyabr',
+            12 => 'Dekabr',
+        ];
+        
+        $day = $carbon->day;
+        $month = $months[$carbon->month] ?? '';
+        
+        return $day . ' ' . $month;
     }
 
     /**
