@@ -179,6 +179,8 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         // Certificates
         Route::get('certificates', [\App\Http\Controllers\CertificateController::class, 'index']);
         Route::get('certificates/{certificate}', [\App\Http\Controllers\CertificateController::class, 'show']);
+        Route::get('certificates/{certificate}/download', [\App\Http\Controllers\CertificateController::class, 'download']);
+        Route::get('certificates/{certificate}/preview', [\App\Http\Controllers\CertificateController::class, 'preview']);
         Route::get('my/certificates', [\App\Http\Controllers\CertificateController::class, 'myCertificates']);
         Route::post('certificates/{certificate}/upload-pdf', [\App\Http\Controllers\CertificateController::class, 'uploadPdf']);
         Route::post('certificates/generate-pdf', [\App\Http\Controllers\CertificateController::class, 'generatePdfCertificate']);

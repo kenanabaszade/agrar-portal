@@ -229,43 +229,54 @@ class AdminExamController extends Controller
                 ],
             ];
 
-            // Write data to temporary file
-            $jsonData = json_encode($data);
-            $tempFile = tempnam(sys_get_temp_dir(), 'cert_data_');
-            file_put_contents($tempFile, $jsonData);
+            // Prepare data for certificate generation
+            $userData = [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+            ];
+            
+            $examData = [
+                'id' => $exam->id,
+                'title' => $exam->title,
+                'description' => $exam->description,
+                'sertifikat_description' => $exam->sertifikat_description ?? null,
+            ];
+            
+            $trainingData = [
+                'id' => $training->id,
+                'title' => $training->title,
+                'description' => $training->description,
+            ];
 
-            // Run Python script
-            $pythonScript = base_path('certificate_generator.py');
-            $result = Process::run("C:\\Python313\\python.exe {$pythonScript} --file {$tempFile}");
+            // Use PHP certificate generator service
+            $service = new \App\Services\CertificateGeneratorService();
+            $result = $service->generateCertificate($userData, $examData, $trainingData);
 
-            // Clean up temp file
-            unlink($tempFile);
-
-            if ($result->successful()) {
-                $output = json_decode($result->output(), true);
-                
+            if ($result['success']) {
                 // Create certificate record
                 Certificate::create([
                     'user_id' => $user->id,
                     'related_training_id' => $training->id,
                     'related_exam_id' => $exam->id,
-                    'certificate_number' => $output['certificate_number'],
+                    'certificate_number' => $result['certificate_number'],
                     'issue_date' => now(),
                     'expiry_date' => now()->addYear(),
                     'status' => 'active',
-                    'pdf_path' => $output['pdf_path'],
-                    'digital_signature' => $output['digital_signature'],
+                    'pdf_path' => $result['pdf_path'],
+                    'digital_signature' => $result['digital_signature'],
                 ]);
 
                 // Update registration with certificate
-                $certificate = Certificate::where('digital_signature', $output['digital_signature'])->first();
+                $certificate = Certificate::where('digital_signature', $result['digital_signature'])->first();
                 if ($certificate) {
                     $registration->update(['certificate_id' => $certificate->id]);
                 }
 
                 Log::info('Certificate generated successfully for user ' . $user->id . ' exam ' . $exam->id);
             } else {
-                Log::error('Certificate generation failed: ' . $result->errorOutput());
+                Log::error('Certificate generation failed: ' . ($result['error'] ?? 'Unknown error'));
             }
 
         } catch (\Exception $e) {

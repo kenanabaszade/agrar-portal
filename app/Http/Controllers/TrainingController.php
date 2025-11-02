@@ -20,11 +20,34 @@ use Illuminate\Validation\Rules\File;
 
 class TrainingController extends Controller
 {
-    private GoogleCalendarService $googleCalendarService;
+    private ?GoogleCalendarService $googleCalendarService = null;
 
-    public function __construct(GoogleCalendarService $googleCalendarService)
+    public function __construct()
     {
-        $this->googleCalendarService = $googleCalendarService;
+        // Lazy load GoogleCalendarService only when needed to avoid autoload issues
+        try {
+            $this->googleCalendarService = app(GoogleCalendarService::class);
+        } catch (\Throwable $e) {
+            // If Google API client is not available, service will be null
+            // Methods that use it should check for null before use
+            \Log::warning('GoogleCalendarService could not be instantiated: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Get GoogleCalendarService instance, creating it if needed
+     */
+    private function getGoogleCalendarService(): ?GoogleCalendarService
+    {
+        if ($this->googleCalendarService === null) {
+            try {
+                $this->googleCalendarService = app(GoogleCalendarService::class);
+            } catch (\Throwable $e) {
+                \Log::warning('GoogleCalendarService could not be instantiated: ' . $e->getMessage());
+                return null;
+            }
+        }
+        return $this->googleCalendarService;
     }
     
     public function index(Request $request)
@@ -286,12 +309,13 @@ class TrainingController extends Controller
                 
                 // Check if user has Google Calendar access
                 $user = $request->user();
-                if ($user->google_access_token) {
+                $googleService = $this->getGoogleCalendarService();
+                if ($user->google_access_token && $googleService) {
                     // Set the user's access token for Google Calendar API
-                    $this->googleCalendarService->setAccessToken($user->google_access_token);
+                    $googleService->setAccessToken($user->google_access_token);
                     
                     // Verify the access token is still valid
-                    $tokenValidation = $this->googleCalendarService->validateAccessToken();
+                    $tokenValidation = $googleService->validateAccessToken();
                     
                     if ($tokenValidation['valid']) {
                         // Prepare meeting data for Google Calendar
@@ -309,7 +333,7 @@ class TrainingController extends Controller
                             isset($validated['recurrence_frequency']) && isset($validated['recurrence_end_date'])) {
                             
                             // Create recurring meetings
-                            $recurringMeetings = $this->createRecurringMeetings($meetingData, $validated, $user);
+                            $recurringMeetings = $this->createRecurringMeetings($meetingData, $validated, $user, $googleService);
                             
                             if (!empty($recurringMeetings)) {
                                 // Use the first meeting as the main meeting
@@ -330,7 +354,7 @@ class TrainingController extends Controller
                             }
                         } else {
                             // Create single meeting
-                            $googleResult = $this->googleCalendarService->createMeeting($meetingData);
+                            $googleResult = $googleService->createMeeting($meetingData);
 
                             if ($googleResult['success']) {
                                 $googleMeetLink = $googleResult['meet_link'];
@@ -540,9 +564,10 @@ class TrainingController extends Controller
                     if ($training->google_event_id) {
                         // Delete existing Google Meet
                         $user = $request->user();
-                        if ($user->google_access_token) {
-                            $this->googleCalendarService->setAccessToken($user->google_access_token);
-                            $this->googleCalendarService->deleteMeeting($training->google_event_id);
+                        $googleService = $this->getGoogleCalendarService();
+                        if ($user->google_access_token && $googleService) {
+                            $googleService->setAccessToken($user->google_access_token);
+                            $googleService->deleteMeeting($training->google_event_id);
                         }
                         
                         // Clear Google Meet fields
@@ -556,11 +581,12 @@ class TrainingController extends Controller
             // Update Google Meet if needed
             if ($needsGoogleMeetUpdate || $needsGoogleMeetCreation) {
                 $user = $request->user();
-                if ($user->google_access_token) {
-                    $this->googleCalendarService->setAccessToken($user->google_access_token);
+                $googleService = $this->getGoogleCalendarService();
+                if ($user->google_access_token && $googleService) {
+                    $googleService->setAccessToken($user->google_access_token);
                     
                     // Verify the access token is still valid
-                    $tokenValidation = $this->googleCalendarService->validateAccessToken();
+                    $tokenValidation = $googleService->validateAccessToken();
                     
                     if ($tokenValidation['valid']) {
                         // Prepare meeting data for Google Calendar
@@ -575,10 +601,10 @@ class TrainingController extends Controller
 
                         if ($needsGoogleMeetUpdate) {
                             // Update existing Google Meet
-                            $googleResult = $this->googleCalendarService->updateMeeting($training->google_event_id, $meetingData);
+                            $googleResult = $googleService->updateMeeting($training->google_event_id, $meetingData);
                         } else {
                             // Create new Google Meet
-                            $googleResult = $this->googleCalendarService->createMeeting($meetingData);
+                            $googleResult = $googleService->createMeeting($meetingData);
                         }
 
                         if ($googleResult['success']) {
@@ -2483,12 +2509,21 @@ class TrainingController extends Controller
     /**
      * Create recurring meetings for training
      */
-    private function createRecurringMeetings($meetingData, $validated, $user)
+    private function createRecurringMeetings($meetingData, $validated, $user, $googleService = null)
     {
         $recurringMeetings = [];
         $startDate = \Carbon\Carbon::parse($validated['start_date']);
         $endDate = \Carbon\Carbon::parse($validated['recurrence_end_date']);
         $frequency = $validated['recurrence_frequency'];
+        
+        // Get Google service if not provided
+        if ($googleService === null) {
+            $googleService = $this->getGoogleCalendarService();
+        }
+        
+        if (!$googleService) {
+            return $recurringMeetings;
+        }
         
         $currentDate = $startDate->copy();
         
@@ -2501,7 +2536,7 @@ class TrainingController extends Controller
                 \Carbon\Carbon::parse($validated['meeting_end_time'])->format('H:i:s');
             
             // Create meeting in Google Calendar
-            $googleResult = $this->googleCalendarService->createMeeting($dayMeetingData);
+            $googleResult = $googleService->createMeeting($dayMeetingData);
             
             if ($googleResult['success']) {
                 $recurringMeetings[] = [
