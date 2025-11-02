@@ -202,13 +202,8 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         // User-side forum (users: list their questions, create question, write answers, delete own questions)
         Route::get('my/forum/questions', [\App\Http\Controllers\ForumController::class, 'myQuestions']);
         Route::post('my/forum/questions', [\App\Http\Controllers\ForumController::class, 'createMyQuestion']);
-        Route::delete('my/forum/questions/{question}', [\App\Http\Controllers\ForumController::class, 'deleteMyQuestion']);
-
-        // User-side: Delete own answers
-        Route::delete('my/forum/answers/{answer}', [\App\Http\Controllers\ForumController::class, 'deleteMyAnswer']);
-
-        // Admin: Delete any answer
-        Route::delete('forum/answers/{answer}', [\App\Http\Controllers\ForumController::class, 'destroyAnswer'])->middleware('role:admin');
+        Route::patch('my/forum/questions/{question}', [\App\Http\Controllers\ForumController::class, 'updateMyQuestion']);
+        Route::delete('my/forum/questions/{question}', [\App\Http\Controllers\ForumController::class, 'destroyMyQuestion']);
 
         // Forum stats and cards endpoints
         Route::get('forum/stats', [\App\Http\Controllers\ForumController::class, 'stats']);

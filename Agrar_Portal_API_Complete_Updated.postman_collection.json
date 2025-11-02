@@ -5085,68 +5085,6 @@
               ]
             }
           }
-        },
-        {
-          "name": "Update My Question",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Updated question title\",\n  \"body\": \"Updated question content\",\n  \"summary\": \"Updated summary\",\n  \"tags\": [\n    \"farming\",\n    \"updated\"\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/my/forum/questions/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "my",
-                "forum",
-                "questions",
-                "1"
-              ]
-            }
-          },
-          "description": "Update user's own forum question. Only question owner can update their questions."
-        },
-        {
-          "name": "Delete My Question",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{auth_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/my/forum/questions/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "my",
-                "forum",
-                "questions",
-                "1"
-              ]
-            }
-          },
-          "description": "Delete user's own forum question. Only question owner can delete their questions."
         }
       ]
     },

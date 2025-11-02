@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\File;
 
@@ -29,8 +30,25 @@ class TrainingController extends Controller
     
     public function index(Request $request)
     {
-        $query = Training::with(['modules.lessons', 'trainer', 'registrations', 'exam'])
-            ->withCount(['registrations']);
+        $query = Training::with(['trainer:id,first_name,last_name', 'exam:id,title'])
+            ->withCount([
+                'registrations',
+                'registrations as started_registrations_count' => function ($q) {
+                    $q->whereHas('userTrainingProgress', function ($p) {
+                        $p->where('status', 'in_progress');
+                    });
+                },
+                'registrations as completed_registrations_count' => function ($q) {
+                    $q->whereHas('userTrainingProgress', function ($p) {
+                        $p->where('status', 'completed');
+                    });
+                },
+                'modules',
+                'lessons'
+            ])
+            ->when($request->boolean('include_modules'), function ($q) {
+                $q->with('modules.lessons:id,module_id,title,video_url,pdf_url,duration_minutes');
+            });
 
         // Search functionality
         if ($request->filled('search')) {
@@ -74,99 +92,50 @@ class TrainingController extends Controller
         $trainings = $query->paginate($perPage);
 
         // Add statistics and media counts for each training
-        $trainings->getCollection()->transform(function ($training) {
-            // Calculate registration statistics
-            $totalRegistrations = $training->registrations_count;
-            $completedRegistrations = $training->registrations()
-                ->whereHas('userTrainingProgress', function ($query) {
-                    $query->where('status', 'completed');
-                })
-                ->count();
-            
-            $startedRegistrations = $training->registrations()
-                ->whereHas('userTrainingProgress', function ($query) {
-                    $query->where('status', 'in_progress');
-                })
-                ->count();
+        $trainings->getCollection()->transform(function ($training) use ($request) {
+            // Use cached count attributes from withCount (no additional queries!)
+            $totalRegistrations = $training->registrations_count ?? 0;
+            $completedRegistrations = $training->completed_registrations_count ?? 0;
+            $startedRegistrations = $training->started_registrations_count ?? 0;
 
             // Calculate completion percentage
             $completionRate = $totalRegistrations > 0 ? round(($completedRegistrations / $totalRegistrations) * 100, 2) : 0;
             $progressRate = $totalRegistrations > 0 ? round((($completedRegistrations + $startedRegistrations) / $totalRegistrations) * 100, 2) : 0;
 
-            // Count media files by type (training + modules + lessons)
+            // Count media files from training only (lightweight)
             $trainingMediaFiles = $training->media_files ?? [];
+            $mediaCounts = $this->countMediaFilesByType($trainingMediaFiles);
             
-            // Get all modules and their lessons
-            $modules = $training->modules;
-            
-            // Initialize counters
-            $totalVideos = 0;
-            $totalDocuments = 0;
-            $totalImages = 0;
-            $totalAudio = 0;
-            
-            // Count training media files
-            foreach ($trainingMediaFiles as $file) {
-                $mimeType = $file['mime_type'] ?? '';
-                if ($file['type'] === 'intro_video' || str_contains($mimeType, 'video')) {
-                    $totalVideos++;
-                } elseif (str_contains($mimeType, 'pdf') || str_contains($mimeType, 'doc')) {
-                    $totalDocuments++;
-                } elseif ($file['type'] === 'banner' || str_contains($mimeType, 'image')) {
-                    $totalImages++;
-                } elseif (str_contains($mimeType, 'audio')) {
-                    $totalAudio++;
-                }
-            }
-            
-            // Count lesson media files and URLs
-            foreach ($modules as $module) {
-                $lessons = $module->lessons;
-                foreach ($lessons as $lesson) {
-                    // Count video_url
-                    if (!empty($lesson->video_url)) {
-                        $totalVideos++;
-                    }
-                    
-                    // Count pdf_url
-                    if (!empty($lesson->pdf_url)) {
-                        $totalDocuments++;
-                    }
-                    
-                    // Count lesson media_files
-                    $lessonMedia = $lesson->media_files ?? [];
-                    foreach ($lessonMedia as $file) {
-                        if (isset($file['type'])) {
-                            switch ($file['type']) {
-                                case 'video':
-                                    $totalVideos++;
-                                    break;
-                                case 'document':
-                                    $totalDocuments++;
-                                    break;
-                                case 'image':
-                                    $totalImages++;
-                                    break;
-                                case 'audio':
-                                    $totalAudio++;
-                                    break;
-                            }
+            // Only count module/lesson media if modules are loaded
+            if ($request->boolean('include_modules') && $training->relationLoaded('modules')) {
+                foreach ($training->modules as $module) {
+                    foreach ($module->lessons as $lesson) {
+                        if (!empty($lesson->video_url)) {
+                            $mediaCounts['videos']++;
                         }
+                        if (!empty($lesson->pdf_url)) {
+                            $mediaCounts['documents']++;
+                        }
+                        
+                        $lessonMedia = $lesson->media_files ?? [];
+                        $lessonCounts = $this->countMediaFilesByType($lessonMedia);
+                        $mediaCounts['videos'] += $lessonCounts['videos'];
+                        $mediaCounts['documents'] += $lessonCounts['documents'];
+                        $mediaCounts['images'] += $lessonCounts['images'];
+                        $mediaCounts['audio'] += $lessonCounts['audio'];
                     }
                 }
             }
             
             $mediaStats = [
-                'videos_count' => $totalVideos,
-                'documents_count' => $totalDocuments,
-                'images_count' => $totalImages,
-                'audio_count' => $totalAudio,
-                'total_media' => $totalVideos + $totalDocuments + $totalImages + $totalAudio,
+                'videos_count' => $mediaCounts['videos'],
+                'documents_count' => $mediaCounts['documents'],
+                'images_count' => $mediaCounts['images'],
+                'audio_count' => $mediaCounts['audio'],
+                'total_media' => $mediaCounts['videos'] + $mediaCounts['documents'] + $mediaCounts['images'] + $mediaCounts['audio'],
                 'training_media_count' => count($trainingMediaFiles),
-                'modules_count' => $modules->count(),
-                'lessons_count' => $modules->sum(function ($module) {
-                    return $module->lessons->count();
-                })
+                'modules_count' => $training->modules_count ?? 0,
+                'lessons_count' => $training->lessons_count ?? 0
             ];
 
             // Add statistics to training object
@@ -2662,5 +2631,38 @@ class TrainingController extends Controller
         }
 
         return $normalized;
+    }
+
+    /**
+     * Helper method to count media files by type
+     * 
+     * @param array $mediaFiles
+     * @return array
+     */
+    private function countMediaFilesByType(array $mediaFiles): array
+    {
+        $counts = [
+            'videos' => 0,
+            'documents' => 0,
+            'images' => 0,
+            'audio' => 0
+        ];
+
+        foreach ($mediaFiles as $file) {
+            $mimeType = $file['mime_type'] ?? '';
+            $fileType = $file['type'] ?? '';
+
+            if ($fileType === 'intro_video' || $fileType === 'video' || str_contains($mimeType, 'video')) {
+                $counts['videos']++;
+            } elseif ($fileType === 'document' || str_contains($mimeType, 'pdf') || str_contains($mimeType, 'doc')) {
+                $counts['documents']++;
+            } elseif ($fileType === 'banner' || $fileType === 'image' || str_contains($mimeType, 'image')) {
+                $counts['images']++;
+            } elseif ($fileType === 'audio' || str_contains($mimeType, 'audio')) {
+                $counts['audio']++;
+            }
+        }
+
+        return $counts;
     }
 }
