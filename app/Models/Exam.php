@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasTranslations;
 
 class Exam extends Model
 {
-    use HasFactory;
+    use HasFactory, HasTranslations;
+
+    protected $translatable = ['title', 'description', 'sertifikat_description', 'rules', 'instructions'];
 
     protected $fillable = [
         'training_id', 'title', 'description', 'sertifikat_description', 'category', 'passing_score', 'duration_minutes', 'start_date', 'end_date',
@@ -18,6 +21,11 @@ class Exam extends Model
     ];
 
     protected $casts = [
+        'title' => 'array',
+        'description' => 'array',
+        'sertifikat_description' => 'array',
+        'rules' => 'array',
+        'instructions' => 'array',
         'start_date' => 'date',
         'end_date' => 'date',
         'passing_score' => 'integer',

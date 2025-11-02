@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasTranslations;
 
 class ExamQuestion extends Model
 {
-    use HasFactory;
+    use HasFactory, HasTranslations;
+
+    protected $translatable = ['question_text', 'explanation'];
 
     protected $fillable = [
         'exam_id', 
@@ -23,6 +26,8 @@ class ExamQuestion extends Model
     ];
 
     protected $casts = [
+        'question_text' => 'array',
+        'explanation' => 'array',
         'question_media' => 'array',
         'metadata' => 'array',
         'is_required' => 'boolean',

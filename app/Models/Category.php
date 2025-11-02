@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasTranslations;
 
 class Category extends Model
 {
-    use HasFactory;
+    use HasFactory, HasTranslations;
+
+    protected $translatable = ['name', 'description'];
 
     protected $fillable = [
         'name',
@@ -17,6 +20,8 @@ class Category extends Model
     ];
 
     protected $casts = [
+        'name' => 'array',
+        'description' => 'array',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];

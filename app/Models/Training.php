@@ -5,10 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use App\Traits\HasTranslations;
 
 class Training extends Model
 {
-    use HasFactory;
+    use HasFactory, HasTranslations;
+
+    /**
+     * Translatable attributes
+     */
+    protected $translatable = ['title', 'description'];
 
     protected $fillable = [
         'title',
@@ -44,6 +50,8 @@ class Training extends Model
     ];
 
     protected $casts = [
+        'title' => 'array',
+        'description' => 'array',
         'media_files' => 'array',
         'online_details' => 'array',
         'offline_details' => 'array',
@@ -358,4 +366,5 @@ class Training extends Model
             return $hours . ' saat ' . $minutes . ' dəqiqə';
         }
     }
+
 }

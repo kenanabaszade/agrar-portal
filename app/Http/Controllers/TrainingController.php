@@ -8,6 +8,7 @@ use App\Models\UserTrainingProgress;
 use App\Models\Certificate;
 use App\Models\User;
 use App\Services\GoogleCalendarService;
+use App\Services\TranslationHelper;
 use App\Mail\TrainingCreatedNotification;
 use App\Mail\TrainingNotification;
 use Illuminate\Http\Request;
@@ -187,9 +188,13 @@ class TrainingController extends Controller
 
     public function store(Request $request)
     {
+        // Normalize request data: Convert title_az, title_en format to object format
+        $requestData = $this->normalizeTranslationRequest($request->all());
+        $request->merge($requestData);
+
         $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
+            'title' => ['required', new \App\Rules\TranslationRule(true)],
+            'description' => ['nullable', new \App\Rules\TranslationRule(false)],
             'category' => ['nullable', 'string', 'max:255'],
             'trainer_id' => ['required', 'exists:users,id'],
             'start_date' => ['nullable', 'date'],
@@ -232,6 +237,14 @@ class TrainingController extends Controller
             'recurrence_frequency' => ['nullable', 'string', 'in:daily,weekly,monthly'],
             'recurrence_end_date' => ['nullable', 'date', 'after:start_date'],
         ]);
+
+        // Normalize translation fields
+        if (isset($validated['title'])) {
+            $validated['title'] = TranslationHelper::normalizeTranslation($validated['title']);
+        }
+        if (isset($validated['description'])) {
+            $validated['description'] = TranslationHelper::normalizeTranslation($validated['description']);
+        }
 
         // Set default values
         $validated['is_online'] = $validated['is_online'] ?? true;
@@ -326,9 +339,15 @@ class TrainingController extends Controller
                     
                     if ($tokenValidation['valid']) {
                         // Prepare meeting data for Google Calendar
+                        // Extract translated title/description for Google Calendar (use default language)
+                        $meetingTitle = is_array($validated['title']) ? ($validated['title']['az'] ?? reset($validated['title'])) : $validated['title'];
+                        $meetingDescription = '';
+                        if (isset($validated['description'])) {
+                            $meetingDescription = is_array($validated['description']) ? ($validated['description']['az'] ?? reset($validated['description']) ?? '') : ($validated['description'] ?? '');
+                        }
                         $meetingData = [
-                            'title' => $validated['title'],
-                            'description' => $validated['description'] ?? '',
+                            'title' => $meetingTitle,
+                            'description' => $meetingDescription,
                             'start_time' => $validated['meeting_start_time'],
                             'end_time' => $validated['meeting_end_time'],
                             'timezone' => $validated['timezone'] ?? 'UTC',
@@ -426,9 +445,13 @@ class TrainingController extends Controller
 
     public function update(Request $request, Training $training)
     {
+        // Normalize request data: Convert title_az, title_en format to object format
+        $requestData = $this->normalizeTranslationRequest($request->all());
+        $request->merge($requestData);
+
         $validated = $request->validate([
-            'title' => ['sometimes', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
+            'title' => ['sometimes', new \App\Rules\TranslationRule(true)],
+            'description' => ['nullable', new \App\Rules\TranslationRule(false)],
             'category' => ['nullable', 'string', 'max:255'],
             'trainer_id' => ['sometimes', 'exists:users,id'],
             'start_date' => ['nullable', 'date'],
@@ -537,6 +560,14 @@ class TrainingController extends Controller
             }
         }
 
+        // Normalize translation fields
+        if (isset($validated['title'])) {
+            $validated['title'] = TranslationHelper::normalizeTranslation($validated['title']);
+        }
+        if (isset($validated['description'])) {
+            $validated['description'] = TranslationHelper::normalizeTranslation($validated['description']);
+        }
+
         // Remove file inputs and control flags from validated data
         unset($validated['banner_image'], $validated['intro_video'], $validated['media_files'], 
               $validated['remove_banner'], $validated['remove_intro_video'], $validated['remove_media_files']);
@@ -595,9 +626,16 @@ class TrainingController extends Controller
                     
                     if ($tokenValidation['valid']) {
                         // Prepare meeting data for Google Calendar
+                        // Extract translated title/description for Google Calendar (use default language)
+                        $currentTitle = $validated['title'] ?? $training->title;
+                        $currentDescription = $validated['description'] ?? $training->description ?? '';
+                        
+                        $meetingTitle = is_array($currentTitle) ? ($currentTitle['az'] ?? reset($currentTitle)) : $currentTitle;
+                        $meetingDescription = is_array($currentDescription) ? ($currentDescription['az'] ?? reset($currentDescription) ?? '') : $currentDescription;
+                        
                         $meetingData = [
-                            'title' => $validated['title'] ?? $training->title,
-                            'description' => $validated['description'] ?? $training->description,
+                            'title' => $meetingTitle,
+                            'description' => $meetingDescription,
                             'start_time' => $validated['meeting_start_time'],
                             'end_time' => $validated['meeting_end_time'],
                             'timezone' => $validated['timezone'] ?? $training->timezone ?? 'UTC',
@@ -2574,5 +2612,55 @@ class TrainingController extends Controller
             'trainings' => $trainings,
             'total_count' => $trainings->count()
         ]);
+    }
+
+    /**
+     * Normalize translation request data
+     * Converts format like {title_az: "...", title_en: "..."} to {title: {az: "...", en: "..."}}
+     */
+    private function normalizeTranslationRequest(array $data): array
+    {
+        $translatableFields = ['title', 'description'];
+        $normalized = $data;
+
+        foreach ($translatableFields as $field) {
+            // Check if field comes as separate language fields (title_az, title_en, etc.)
+            $azKey = $field . '_az';
+            $enKey = $field . '_en';
+            $ruKey = $field . '_ru';
+
+            if (isset($data[$azKey]) || isset($data[$enKey]) || isset($data[$ruKey])) {
+                // Build translation object
+                $translations = [];
+                if (isset($data[$azKey])) {
+                    $translations['az'] = $data[$azKey];
+                    unset($normalized[$azKey]);
+                }
+                if (isset($data[$enKey])) {
+                    $translations['en'] = $data[$enKey];
+                    unset($normalized[$enKey]);
+                }
+                if (isset($data[$ruKey])) {
+                    $translations['ru'] = $data[$ruKey];
+                    unset($normalized[$ruKey]);
+                }
+
+                // If there's also a direct field value (for backward compatibility)
+                if (isset($data[$field]) && !is_array($data[$field])) {
+                    // Use direct value as default az if az not provided
+                    if (!isset($translations['az'])) {
+                        $translations['az'] = $data[$field];
+                    }
+                }
+
+                $normalized[$field] = $translations;
+            } elseif (isset($data[$field]) && !is_array($data[$field])) {
+                // Single string value - convert to translation object with az
+                $normalized[$field] = ['az' => $data[$field]];
+            }
+            // If already in object format, keep it as is
+        }
+
+        return $normalized;
     }
 }

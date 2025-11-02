@@ -5,9 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Traits\HasTranslations;
 
 class InternshipProgram extends Model
 {
+    use HasTranslations;
+
+    protected $translatable = ['title', 'description', 'location', 'instructor_description', 'cv_requirements'];
+
     protected $fillable = [
         'trainer_id',
         'trainer_mail',
@@ -36,6 +41,11 @@ class InternshipProgram extends Model
     ];
 
     protected $casts = [
+        'title' => 'array',
+        'description' => 'array',
+        'location' => 'array',
+        'instructor_description' => 'array',
+        'cv_requirements' => 'array',
         'is_featured' => 'boolean',
         'is_active' => 'boolean',
         'start_date' => 'date',

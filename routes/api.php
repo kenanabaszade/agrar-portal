@@ -22,7 +22,7 @@ Route::bind('lesson', function ($value, $route) {
     return \App\Models\TrainingLesson::findOrFail($value);
 });
 
-Route::prefix('v1')->group(function () {
+Route::prefix('v1')->middleware('set.locale')->group(function () {
 // Public Certificate Routes (no auth required)
 Route::get('certificates/{certificate}/data', [\App\Http\Controllers\CertificateController::class, 'getCertificateData']);
 Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\CertificateController::class, 'verify']);

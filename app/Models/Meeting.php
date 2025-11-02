@@ -6,9 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Carbon\Carbon;
+use App\Traits\HasTranslations;
 
 class Meeting extends Model
 {
+    use HasTranslations;
+
+    protected $translatable = ['title', 'description'];
+
     protected $fillable = [
         'title',
         'description',
@@ -40,6 +45,8 @@ class Meeting extends Model
     ];
 
     protected $casts = [
+        'title' => 'array',
+        'description' => 'array',
         'start_time' => 'datetime',
         'end_time' => 'datetime',
         'is_recurring' => 'boolean',
