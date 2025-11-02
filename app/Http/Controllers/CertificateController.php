@@ -11,6 +11,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
+use Endroid\QrCode\Builder\Builder;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\Writer\PngWriter;
  
 class CertificateController extends Controller
 {
@@ -58,15 +62,76 @@ class CertificateController extends Controller
 
     public function myCertificates(Request $request)
     {
-        $query = Certificate::where('user_id', $request->user()->id)
+        $user = $request->user();
+        
+        $query = Certificate::where('user_id', $user->id)
             ->with(['training', 'exam'])
+            ->where(function ($q) {
+                // Hide expired certificates from users - only show active ones
+                $q->where('status', '!=', 'expired')
+                  ->orWhere(function ($q2) {
+                      // Include certificates that haven't expired yet (even if marked expired)
+                      $q2->whereNull('expiry_date')
+                         ->orWhereDate('expiry_date', '>=', now()->toDateString());
+                  });
+            })
             ->latest();
+        
+        // Filter by type: all, training, exam
+        $type = $request->input('type', 'all');
+        if ($type === 'training') {
+            $query->whereNotNull('related_training_id');
+        } elseif ($type === 'exam') {
+            $query->whereNotNull('related_exam_id');
+        }
+        // 'all' includes both
         
         $certificates = $query->paginate($request->integer('per_page', 20));
         
-        $certificates->getCollection()->transform(function ($certificate) {
+        $certificates->getCollection()->transform(function ($certificate) use ($user) {
+            // Get exam registration for score
+            $examScore = null;
+            $examResult = null;
+            if ($certificate->related_exam_id) {
+                $registration = ExamRegistration::where('user_id', $user->id)
+                    ->where('exam_id', $certificate->related_exam_id)
+                    ->where('certificate_id', $certificate->id)
+                    ->where('status', 'passed')
+                    ->first();
+                
+                if ($registration) {
+                    $examScore = $registration->score;
+                    $examResult = [
+                        'score' => $registration->score,
+                        'passed' => $registration->status === 'passed',
+                        'finished_at' => $registration->finished_at,
+                    ];
+                }
+            }
+            
+            // Determine certificate type
+            $certType = null;
+            if ($certificate->related_exam_id && $certificate->related_training_id) {
+                $certType = 'exam';
+            } elseif ($certificate->related_training_id) {
+                $certType = 'training';
+            } elseif ($certificate->related_exam_id) {
+                $certType = 'exam';
+            }
+            
+            // Determine status label
+            $statusLabel = ucfirst($certificate->status);
+            if ($certificate->isExpired()) {
+                $statusLabel = 'Expired';
+            } elseif ($certificate->status === 'active') {
+                $statusLabel = 'Active';
+            }
+            
             return [
                 'id' => $certificate->id,
+                'type' => $certType,
+                'title' => $certificate->exam ? $certificate->exam->title : ($certificate->training ? $certificate->training->title : 'Certificate'),
+                'description' => $certificate->exam ? ($certificate->exam->sertifikat_description ?? $certificate->exam->description) : ($certificate->training ? $certificate->training->description : null),
                 'training' => $certificate->training ? [
                     'id' => $certificate->training->id,
                     'title' => $certificate->training->title,
@@ -74,14 +139,22 @@ class CertificateController extends Controller
                 'exam' => $certificate->exam ? [
                     'id' => $certificate->exam->id,
                     'title' => $certificate->exam->title,
+                    'description' => $certificate->exam->description,
                 ] : null,
                 'certificate_number' => $certificate->certificate_number,
-                'issue_date' => $certificate->issue_date,
-                'expiry_date' => $certificate->expiry_date,
+                'issue_date' => $certificate->issue_date ? $certificate->issue_date->format('Y-m-d') : null,
+                'expiry_date' => $certificate->expiry_date ? $certificate->expiry_date->format('Y-m-d') : null,
+                'issuer_name' => $certificate->issuer_name ?? 'Aqrar Portal',
                 'status' => $certificate->status,
+                'status_label' => $statusLabel,
                 'is_expired' => $certificate->isExpired(),
                 'is_active' => $certificate->isActive(),
+                'result' => $examResult,
+                'score' => $examScore,
                 'download_url' => $certificate->download_url,
+                'preview_url' => url('/api/v1/certificates/' . $certificate->id . '/preview'),
+                'share_url' => url('/api/v1/certificates/' . $certificate->id . '/share'),
+                'qr_code_url' => url('/api/v1/certificates/' . $certificate->id . '/qr-code'),
                 'verification_url' => $certificate->verification_url,
                 'created_at' => $certificate->created_at,
             ];
@@ -278,6 +351,12 @@ class CertificateController extends Controller
                 ], 500);
             }
 
+            // Calculate expiry date if certificate validity is set
+            $expiryDate = null;
+            if ($exam->certificate_validity_days) {
+                $expiryDate = now()->addDays($exam->certificate_validity_days)->toDateString();
+            }
+
             // Create certificate record
             $certificate = Certificate::create([
                 'user_id' => $user->id,
@@ -285,6 +364,7 @@ class CertificateController extends Controller
                 'related_exam_id' => $exam->id,
                 'certificate_number' => $result['certificate_number'],
                 'issue_date' => now()->toDateString(),
+                'expiry_date' => $expiryDate,
                 'issuer_name' => 'Aqrar Portal',
                 'status' => 'active',
                 'digital_signature' => $result['digital_signature'],
@@ -355,6 +435,12 @@ class CertificateController extends Controller
                 ], 500);
             }
 
+            // Calculate expiry date if certificate validity is set
+            $expiryDate = null;
+            if ($exam->certificate_validity_days) {
+                $expiryDate = now()->addDays($exam->certificate_validity_days)->toDateString();
+            }
+
             // Create certificate record
             $certificate = Certificate::create([
                 'user_id' => $user->id,
@@ -362,6 +448,7 @@ class CertificateController extends Controller
                 'related_exam_id' => $exam->id,
                 'certificate_number' => $result['certificate_number'],
                 'issue_date' => now()->toDateString(),
+                'expiry_date' => $expiryDate,
                 'issuer_name' => 'Aqrar Portal',
                 'status' => 'active',
                 'digital_signature' => $result['digital_signature'],
@@ -783,6 +870,135 @@ class CertificateController extends Controller
         return view('certificate-verification', [
             'certificate' => $certificate
         ]);
+    }
+
+    /**
+     * Upload certificate photo (Admin only)
+     */
+    public function uploadPhoto(Certificate $certificate, Request $request)
+    {
+        // Check if user is admin or trainer
+        $user = $request->user();
+        if (!in_array($user->user_type, ['admin', 'trainer'])) {
+            return response()->json(['message' => 'Bu əməliyyat üçün icazəniz yoxdur'], 403);
+        }
+
+        // Validate image file
+        $request->validate([
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+        ]);
+
+        try {
+            // Store photo in storage
+            $photoFile = $request->file('photo');
+            $fileName = 'certificate_' . $certificate->id . '_' . time() . '.' . $photoFile->getClientOriginalExtension();
+            $path = $photoFile->storeAs('certificates/photos', $fileName, 'public');
+
+            // Delete old photo if exists
+            if ($certificate->photo_path) {
+                $oldPath = storage_path('app/public/' . $certificate->photo_path);
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+
+            // Update certificate with photo path
+            $certificate->update([
+                'photo_path' => $path,
+            ]);
+
+            return response()->json([
+                'message' => 'Sertifikat fotoşəkili uğurla yükləndi',
+                'photo_url' => Storage::url($path),
+                'photo_path' => $path,
+                'certificate' => [
+                    'id' => $certificate->id,
+                    'certificate_number' => $certificate->certificate_number,
+                    'photo_url' => Storage::url($path),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Fotoşəkil yüklənərkən xəta baş verdi',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get shareable link for certificate
+     */
+    public function share(Certificate $certificate, Request $request)
+    {
+        // Check if user can access this certificate
+        if (auth()->check()) {
+            $user = auth()->user();
+            if ($user->id !== $certificate->user_id && !in_array($user->user_type, ['admin', 'trainer'])) {
+                return response()->json(['message' => 'Bu sertifikata giriş hüququnuz yoxdur'], 403);
+            }
+        }
+
+        $shareUrl = url('/api/v1/certificates/' . $certificate->certificate_number . '/verify');
+        
+        return response()->json([
+            'share_url' => $shareUrl,
+            'certificate_number' => $certificate->certificate_number,
+            'verification_url' => $certificate->verification_url,
+            'qr_code_data' => [
+                'url' => $shareUrl,
+                'certificate_number' => $certificate->certificate_number,
+            ]
+        ]);
+    }
+
+    /**
+     * Get QR code for certificate
+     */
+    public function qrCode(Certificate $certificate, Request $request)
+    {
+        // Check if user can access this certificate
+        if (auth()->check()) {
+            $user = auth()->user();
+            if ($user->id !== $certificate->user_id && !in_array($user->user_type, ['admin', 'trainer'])) {
+                return response()->json(['message' => 'Bu sertifikata giriş hüququnuz yoxdur'], 403);
+            }
+        }
+
+        $verificationUrl = url('/api/v1/certificates/' . $certificate->certificate_number . '/verify');
+        
+        // Use the endroid/qr-code library if available, otherwise use Google Charts API
+        try {
+            $builder = new Builder(
+                writer: new PngWriter(),
+                writerOptions: [],
+                validateResult: false,
+                data: $verificationUrl,
+                encoding: new Encoding('UTF-8'),
+                errorCorrectionLevel: ErrorCorrectionLevel::Low,
+                size: 300,
+                margin: 10
+            );
+            
+            $result = $builder->build();
+            $pngData = $result->getString();
+            $base64Image = 'data:image/png;base64,' . base64_encode($pngData);
+            
+            return response()->json([
+                'qr_code' => $base64Image,
+                'verification_url' => $verificationUrl,
+                'certificate_number' => $certificate->certificate_number,
+            ]);
+        } catch (\Exception $e) {
+            // Fallback to Google Charts API
+            $qrCodeUrl = 'https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=' . urlencode($verificationUrl);
+            
+            return response()->json([
+                'qr_code' => $qrCodeUrl,
+                'verification_url' => $verificationUrl,
+                'certificate_number' => $certificate->certificate_number,
+                'note' => 'Using Google Charts API as fallback'
+            ]);
+        }
     }
 }
  

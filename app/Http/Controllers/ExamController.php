@@ -1731,12 +1731,19 @@ class ExamController extends Controller
                         
                     if (!$certificate) {
                         try {
+                            // Calculate expiry date if certificate validity is set
+                            $expiryDate = null;
+                            if ($exam->certificate_validity_days) {
+                                $expiryDate = now()->addDays($exam->certificate_validity_days)->toDateString();
+                            }
+                            
                             $certificate = Certificate::create([
                                 'user_id' => $request->user()->id,
                                 'related_training_id' => $exam->training_id,
                                 'related_exam_id' => $exam->id,
                                 'certificate_number' => 'EXAM-' . $exam->id . '-' . $request->user()->id . '-' . now()->format('YmdHis'),
                                 'issue_date' => now()->toDateString(),
+                                'expiry_date' => $expiryDate,
                                 'issuer_name' => 'Aqrar Portal',
                                 'status' => 'active',
                             ]);
@@ -1853,6 +1860,12 @@ class ExamController extends Controller
 
             // Create or update certificate record with duplicate key handling
             try {
+                // Calculate expiry date if certificate validity is set
+                $expiryDate = null;
+                if ($exam->certificate_validity_days) {
+                    $expiryDate = now()->addDays($exam->certificate_validity_days)->toDateString();
+                }
+                
                 if ($existingCertificate) {
                     // Update existing certificate with PDF info
                     $existingCertificate->update([
@@ -1860,6 +1873,7 @@ class ExamController extends Controller
                         'digital_signature' => $output['digital_signature'],
                         'pdf_path' => $output['pdf_path'],
                         'pdf_url' => url('/storage/' . $output['pdf_path']),
+                        'expiry_date' => $expiryDate ?? $existingCertificate->expiry_date,
                     ]);
                     $certificate = $existingCertificate;
                     Log::info('Updated existing certificate with PDF for user ' . $user->id . ' and exam ' . $exam->id);
@@ -1871,6 +1885,7 @@ class ExamController extends Controller
                         'related_exam_id' => $exam->id,
                         'certificate_number' => $output['certificate_number'],
                         'issue_date' => now()->toDateString(),
+                        'expiry_date' => $expiryDate,
                         'issuer_name' => 'Aqrar Portal',
                         'status' => 'active',
                         'digital_signature' => $output['digital_signature'],
@@ -1968,12 +1983,19 @@ class ExamController extends Controller
             // create a simple certificate record
             if (!$certificate) {
                 try {
+                    // Calculate expiry date if certificate validity is set
+                    $expiryDate = null;
+                    if ($exam->certificate_validity_days) {
+                        $expiryDate = now()->addDays($exam->certificate_validity_days)->toDateString();
+                    }
+                    
                     $certificate = Certificate::create([
                         'user_id' => $user->id,
                         'related_training_id' => $exam->training_id,
                         'related_exam_id' => $exam->id,
                         'certificate_number' => 'EXAM-' . $exam->id . '-' . $user->id . '-' . now()->format('YmdHis'),
                         'issue_date' => now()->toDateString(),
+                        'expiry_date' => $expiryDate,
                         'issuer_name' => 'Aqrar Portal',
                         'status' => 'active',
                     ]);

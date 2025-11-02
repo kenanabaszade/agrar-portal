@@ -10,7 +10,7 @@ class Exam extends Model
     use HasFactory;
 
     protected $fillable = [
-        'training_id', 'title', 'description', 'sertifikat_description', 'category', 'passing_score', 'duration_minutes', 'start_date', 'end_date',
+        'training_id', 'title', 'description', 'sertifikat_description', 'certificate_validity_days', 'category', 'passing_score', 'duration_minutes', 'start_date', 'end_date',
         'rules', 'instructions', 'hashtags', 'time_warning_minutes', 'max_attempts',
         'randomize_questions', 'randomize_choices', 'show_results_immediately', 
         'show_correct_answers', 'show_explanations', 'allow_tab_switching', 'track_tab_changes',
@@ -25,6 +25,7 @@ class Exam extends Model
         'hashtags' => 'array',
         'time_warning_minutes' => 'integer',
         'max_attempts' => 'integer',
+        'certificate_validity_days' => 'integer',
         'randomize_questions' => 'boolean',
         'randomize_choices' => 'boolean',
         'show_results_immediately' => 'boolean',
