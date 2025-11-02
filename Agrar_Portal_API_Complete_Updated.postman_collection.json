@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "agrar-portal-api-collection-updated",
     "name": "Agrar Portal API - Complete & Updated",
-    "description": "Complete and up-to-date API collection for Agrar Portal - All endpoints verified against codebase. Includes FAQ, Educational Content, Internship Programs, and all latest features. Last updated: January 2025.",
+    "description": "Complete and up-to-date API collection for Agrar Portal - All endpoints verified against codebase. Includes FAQ, Educational Content, Internship Programs, Certificate Management with expiry dates, User Progress/Results API, and all latest features. Last updated: November 2025.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "agrar-portal"
   },
@@ -2278,7 +2278,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"training_id\": 1,\n  \"title\": \"Bitki Becerilmesi Əsasları - Sınaq\",\n  \"description\": \"İmtahan haqqında ətraflı məlumat və nə qiymətləndirəcəyini yazın...\",\n  \"passing_score\": 70,\n  \"duration_minutes\": 60,\n  \"start_date\": \"2024-08-20\",\n  \"end_date\": \"2024-08-25\",\n  \"questions\": [\n    {\n      \"question_text\": \"Bitki becerilmesinin əsas prinsipi nədir?\",\n      \"question_type\": \"single_choice\",\n      \"difficulty\": \"easy\",\n      \"points\": 2,\n      \"sequence\": 1,\n      \"explanation\": \"Bu sual bitki becerilmesinin əsas prinsiplərini yoxlayır\",\n      \"choices\": [\n        {\n          \"choice_text\": \"Torpağın düzgün hazırlanması\",\n          \"is_correct\": true,\n          \"points\": 2,\n          \"explanation\": \"Düzgün cavab - torpaq hazırlığı əsasdır\"\n        },\n        {\n          \"choice_text\": \"Yalnız suvarma\",\n          \"is_correct\": false,\n          \"points\": 0,\n          \"explanation\": \"Yalnız suvarma kifayət deyil\"\n        },\n        {\n          \"choice_text\": \"Yalnız gübrələmə\",\n          \"is_correct\": false,\n          \"points\": 0\n        },\n        {\n          \"choice_text\": \"Heç biri\",\n          \"is_correct\": false,\n          \"points\": 0\n        }\n      ]\n    },\n    {\n      \"question_text\": \"Hansı amillər torpaq sağlamlığına təsir edir? (Birdən çox seçin)\",\n      \"question_type\": \"multiple_choice\",\n      \"difficulty\": \"medium\",\n      \"points\": 6,\n      \"sequence\": 2,\n      \"choices\": [\n        {\n          \"choice_text\": \"pH səviyyəsi\",\n          \"is_correct\": true,\n          \"points\": 2\n        },\n        {\n          \"choice_text\": \"Üzvi maddə miqdarı\",\n          \"is_correct\": true,\n          \"points\": 2\n        },\n        {\n          \"choice_text\": \"Mikroorqanizmlər\",\n          \"is_correct\": true,\n          \"points\": 2\n        },\n        {\n          \"choice_text\": \"Havanın rəngi\",\n          \"is_correct\": false,\n          \"points\": 0\n        }\n      ]\n    },\n    {\n      \"question_text\": \"Kompost hazırlanmasının mərhələlərini ətraflı izah edin və praktik nümunələr verin.\",\n      \"question_type\": \"text\",\n      \"difficulty\": \"hard\",\n      \"points\": 15,\n      \"sequence\": 3,\n      \"explanation\": \"Bu sual kompost haqqında dərin bilikləri yoxlayır\"\n    }\n  ]\n}"
+              "raw": "{\n  \"training_id\": 1,\n  \"title\": \"Bitki Becerilmesi Əsasları - Sınaq\",\n  \"description\": \"İmtahan haqqında ətraflı məlumat və nə qiymətləndirəcəyini yazın...\",\n  \"sertifikat_description\": \"Bu sertifikat istifadəçinin imtahanı uğurla keçdiyini təsdiq edir\",\n  \"certificate_validity_days\": 365,\n  \"passing_score\": 70,\n  \"duration_minutes\": 60,\n  \"start_date\": \"2024-08-20\",\n  \"end_date\": \"2024-08-25\",\n  \"questions\": [\n    {\n      \"question_text\": \"Bitki becerilmesinin əsas prinsipi nədir?\",\n      \"question_type\": \"single_choice\",\n      \"difficulty\": \"easy\",\n      \"points\": 2,\n      \"sequence\": 1,\n      \"explanation\": \"Bu sual bitki becerilmesinin əsas prinsiplərini yoxlayır\",\n      \"choices\": [\n        {\n          \"choice_text\": \"Torpağın düzgün hazırlanması\",\n          \"is_correct\": true,\n          \"points\": 2,\n          \"explanation\": \"Düzgün cavab - torpaq hazırlığı əsasdır\"\n        },\n        {\n          \"choice_text\": \"Yalnız suvarma\",\n          \"is_correct\": false,\n          \"points\": 0,\n          \"explanation\": \"Yalnız suvarma kifayət deyil\"\n        },\n        {\n          \"choice_text\": \"Yalnız gübrələmə\",\n          \"is_correct\": false,\n          \"points\": 0\n        },\n        {\n          \"choice_text\": \"Heç biri\",\n          \"is_correct\": false,\n          \"points\": 0\n        }\n      ]\n    },\n    {\n      \"question_text\": \"Hansı amillər torpaq sağlamlığına təsir edir? (Birdən çox seçin)\",\n      \"question_type\": \"multiple_choice\",\n      \"difficulty\": \"medium\",\n      \"points\": 6,\n      \"sequence\": 2,\n      \"choices\": [\n        {\n          \"choice_text\": \"pH səviyyəsi\",\n          \"is_correct\": true,\n          \"points\": 2\n        },\n        {\n          \"choice_text\": \"Üzvi maddə miqdarı\",\n          \"is_correct\": true,\n          \"points\": 2\n        },\n        {\n          \"choice_text\": \"Mikroorqanizmlər\",\n          \"is_correct\": true,\n          \"points\": 2\n        },\n        {\n          \"choice_text\": \"Havanın rəngi\",\n          \"is_correct\": false,\n          \"points\": 0\n        }\n      ]\n    },\n    {\n      \"question_text\": \"Kompost hazırlanmasının mərhələlərini ətraflı izah edin və praktik nümunələr verin.\",\n      \"question_type\": \"text\",\n      \"difficulty\": \"hard\",\n      \"points\": 15,\n      \"sequence\": 3,\n      \"explanation\": \"Bu sual kompost haqqında dərin bilikləri yoxlayır\"\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/exams",
@@ -2310,7 +2310,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Ümumi Kənd Təsərrüfatı Bilikləri Sınağı\",\n  \"description\": \"Kənd təsərrüfatının müxtəlif sahələri üzrə ümumi bilikləri yoxlayan müstəqil imtahan\",\n  \"category\": \"Ümumi Kənd Təsərrüfatı\",\n  \"passing_score\": 75,\n  \"duration_minutes\": 90,\n  \"start_date\": \"2024-09-01\",\n  \"end_date\": \"2024-12-31\",\n  \"questions\": [\n    {\n      \"question_text\": \"Kənd təsərrüfatında hansı əsas sahələr mövcuddur?\",\n      \"question_type\": \"multiple_choice\",\n      \"difficulty\": \"easy\",\n      \"points\": 5,\n      \"sequence\": 1,\n      \"choices\": [\n        {\n          \"choice_text\": \"Bitki yetişdirmə\",\n          \"is_correct\": true,\n          \"points\": 1\n        },\n        {\n          \"choice_text\": \"Heyvan yetişdirmə\",\n          \"is_correct\": true,\n          \"points\": 1\n        },\n        {\n          \"choice_text\": \"Torpaq idarəetməsi\",\n          \"is_correct\": true,\n          \"points\": 1\n        },\n        {\n          \"choice_text\": \"Maşın istehsalı\",\n          \"is_correct\": false,\n          \"points\": 0\n        }\n      ]\n    },\n    {\n      \"question_text\": \"İqlim dəyişikliyi kənd təsərrüfatına necə təsir edir?\",\n      \"question_type\": \"text\",\n      \"difficulty\": \"hard\",\n      \"points\": 20,\n      \"sequence\": 2,\n      \"explanation\": \"Bu sual iqlim dəyişikliyinin təsirini dərin başa düşməyi tələb edir\"\n    }\n  ]\n}"
+              "raw": "{\n  \"title\": \"Ümumi Kənd Təsərrüfatı Bilikləri Sınağı\",\n  \"description\": \"Kənd təsərrüfatının müxtəlif sahələri üzrə ümumi bilikləri yoxlayan müstəqil imtahan\",\n  \"sertifikat_description\": \"Bu sertifikat kənd təsərrüfatı biliklərini təsdiq edir\",\n  \"certificate_validity_days\": 730,\n  \"category\": \"Ümumi Kənd Təsərrüfatı\",\n  \"passing_score\": 75,\n  \"duration_minutes\": 90,\n  \"start_date\": \"2024-09-01\",\n  \"end_date\": \"2024-12-31\",\n  \"questions\": [\n    {\n      \"question_text\": \"Kənd təsərrüfatında hansı əsas sahələr mövcuddur?\",\n      \"question_type\": \"multiple_choice\",\n      \"difficulty\": \"easy\",\n      \"points\": 5,\n      \"sequence\": 1,\n      \"choices\": [\n        {\n          \"choice_text\": \"Bitki yetişdirmə\",\n          \"is_correct\": true,\n          \"points\": 1\n        },\n        {\n          \"choice_text\": \"Heyvan yetişdirmə\",\n          \"is_correct\": true,\n          \"points\": 1\n        },\n        {\n          \"choice_text\": \"Torpaq idarəetməsi\",\n          \"is_correct\": true,\n          \"points\": 1\n        },\n        {\n          \"choice_text\": \"Maşın istehsalı\",\n          \"is_correct\": false,\n          \"points\": 0\n        }\n      ]\n    },\n    {\n      \"question_text\": \"İqlim dəyişikliyi kənd təsərrüfatına necə təsir edir?\",\n      \"question_type\": \"text\",\n      \"difficulty\": \"hard\",\n      \"points\": 20,\n      \"sequence\": 2,\n      \"explanation\": \"Bu sual iqlim dəyişikliyinin təsirini dərin başa düşməyi tələb edir\"\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/exams",
@@ -3175,7 +3175,7 @@
           }
         },
         {
-          "name": "Get My Certificates",
+          "name": "Download Certificate",
           "request": {
             "method": "GET",
             "header": [
@@ -3185,19 +3185,135 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/my/certificates",
+              "raw": "{{base_url}}/api/v1/certificates/1/download",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "my",
-                "certificates"
+                "certificates",
+                "1",
+                "download"
               ]
             }
           },
-          "description": "Get all certificates for authenticated user"
+          "description": "Download certificate PDF file"
+        },
+        {
+          "name": "Preview Certificate",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/certificates/1/preview",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "certificates",
+                "1",
+                "preview"
+              ]
+            }
+          },
+          "description": "Preview certificate PDF in browser"
+        },
+        {
+          "name": "Share Certificate",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/certificates/1/share",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "certificates",
+                "1",
+                "share"
+              ]
+            }
+          },
+          "description": "Get shareable verification link for certificate"
+        },
+        {
+          "name": "Get Certificate QR Code",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/certificates/1/qr-code",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "certificates",
+                "1",
+                "qr-code"
+              ]
+            }
+          },
+          "description": "Get QR code image (base64) for certificate verification"
+        },
+        {
+          "name": "Upload Certificate Photo (Admin/Trainer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "Image file (jpeg, png, jpg, gif, max 5MB)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/certificates/1/upload-photo",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "certificates",
+                "1",
+                "upload-photo"
+              ]
+            }
+          },
+          "description": "Upload photo for certificate (Admin/Trainer only). Accepts jpeg, png, jpg, gif files up to 5MB."
         },
         {
           "name": "Upload Certificate PDF",
@@ -3249,6 +3365,10 @@
                 "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 1,\n  \"exam_id\": 1,\n  \"training_id\": 1\n}"
+            },
             "url": {
               "raw": "{{base_url}}/api/v1/certificates/generate-pdf",
               "host": [
@@ -3260,13 +3380,9 @@
                 "certificates",
                 "generate-pdf"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"certificate_id\": 1,\n  \"template\": \"default\"\n}"
             }
           },
-          "description": "Generate PDF certificate"
+          "description": "Generate PDF certificate. Requires user_id, exam_id, and training_id. Certificate expiry date is calculated from exam's certificate_validity_days."
         },
         {
           "name": "Get Certificate Data",
@@ -3692,6 +3808,83 @@
               ]
             }
           }
+        },
+        {
+          "name": "Get My Certificates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/my/certificates?type=all&per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "my",
+                "certificates"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "all",
+                  "description": "Filter by type: all, training, exam",
+                  "disabled": false
+                },
+                {
+                  "key": "per_page",
+                  "value": "20",
+                  "description": "Items per page",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "description": "Get all certificates for authenticated user. Automatically hides expired certificates. Filter by type: 'all', 'training', or 'exam'."
+        }
+      ]
+    },
+    {
+      "name": "My Results & Progress",
+      "item": [
+        {
+          "name": "Get My Results/Progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/my/results?period=all",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "my",
+                "results"
+              ],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "all",
+                  "description": "Filter period: today, week, year, all",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "description": "Get comprehensive user progress and results. Returns key metrics (completed courses, ongoing courses, certificates earned, webinar participation), learning progress (overall progress %, weekly/monthly goals, total hours, daily streak), performance analytics (average score, learning effectiveness, knowledge retention rate), latest achievements, and course progress list."
         }
       ]
     },

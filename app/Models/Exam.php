@@ -13,11 +13,11 @@ class Exam extends Model
     protected $translatable = ['title', 'description', 'sertifikat_description', 'rules', 'instructions'];
 
     protected $fillable = [
-        'training_id', 'title', 'description', 'sertifikat_description', 'category', 'passing_score', 'duration_minutes', 'start_date', 'end_date',
+        'training_id', 'title', 'description', 'sertifikat_description', 'certificate_validity_days', 'category', 'passing_score', 'duration_minutes', 'start_date', 'end_date',
         'rules', 'instructions', 'hashtags', 'time_warning_minutes', 'max_attempts',
         'randomize_questions', 'randomize_choices', 'show_results_immediately', 
         'show_correct_answers', 'show_explanations', 'allow_tab_switching', 'track_tab_changes',
-        'status', 'exam_question_count', 'is_required', 'auto_submit'
+        'status', 'exam_question_count', 'auto_submit'
     ];
 
     protected $casts = [
@@ -33,6 +33,7 @@ class Exam extends Model
         'hashtags' => 'array',
         'time_warning_minutes' => 'integer',
         'max_attempts' => 'integer',
+        'certificate_validity_days' => 'integer',
         'randomize_questions' => 'boolean',
         'randomize_choices' => 'boolean',
         'show_results_immediately' => 'boolean',
@@ -41,7 +42,6 @@ class Exam extends Model
         'allow_tab_switching' => 'boolean',
         'track_tab_changes' => 'boolean',
         'exam_question_count' => 'integer',
-        'is_required' => 'boolean',
         'auto_submit' => 'boolean',
     ];
 

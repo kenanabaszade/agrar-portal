@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Schedule training reminders to run every hour
 Schedule::command('training:send-reminders')->hourly();
+
+// Schedule expired certificate update to run daily at midnight
+Schedule::command('certificates:update-expired')->daily();

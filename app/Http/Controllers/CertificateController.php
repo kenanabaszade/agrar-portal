@@ -11,6 +11,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
+use Endroid\QrCode\Builder\Builder;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\Writer\PngWriter;
  
 class CertificateController extends Controller
 {
@@ -58,15 +62,76 @@ class CertificateController extends Controller
 
     public function myCertificates(Request $request)
     {
-        $query = Certificate::where('user_id', $request->user()->id)
+        $user = $request->user();
+        
+        $query = Certificate::where('user_id', $user->id)
             ->with(['training', 'exam'])
+            ->where(function ($q) {
+                // Hide expired certificates from users - only show active ones
+                $q->where('status', '!=', 'expired')
+                  ->orWhere(function ($q2) {
+                      // Include certificates that haven't expired yet (even if marked expired)
+                      $q2->whereNull('expiry_date')
+                         ->orWhereDate('expiry_date', '>=', now()->toDateString());
+                  });
+            })
             ->latest();
+        
+        // Filter by type: all, training, exam
+        $type = $request->input('type', 'all');
+        if ($type === 'training') {
+            $query->whereNotNull('related_training_id');
+        } elseif ($type === 'exam') {
+            $query->whereNotNull('related_exam_id');
+        }
+        // 'all' includes both
         
         $certificates = $query->paginate($request->integer('per_page', 20));
         
-        $certificates->getCollection()->transform(function ($certificate) {
+        $certificates->getCollection()->transform(function ($certificate) use ($user) {
+            // Get exam registration for score
+            $examScore = null;
+            $examResult = null;
+            if ($certificate->related_exam_id) {
+                $registration = ExamRegistration::where('user_id', $user->id)
+                    ->where('exam_id', $certificate->related_exam_id)
+                    ->where('certificate_id', $certificate->id)
+                    ->where('status', 'passed')
+                    ->first();
+                
+                if ($registration) {
+                    $examScore = $registration->score;
+                    $examResult = [
+                        'score' => $registration->score,
+                        'passed' => $registration->status === 'passed',
+                        'finished_at' => $registration->finished_at,
+                    ];
+                }
+            }
+            
+            // Determine certificate type
+            $certType = null;
+            if ($certificate->related_exam_id && $certificate->related_training_id) {
+                $certType = 'exam';
+            } elseif ($certificate->related_training_id) {
+                $certType = 'training';
+            } elseif ($certificate->related_exam_id) {
+                $certType = 'exam';
+            }
+            
+            // Determine status label
+            $statusLabel = ucfirst($certificate->status);
+            if ($certificate->isExpired()) {
+                $statusLabel = 'Expired';
+            } elseif ($certificate->status === 'active') {
+                $statusLabel = 'Active';
+            }
+            
             return [
                 'id' => $certificate->id,
+                'type' => $certType,
+                'title' => $certificate->exam ? $certificate->exam->title : ($certificate->training ? $certificate->training->title : 'Certificate'),
+                'description' => $certificate->exam ? ($certificate->exam->sertifikat_description ?? $certificate->exam->description) : ($certificate->training ? $certificate->training->description : null),
                 'training' => $certificate->training ? [
                     'id' => $certificate->training->id,
                     'title' => $certificate->training->title,
@@ -74,14 +139,22 @@ class CertificateController extends Controller
                 'exam' => $certificate->exam ? [
                     'id' => $certificate->exam->id,
                     'title' => $certificate->exam->title,
+                    'description' => $certificate->exam->description,
                 ] : null,
                 'certificate_number' => $certificate->certificate_number,
-                'issue_date' => $certificate->issue_date,
-                'expiry_date' => $certificate->expiry_date,
+                'issue_date' => $certificate->issue_date ? $certificate->issue_date->format('Y-m-d') : null,
+                'expiry_date' => $certificate->expiry_date ? $certificate->expiry_date->format('Y-m-d') : null,
+                'issuer_name' => $certificate->issuer_name ?? 'Aqrar Portal',
                 'status' => $certificate->status,
+                'status_label' => $statusLabel,
                 'is_expired' => $certificate->isExpired(),
                 'is_active' => $certificate->isActive(),
+                'result' => $examResult,
+                'score' => $examScore,
                 'download_url' => $certificate->download_url,
+                'preview_url' => url('/api/v1/certificates/' . $certificate->id . '/preview'),
+                'share_url' => url('/api/v1/certificates/' . $certificate->id . '/share'),
+                'qr_code_url' => url('/api/v1/certificates/' . $certificate->id . '/qr-code'),
                 'verification_url' => $certificate->verification_url,
                 'created_at' => $certificate->created_at,
             ];
@@ -230,7 +303,7 @@ class CertificateController extends Controller
     }
 
     /**
-     * Generate PDF certificate using Python script (Test endpoint - no auth required)
+     * Generate PDF certificate (Test endpoint - no auth required)
      */
     public function generatePdfCertificateTest(Request $request)
     {
@@ -246,46 +319,42 @@ class CertificateController extends Controller
             $exam = Exam::findOrFail($request->exam_id);
             $training = Training::findOrFail($request->training_id);
 
-            // Prepare data for Python script
-            $data = [
-                'user' => [
-                    'id' => $user->id,
-                    'first_name' => $user->first_name,
-                    'last_name' => $user->last_name,
-                    'email' => $user->email,
-                ],
-                'exam' => [
-                    'id' => $exam->id,
-                    'title' => $exam->title,
-                    'description' => $exam->description,
-                ],
-                'training' => [
-                    'id' => $training->id,
-                    'title' => $training->title,
-                    'description' => $training->description,
-                ]
+            // Prepare data for certificate generation
+            $userData = [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+            ];
+            
+            $examData = [
+                'id' => $exam->id,
+                'title' => $exam->title,
+                'description' => $exam->description,
+                'sertifikat_description' => $exam->sertifikat_description ?? null,
+            ];
+            
+            $trainingData = [
+                'id' => $training->id,
+                'title' => $training->title,
+                'description' => $training->description,
             ];
 
-            // Run Python script
-            $pythonScript = base_path('certificate_generator.py');
-            $jsonData = json_encode($data);
+            // Use PHP certificate generator service
+            $service = new \App\Services\CertificateGeneratorService();
+            $result = $service->generateCertificate($userData, $examData, $trainingData);
             
-            $result = Process::run("python {$pythonScript} '{$jsonData}'");
-            
-            if ($result->failed()) {
+            if (!$result['success']) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Python script failed: ' . $result->errorOutput()
+                    'error' => $result['error'] ?? 'Certificate generation failed'
                 ], 500);
             }
 
-            $output = json_decode($result->output(), true);
-            
-            if (!$output['success']) {
-                return response()->json([
-                    'success' => false,
-                    'error' => $output['error']
-                ], 500);
+            // Calculate expiry date if certificate validity is set
+            $expiryDate = null;
+            if ($exam->certificate_validity_days) {
+                $expiryDate = now()->addDays($exam->certificate_validity_days)->toDateString();
             }
 
             // Create certificate record
@@ -293,19 +362,20 @@ class CertificateController extends Controller
                 'user_id' => $user->id,
                 'related_training_id' => $training->id,
                 'related_exam_id' => $exam->id,
-                'certificate_number' => $output['certificate_number'],
+                'certificate_number' => $result['certificate_number'],
                 'issue_date' => now()->toDateString(),
+                'expiry_date' => $expiryDate,
                 'issuer_name' => 'Aqrar Portal',
                 'status' => 'active',
-                'digital_signature' => $output['digital_signature'],
-                'pdf_path' => $output['pdf_path'],
+                'digital_signature' => $result['digital_signature'],
+                'pdf_path' => $result['pdf_path'],
             ]);
 
             return response()->json([
                 'success' => true,
                 'certificate' => $certificate,
-                'verification_url' => $output['verification_url'],
-                'pdf_path' => $output['pdf_path']
+                'verification_url' => $result['verification_url'],
+                'pdf_path' => $result['pdf_path']
             ]);
 
         } catch (\Exception $e) {
@@ -317,7 +387,7 @@ class CertificateController extends Controller
     }
 
     /**
-     * Generate PDF certificate using Python script
+     * Generate PDF certificate
      */
     public function generatePdfCertificate(Request $request)
     {
@@ -333,46 +403,42 @@ class CertificateController extends Controller
             $exam = Exam::findOrFail($request->exam_id);
             $training = Training::findOrFail($request->training_id);
 
-            // Prepare data for Python script
-            $data = [
-                'user' => [
-                    'id' => $user->id,
-                    'first_name' => $user->first_name,
-                    'last_name' => $user->last_name,
-                    'email' => $user->email,
-                ],
-                'exam' => [
-                    'id' => $exam->id,
-                    'title' => $exam->title,
-                    'description' => $exam->description,
-                ],
-                'training' => [
-                    'id' => $training->id,
-                    'title' => $training->title,
-                    'description' => $training->description,
-                ]
+            // Prepare data for certificate generation
+            $userData = [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+            ];
+            
+            $examData = [
+                'id' => $exam->id,
+                'title' => $exam->title,
+                'description' => $exam->description,
+                'sertifikat_description' => $exam->sertifikat_description ?? null,
+            ];
+            
+            $trainingData = [
+                'id' => $training->id,
+                'title' => $training->title,
+                'description' => $training->description,
             ];
 
-            // Run Python script
-            $pythonScript = base_path('certificate_generator.py');
-            $jsonData = json_encode($data);
+            // Use PHP certificate generator service
+            $service = new \App\Services\CertificateGeneratorService();
+            $result = $service->generateCertificate($userData, $examData, $trainingData);
             
-            $result = Process::run("python {$pythonScript} '{$jsonData}'");
-            
-            if ($result->failed()) {
+            if (!$result['success']) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Python script failed: ' . $result->errorOutput()
+                    'error' => $result['error'] ?? 'Certificate generation failed'
                 ], 500);
             }
 
-            $output = json_decode($result->output(), true);
-            
-            if (!$output['success']) {
-                return response()->json([
-                    'success' => false,
-                    'error' => $output['error']
-                ], 500);
+            // Calculate expiry date if certificate validity is set
+            $expiryDate = null;
+            if ($exam->certificate_validity_days) {
+                $expiryDate = now()->addDays($exam->certificate_validity_days)->toDateString();
             }
 
             // Create certificate record
@@ -380,19 +446,20 @@ class CertificateController extends Controller
                 'user_id' => $user->id,
                 'related_training_id' => $training->id,
                 'related_exam_id' => $exam->id,
-                'certificate_number' => $output['certificate_number'],
+                'certificate_number' => $result['certificate_number'],
                 'issue_date' => now()->toDateString(),
+                'expiry_date' => $expiryDate,
                 'issuer_name' => 'Aqrar Portal',
                 'status' => 'active',
-                'digital_signature' => $output['digital_signature'],
-                'pdf_path' => $output['pdf_path'],
+                'digital_signature' => $result['digital_signature'],
+                'pdf_path' => $result['pdf_path'],
             ]);
 
             return response()->json([
                 'success' => true,
                 'certificate' => $certificate,
-                'verification_url' => $output['verification_url'],
-                'pdf_path' => $output['pdf_path']
+                'verification_url' => $result['verification_url'],
+                'pdf_path' => $result['pdf_path']
             ]);
 
         } catch (\Exception $e) {
@@ -460,6 +527,307 @@ class CertificateController extends Controller
     }
 
     /**
+     * Download PDF certificate by ID
+     */
+    public function download(Certificate $certificate, Request $request)
+    {
+        // Check if user can access this certificate
+        if (auth()->check()) {
+            $user = auth()->user();
+            if ($user->id !== $certificate->user_id && !in_array($user->user_type, ['admin', 'trainer'])) {
+                return response()->json(['message' => 'Bu sertifikata giriş hüququnuz yoxdur'], 403);
+            }
+        }
+        
+        // If no PDF path, try to generate one or return helpful error
+        if (!$certificate->pdf_path) {
+            // Try to generate PDF if training exists and has certificate enabled
+            if ($certificate->related_training_id) {
+                $training = Training::find($certificate->related_training_id);
+                if ($training && $training->has_certificate && $certificate->related_exam_id) {
+                    try {
+                        $exam = Exam::find($certificate->related_exam_id);
+                        $user = User::find($certificate->user_id);
+                        
+                        if ($exam && $user) {
+                            // Try to generate PDF using the generatePdfCertificate logic
+                            $examController = app(\App\Http\Controllers\ExamController::class);
+                            $registration = ExamRegistration::where('user_id', $user->id)
+                                ->where('exam_id', $exam->id)
+                                ->where('status', 'passed')
+                                ->first();
+                            
+                            if ($registration) {
+                                // Generate PDF using the helper method
+                                $success = $this->generatePdfForCertificate($certificate, $user, $exam, $training);
+                                
+                                if ($success) {
+                                    // Reload certificate to get updated PDF path
+                                    $certificate->refresh();
+                                    \Log::info('PDF generated successfully for certificate ' . $certificate->id);
+                                } else {
+                                    \Log::error('PDF generation returned false for certificate ' . $certificate->id);
+                                }
+                            } else {
+                                \Log::warning('No passed registration found for certificate ' . $certificate->id . ', user ' . $user->id . ', exam ' . $exam->id);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        \Log::error('Failed to generate PDF on download: ' . $e->getMessage());
+                    }
+                }
+            }
+            
+            // If still no PDF path, return helpful error
+            if (!$certificate->pdf_path) {
+                return response()->json([
+                    'error' => 'PDF sertifikat hələ yaradılmayıb.',
+                    'message' => 'Sertifikat mövcuddur, lakin PDF faylı yoxdur. PDF-ni yükləmək üçün admin ilə əlaqə saxlayın.',
+                    'certificate_id' => $certificate->id,
+                    'certificate_number' => $certificate->certificate_number,
+                    'can_upload_pdf' => auth()->check() && (
+                        auth()->user()->id === $certificate->user_id || 
+                        in_array(auth()->user()->user_type, ['admin', 'trainer'])
+                    ),
+                    'upload_endpoint' => auth()->check() ? '/api/v1/certificates/' . $certificate->id . '/upload-pdf' : null
+                ], 404);
+            }
+        }
+
+        // Check if file exists in storage
+        $filePath = storage_path('app/public/' . $certificate->pdf_path);
+        
+        // Also check the original path in case it's a full path
+        if (!file_exists($filePath) && file_exists($certificate->pdf_path)) {
+            $filePath = $certificate->pdf_path;
+        }
+        
+        // Also check if it's a relative path from storage root
+        if (!file_exists($filePath)) {
+            $altPath = storage_path('app/' . $certificate->pdf_path);
+            if (file_exists($altPath)) {
+                $filePath = $altPath;
+            }
+        }
+        
+        if (!file_exists($filePath)) {
+            return response()->json([
+                'error' => 'PDF faylı mövcud deyil.',
+                'message' => 'PDF faylı sistemdə tapılmadı. Zəhmət olmasa admin ilə əlaqə saxlayın.',
+                'pdf_path' => $certificate->pdf_path
+            ], 404);
+        }
+
+        $fileName = "certificate_{$certificate->certificate_number}.pdf";
+        
+        return response()->download($filePath, $fileName, [
+            'Content-Type' => 'application/pdf',
+        ]);
+    }
+
+    /**
+     * Preview PDF certificate by ID
+     */
+    public function preview(Certificate $certificate, Request $request)
+    {
+        // Check if user can access this certificate
+        if (auth()->check()) {
+            $user = auth()->user();
+            if ($user->id !== $certificate->user_id && !in_array($user->user_type, ['admin', 'trainer'])) {
+                return response()->json(['message' => 'Bu sertifikata giriş hüququnuz yoxdur'], 403);
+            }
+        }
+        
+        // If no PDF path, try to generate one or return helpful error
+        if (!$certificate->pdf_path) {
+            // Try to generate PDF if training exists and has certificate enabled
+            if ($certificate->related_training_id) {
+                $training = Training::find($certificate->related_training_id);
+                if ($training && $training->has_certificate && $certificate->related_exam_id) {
+                    try {
+                        $exam = Exam::find($certificate->related_exam_id);
+                        $user = User::find($certificate->user_id);
+                        
+                        if ($exam && $user) {
+                            $registration = ExamRegistration::where('user_id', $user->id)
+                                ->where('exam_id', $exam->id)
+                                ->where('status', 'passed')
+                                ->first();
+                            
+                            if ($registration) {
+                                $success = $this->generatePdfForCertificate($certificate, $user, $exam, $training);
+                                
+                                if ($success) {
+                                    $certificate->refresh();
+                                    \Log::info('PDF generated successfully for certificate ' . $certificate->id);
+                                } else {
+                                    \Log::error('PDF generation returned false for certificate ' . $certificate->id);
+                                }
+                            } else {
+                                \Log::warning('No passed registration found for certificate ' . $certificate->id . ', user ' . $user->id . ', exam ' . $exam->id);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        \Log::error('Failed to generate PDF on preview: ' . $e->getMessage());
+                    }
+                }
+            }
+            
+            // If still no PDF path, return helpful error
+            if (!$certificate->pdf_path) {
+                $debugInfo = [
+                    'certificate_id' => $certificate->id,
+                    'has_training' => (bool)$certificate->related_training_id,
+                    'has_exam' => (bool)$certificate->related_exam_id,
+                ];
+                
+                return response()->json([
+                    'error' => 'PDF sertifikat hələ yaradılmayıb.',
+                    'message' => 'Sertifikat mövcuddur, lakin PDF faylı yoxdur. Log fayllarına baxın.',
+                    'certificate_id' => $certificate->id,
+                    'certificate_number' => $certificate->certificate_number,
+                    'debug_info' => $debugInfo,
+                ], 404);
+            }
+        }
+
+        // Check if file exists in storage
+        $filePath = storage_path('app/public/' . $certificate->pdf_path);
+        
+        // Also check the original path in case it's a full path
+        if (!file_exists($filePath) && file_exists($certificate->pdf_path)) {
+            $filePath = $certificate->pdf_path;
+        }
+        
+        // Also check if it's a relative path from storage root
+        if (!file_exists($filePath)) {
+            $altPath = storage_path('app/' . $certificate->pdf_path);
+            if (file_exists($altPath)) {
+                $filePath = $altPath;
+            }
+        }
+        
+        if (!file_exists($filePath)) {
+            return response()->json([
+                'error' => 'PDF faylı mövcud deyil.',
+                'message' => 'PDF faylı sistemdə tapılmadı. Zəhmət olmasa admin ilə əlaqə saxlayın.',
+                'pdf_path' => $certificate->pdf_path
+            ], 404);
+        }
+
+        // Validate PDF file has content
+        $fileSize = filesize($filePath);
+        if ($fileSize === false || $fileSize === 0) {
+            \Log::error('PDF file is empty or unreadable', [
+                'certificate_id' => $certificate->id,
+                'file_path' => $filePath,
+                'file_size' => $fileSize
+            ]);
+            return response()->json([
+                'error' => 'PDF faylı boşdur və ya korlanmışdır.',
+                'message' => 'PDF faylı düzgün yüklənməyib. Zəhmət olmasa admin ilə əlaqə saxlayın.',
+                'certificate_id' => $certificate->id
+            ], 500);
+        }
+
+        // Validate PDF header (first 4 bytes should be %PDF)
+        $handle = fopen($filePath, 'rb');
+        if ($handle) {
+            $header = fread($handle, 4);
+            fclose($handle);
+            if ($header !== '%PDF') {
+                \Log::error('Invalid PDF file format', [
+                    'certificate_id' => $certificate->id,
+                    'file_path' => $filePath,
+                    'header' => bin2hex($header)
+                ]);
+                return response()->json([
+                    'error' => 'PDF fayl formatı düzgün deyil.',
+                    'message' => 'PDF faylı korlanmışdır. Zəhmət olmasa admin ilə əlaqə saxlayın.',
+                    'certificate_id' => $certificate->id
+                ], 500);
+            }
+        }
+
+        return response()->file($filePath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Length' => $fileSize,
+            'Content-Disposition' => 'inline; filename="' . basename($filePath) . '"',
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
+    }
+    
+    /**
+     * Generate PDF for certificate using PHP service
+     */
+    private function generatePdfForCertificate(Certificate $certificate, User $user, Exam $exam, Training $training)
+    {
+        try {
+            \Log::info('Starting PDF generation for certificate ' . $certificate->id, [
+                'user_id' => $user->id,
+                'exam_id' => $exam->id,
+                'training_id' => $training->id
+            ]);
+            
+            // Prepare data for certificate generation
+            $userData = [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+            ];
+            
+            $examData = [
+                'id' => $exam->id,
+                'title' => $exam->title,
+                'description' => $exam->description,
+                'sertifikat_description' => $exam->sertifikat_description,
+            ];
+            
+            $trainingData = [
+                'id' => $training->id,
+                'title' => $training->title,
+                'description' => $training->description,
+            ];
+
+            // Use PHP certificate generator service
+            $service = new \App\Services\CertificateGeneratorService();
+            $result = $service->generateCertificate($userData, $examData, $trainingData);
+            
+            if (!$result['success']) {
+                $error = $result['error'] ?? 'Unknown error';
+                \Log::error('Certificate generation error: ' . $error, ['result' => $result]);
+                return false;
+            }
+
+            // Update certificate with PDF path
+            $pdfPath = $result['pdf_path'] ?? null;
+            if (!$pdfPath) {
+                \Log::error('PDF path not in result', ['result' => $result]);
+                return false;
+            }
+            
+            $certificate->update([
+                'pdf_path' => $pdfPath,
+                'pdf_url' => url('/storage/' . $pdfPath),
+                'digital_signature' => $result['digital_signature'] ?? $certificate->digital_signature,
+            ]);
+            
+            \Log::info('Certificate updated with PDF', [
+                'certificate_id' => $certificate->id,
+                'pdf_path' => $pdfPath
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            \Log::error('Error generating PDF for certificate: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return false;
+        }
+    }
+
+    /**
      * Download PDF certificate by digital signature
      */
     public function downloadPdfBySignature($signature)
@@ -502,6 +870,135 @@ class CertificateController extends Controller
         return view('certificate-verification', [
             'certificate' => $certificate
         ]);
+    }
+
+    /**
+     * Upload certificate photo (Admin only)
+     */
+    public function uploadPhoto(Certificate $certificate, Request $request)
+    {
+        // Check if user is admin or trainer
+        $user = $request->user();
+        if (!in_array($user->user_type, ['admin', 'trainer'])) {
+            return response()->json(['message' => 'Bu əməliyyat üçün icazəniz yoxdur'], 403);
+        }
+
+        // Validate image file
+        $request->validate([
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
+        ]);
+
+        try {
+            // Store photo in storage
+            $photoFile = $request->file('photo');
+            $fileName = 'certificate_' . $certificate->id . '_' . time() . '.' . $photoFile->getClientOriginalExtension();
+            $path = $photoFile->storeAs('certificates/photos', $fileName, 'public');
+
+            // Delete old photo if exists
+            if ($certificate->photo_path) {
+                $oldPath = storage_path('app/public/' . $certificate->photo_path);
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+
+            // Update certificate with photo path
+            $certificate->update([
+                'photo_path' => $path,
+            ]);
+
+            return response()->json([
+                'message' => 'Sertifikat fotoşəkili uğurla yükləndi',
+                'photo_url' => Storage::url($path),
+                'photo_path' => $path,
+                'certificate' => [
+                    'id' => $certificate->id,
+                    'certificate_number' => $certificate->certificate_number,
+                    'photo_url' => Storage::url($path),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Fotoşəkil yüklənərkən xəta baş verdi',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get shareable link for certificate
+     */
+    public function share(Certificate $certificate, Request $request)
+    {
+        // Check if user can access this certificate
+        if (auth()->check()) {
+            $user = auth()->user();
+            if ($user->id !== $certificate->user_id && !in_array($user->user_type, ['admin', 'trainer'])) {
+                return response()->json(['message' => 'Bu sertifikata giriş hüququnuz yoxdur'], 403);
+            }
+        }
+
+        $shareUrl = url('/api/v1/certificates/' . $certificate->certificate_number . '/verify');
+        
+        return response()->json([
+            'share_url' => $shareUrl,
+            'certificate_number' => $certificate->certificate_number,
+            'verification_url' => $certificate->verification_url,
+            'qr_code_data' => [
+                'url' => $shareUrl,
+                'certificate_number' => $certificate->certificate_number,
+            ]
+        ]);
+    }
+
+    /**
+     * Get QR code for certificate
+     */
+    public function qrCode(Certificate $certificate, Request $request)
+    {
+        // Check if user can access this certificate
+        if (auth()->check()) {
+            $user = auth()->user();
+            if ($user->id !== $certificate->user_id && !in_array($user->user_type, ['admin', 'trainer'])) {
+                return response()->json(['message' => 'Bu sertifikata giriş hüququnuz yoxdur'], 403);
+            }
+        }
+
+        $verificationUrl = url('/api/v1/certificates/' . $certificate->certificate_number . '/verify');
+        
+        // Use the endroid/qr-code library if available, otherwise use Google Charts API
+        try {
+            $builder = new Builder(
+                writer: new PngWriter(),
+                writerOptions: [],
+                validateResult: false,
+                data: $verificationUrl,
+                encoding: new Encoding('UTF-8'),
+                errorCorrectionLevel: ErrorCorrectionLevel::Low,
+                size: 300,
+                margin: 10
+            );
+            
+            $result = $builder->build();
+            $pngData = $result->getString();
+            $base64Image = 'data:image/png;base64,' . base64_encode($pngData);
+            
+            return response()->json([
+                'qr_code' => $base64Image,
+                'verification_url' => $verificationUrl,
+                'certificate_number' => $certificate->certificate_number,
+            ]);
+        } catch (\Exception $e) {
+            // Fallback to Google Charts API
+            $qrCodeUrl = 'https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=' . urlencode($verificationUrl);
+            
+            return response()->json([
+                'qr_code' => $qrCodeUrl,
+                'verification_url' => $verificationUrl,
+                'certificate_number' => $certificate->certificate_number,
+                'note' => 'Using Google Charts API as fallback'
+            ]);
+        }
     }
 }
  

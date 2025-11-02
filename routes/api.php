@@ -179,8 +179,14 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         // Certificates
         Route::get('certificates', [\App\Http\Controllers\CertificateController::class, 'index']);
         Route::get('certificates/{certificate}', [\App\Http\Controllers\CertificateController::class, 'show']);
+        Route::get('certificates/{certificate}/download', [\App\Http\Controllers\CertificateController::class, 'download']);
+        Route::get('certificates/{certificate}/preview', [\App\Http\Controllers\CertificateController::class, 'preview']);
+        Route::get('certificates/{certificate}/share', [\App\Http\Controllers\CertificateController::class, 'share']);
+        Route::get('certificates/{certificate}/qr-code', [\App\Http\Controllers\CertificateController::class, 'qrCode']);
         Route::get('my/certificates', [\App\Http\Controllers\CertificateController::class, 'myCertificates']);
+        Route::get('my/results', [\App\Http\Controllers\ProgressController::class, 'myResults']);
         Route::post('certificates/{certificate}/upload-pdf', [\App\Http\Controllers\CertificateController::class, 'uploadPdf']);
+        Route::post('certificates/{certificate}/upload-photo', [\App\Http\Controllers\CertificateController::class, 'uploadPhoto']);
         Route::post('certificates/generate-pdf', [\App\Http\Controllers\CertificateController::class, 'generatePdfCertificate']);
 
         // Forum (admin manages questions; users can view and answer)

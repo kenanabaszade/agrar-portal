@@ -497,7 +497,6 @@ class ExamController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'sertifikat_description' => ['nullable', 'string'],
-            'is_required' => ['nullable', 'boolean'],
             'passing_score' => ['required', 'integer', 'min:0', 'max:100'],
             'duration_minutes' => ['required', 'integer', 'min:1', 'max:480'],
             'max_attempts' => ['nullable', 'integer', 'min:1', 'max:10'],
@@ -566,7 +565,6 @@ class ExamController extends Controller
             $examData = collect($validated)->except('questions')->toArray();
             
             // Set defaults
-            $examData['is_required'] = $validated['is_required'] ?? true; // Default true
             $examData['auto_submit'] = $validated['auto_submit'] ?? false; // Default false
             $examData['randomize_questions'] = $validated['shuffle_questions'] ?? true;
             $examData['randomize_choices'] = $validated['shuffle_choices'] ?? true;
@@ -638,7 +636,6 @@ class ExamController extends Controller
                 'title' => $exam->title,
                 'description' => $exam->description,
                 'training_id' => $exam->training_id,
-                'is_required' => $exam->is_required,
                 'duration_minutes' => $exam->duration_minutes,
                 'passing_score' => $exam->passing_score,
                 'max_attempts' => $exam->max_attempts,
@@ -876,7 +873,6 @@ class ExamController extends Controller
             'title' => ['sometimes', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'sertifikat_description' => ['nullable', 'string'],
-            'is_required' => ['nullable', 'boolean'],
             'passing_score' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'duration_minutes' => ['sometimes', 'integer', 'min:1', 'max:480'],
             'max_attempts' => ['nullable', 'integer', 'min:1', 'max:10'],
@@ -947,7 +943,6 @@ class ExamController extends Controller
             $examData = collect($validated)->except('questions')->toArray();
             
             // Set defaults for new fields
-            $examData['is_required'] = $validated['is_required'] ?? true; // Default true
             $examData['auto_submit'] = $validated['auto_submit'] ?? false; // Default false
             if (isset($validated['shuffle_questions'])) {
                 $examData['randomize_questions'] = $validated['shuffle_questions'];
@@ -1033,7 +1028,6 @@ class ExamController extends Controller
                 'title' => $exam->title,
                 'description' => $exam->description,
                 'training_id' => $exam->training_id,
-                'is_required' => $exam->is_required,
                 'duration_minutes' => $exam->duration_minutes,
                 'passing_score' => $exam->passing_score,
                 'max_attempts' => $exam->max_attempts,
@@ -1149,6 +1143,17 @@ class ExamController extends Controller
             $selectedQuestions->each(function ($question) {
                 $question->setRelation('choices', $question->choices->shuffle());
             });
+        }
+        
+        // Check if there's an existing registration that needs to be reset
+        $existingRegistration = ExamRegistration::where('user_id', $user->id)
+            ->where('exam_id', $exam->id)
+            ->first();
+        
+        if ($existingRegistration) {
+            // If there's an existing registration, delete it to allow creating a new one
+            // (since we have a unique constraint on user_id + exam_id)
+            $existingRegistration->delete();
         }
         
         // Create exam registration
@@ -1306,7 +1311,7 @@ class ExamController extends Controller
     {
         $query = $exam->questions()
             ->where('is_required', true)
-            ->with(['choices' => function ($query) {
+            ->with(['choices' => function ($query) use ($exam) {
                 if ($exam->randomize_choices) {
                     $query->inRandomOrder();
                 } else {
@@ -1429,7 +1434,7 @@ class ExamController extends Controller
                     $certificate = [
                         'id' => $cert->id,
                         'certificate_number' => $cert->certificate_number,
-                        'issue_date' => $cert->issue_date->format('d.m.Y'),
+                        'issue_date' => $cert->issue_date ? (is_string($cert->issue_date) ? $cert->issue_date : (is_object($cert->issue_date) && method_exists($cert->issue_date, 'format') ? $cert->issue_date->format('d.m.Y') : $cert->issue_date)) : null,
                         'status' => $cert->status,
                         'is_active' => $cert->isActive(),
                         'download_url' => $cert->download_url,
@@ -1470,12 +1475,114 @@ class ExamController extends Controller
         }
 
         // Check if user has an active attempt
+        // First try to find by status, if not found try to find the most recent one that's not completed/passed
         $activeRegistration = $existingRegistrations->where('status', 'in_progress')->first();
+        
+        // If no in_progress found, check for the most recent registration that might still be active
         if (!$activeRegistration) {
+            $activeRegistration = $existingRegistrations
+                ->whereNotIn('status', ['completed', 'passed', 'failed', 'cancelled'])
+                ->sortByDesc('started_at')
+                ->first();
+                
+            // If found and it has started_at, verify it's still within time limit
+            if ($activeRegistration && $activeRegistration->started_at) {
+                $timeElapsed = now()->diffInMinutes($activeRegistration->started_at);
+                if ($timeElapsed > $exam->duration_minutes) {
+                    // Time expired, can't use this registration
+                    $activeRegistration = null;
+                } else {
+                    // Still within time, update status to in_progress if needed
+                    if ($activeRegistration->status !== 'in_progress') {
+                        $activeRegistration->update(['status' => 'in_progress']);
+                    }
+                }
+            }
+        }
+        
+        // If still no active registration found, try to auto-create one as a fallback
+        // (This handles cases where start endpoint wasn't called or failed)
+        if (!$activeRegistration && $existingRegistrations->isEmpty()) {
+            try {
+                // Get all questions for this exam
+                $allQuestions = $exam->questions()->with('choices')->get();
+                
+                if ($allQuestions->isEmpty()) {
+                    return response()->json([
+                        'message' => 'Bu imtahanda sual yoxdur',
+                        'exam_id' => $exam->id
+                    ], 422);
+                }
+                
+                // Select random questions based on exam_question_count
+                $selectedQuestions = $allQuestions;
+                if ($exam->exam_question_count < $allQuestions->count()) {
+                    $selectedQuestions = $allQuestions->random($exam->exam_question_count)->values();
+                }
+                
+                // Create registration automatically
+                $nextAttemptNumber = 1;
+                $activeRegistration = ExamRegistration::create([
+                    'user_id' => $request->user()->id,
+                    'exam_id' => $exam->id,
+                    'status' => 'in_progress',
+                    'started_at' => now(),
+                    'attempt_number' => $nextAttemptNumber,
+                    'selected_question_ids' => $selectedQuestions->pluck('id')->toArray(),
+                    'total_questions' => $selectedQuestions->count(),
+                ]);
+            } catch (\Exception $e) {
+                // If auto-creation fails, return helpful error
+                return response()->json([
+                    'message' => 'Aktiv imtahan tapılmadı və yeni imtahan yaradıla bilmədi. Lütfən əvvəlcə imtahanı başlatmaq üçün POST /api/v1/exams/{id}/start endpoint-ini çağırın.',
+                    'exam_id' => $exam->id,
+                    'exam_title' => $exam->title,
+                    'error' => config('app.debug') ? $e->getMessage() : null,
+                    'debug_info' => [
+                        'total_registrations' => $existingRegistrations->count(),
+                        'all_statuses' => $existingRegistrations->pluck('status')->toArray()
+                    ]
+                ], 404);
+            }
+        }
+        
+        if (!$activeRegistration) {
+            // Check if there's a recent registration that might have timed out or was closed
+            $recentRegistration = $existingRegistrations->where('started_at', '!=', null)
+                ->sortByDesc('started_at')
+                ->first();
+            
+            // If there's a recent registration but it's not in_progress, provide more helpful error
+            if ($recentRegistration) {
+                return response()->json([
+                    'message' => 'Aktiv imtahan tapılmadı. Əvvəlcə imtahanı başlatmalısınız.',
+                    'exam_id' => $exam->id,
+                    'exam_title' => $exam->title,
+                    'hint' => 'Yeni imtahan başlatmaq üçün POST /api/v1/exams/' . $exam->id . '/start endpoint-ini çağırın',
+                    'debug_info' => [
+                        'last_registration_status' => $recentRegistration->status,
+                        'last_registration_started_at' => $recentRegistration->started_at,
+                        'all_registrations' => $existingRegistrations->map(function ($reg) {
+                            return [
+                                'id' => $reg->id,
+                                'status' => $reg->status,
+                                'started_at' => $reg->started_at,
+                                'attempt_number' => $reg->attempt_number
+                            ];
+                        })->values()
+                    ]
+                ], 404);
+            }
+            
             return response()->json([
                 'message' => 'Aktiv imtahan tapılmadı. Əvvəlcə imtahanı başlatmalısınız.',
                 'exam_id' => $exam->id,
-                'exam_title' => $exam->title
+                'exam_title' => $exam->title,
+                'hint' => 'Yeni imtahan başlatmaq üçün POST /api/v1/exams/' . $exam->id . '/start endpoint-ini çağırın',
+                'debug_info' => [
+                    'total_registrations' => $existingRegistrations->count(),
+                    'all_statuses' => $existingRegistrations->pluck('status')->toArray()
+                ]
             ], 404);
         }
 
@@ -1489,13 +1596,15 @@ class ExamController extends Controller
         $timeElapsed = $registration->started_at ? now()->diffInMinutes($registration->started_at) : 0;
         $timeLimit = $exam->duration_minutes;
         $timeExceeded = $timeElapsed > $timeLimit;
+        
+        // Track if there are text questions (needed for certificate generation)
+        $hasTextQuestions = false;
 
         try {
-            DB::transaction(function () use ($registration, $data, $exam, $request, $timeExceeded) {
+            DB::transaction(function () use ($registration, $data, $exam, $request, $timeExceeded, &$hasTextQuestions) {
                 // Use registration's total_questions for scoring (this is the actual number of questions shown to user)
                 $totalQuestionsForScoring = $registration->total_questions ?? count($data['answers']);
                 $correctAnswers = 0;
-                $hasTextQuestions = false;
                 $textQuestionsCount = 0;
                 
                 // Load all questions with choices in a single query to avoid N+1 problem
@@ -1592,12 +1701,59 @@ class ExamController extends Controller
         
         // Handle certificate generation and email notification outside transaction
         try {
-            if ($registration->status === 'passed' && !$timeExceeded && !$hasTextQuestions) {
-                // Check if training provides certificates
-                $training = Training::find($exam->training_id);
-                if ($training && $training->has_certificate) {
-                    // Generate PDF certificate using Python script
-                    $this->generatePdfCertificate($request->user(), $exam, $training, $registration);
+            // Generate certificate if exam is passed (regardless of text questions)
+            // Text questions with manual grading will be handled after grading is complete
+            if ($registration->status === 'passed' && !$timeExceeded) {
+                // Check if certificate already exists
+                $existingCertificate = Certificate::where('user_id', $request->user()->id)
+                    ->where('related_exam_id', $exam->id)
+                    ->first();
+                
+                if (!$existingCertificate) {
+                    // Check if training provides certificates
+                    $training = $exam->training_id ? Training::find($exam->training_id) : null;
+                    
+                    if ($training && $training->has_certificate) {
+                        // Generate PDF certificate using PHP service
+                        try {
+                            $this->generatePdfCertificate($request->user(), $exam, $training, $registration);
+                        } catch (\Exception $e) {
+                            \Log::error('PDF certificate generation failed: ' . $e->getMessage());
+                            // Fall through to create simple certificate
+                        }
+                    }
+                    
+                    // If still no certificate (either no training, training doesn't have certificate, or PDF generation failed),
+                    // create a simple certificate record
+                    $certificate = Certificate::where('user_id', $request->user()->id)
+                        ->where('related_exam_id', $exam->id)
+                        ->first();
+                        
+                    if (!$certificate) {
+                        try {
+                            // Calculate expiry date if certificate validity is set
+                            $expiryDate = null;
+                            if ($exam->certificate_validity_days) {
+                                $expiryDate = now()->addDays($exam->certificate_validity_days)->toDateString();
+                            }
+                            
+                            $certificate = Certificate::create([
+                                'user_id' => $request->user()->id,
+                                'related_training_id' => $exam->training_id,
+                                'related_exam_id' => $exam->id,
+                                'certificate_number' => 'EXAM-' . $exam->id . '-' . $request->user()->id . '-' . now()->format('YmdHis'),
+                                'issue_date' => now()->toDateString(),
+                                'expiry_date' => $expiryDate,
+                                'issuer_name' => 'Aqrar Portal',
+                                'status' => 'active',
+                            ]);
+                            
+                            // Update registration with certificate
+                            $registration->update(['certificate_id' => $certificate->id]);
+                        } catch (\Exception $e) {
+                            \Log::error('Failed to create simple certificate: ' . $e->getMessage());
+                        }
+                    }
                 }
             }
             
@@ -1608,6 +1764,8 @@ class ExamController extends Controller
             // Don't fail the entire request for certificate/email errors
         }
         
+        // Refresh registration to ensure certificate relationship is loaded
+        $registration->refresh();
         $response = $registration->load('certificate');
         
         // Add timing information to response
@@ -1656,72 +1814,86 @@ class ExamController extends Controller
                 ->first();
                 
             if ($existingCertificate) {
-                Log::info('Certificate already exists for user ' . $user->id . ' and exam ' . $exam->id);
-                // Update registration with existing certificate
-                $registration->update(['certificate_id' => $existingCertificate->id]);
-                return;
+                // If certificate exists but has no PDF, try to generate it
+                if (!$existingCertificate->pdf_path) {
+                    Log::info('Certificate exists but has no PDF, attempting to generate PDF for user ' . $user->id . ' and exam ' . $exam->id);
+                    // Continue with PDF generation below
+                } else {
+                    Log::info('Certificate already exists with PDF for user ' . $user->id . ' and exam ' . $exam->id);
+                    // Update registration with existing certificate
+                    $registration->update(['certificate_id' => $existingCertificate->id]);
+                    return;
+                }
             }
             
-            // Prepare data for Python script
-            $data = [
-                'user' => [
-                    'id' => $user->id,
-                    'first_name' => $user->first_name,
-                    'last_name' => $user->last_name,
-                    'email' => $user->email,
-                ],
-                'exam' => [
-                    'id' => $exam->id,
-                    'title' => $exam->title,
-                    'description' => $exam->description,
-                    'sertifikat_description' => $exam->sertifikat_description,
-                ],
-                'training' => [
-                    'id' => $training->id,
-                    'title' => $training->title,
-                    'description' => $training->description,
-                ]
+            // Prepare data for certificate generation
+            $userData = [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+            ];
+            
+            $examData = [
+                'id' => $exam->id,
+                'title' => $exam->title,
+                'description' => $exam->description,
+                'sertifikat_description' => $exam->sertifikat_description,
+            ];
+            
+            $trainingData = [
+                'id' => $training->id,
+                'title' => $training->title,
+                'description' => $training->description,
             ];
 
-            // Run Python script
-            $pythonScript = base_path('certificate_generator.py');
-            $jsonData = json_encode($data);
+            // Use PHP certificate generator service
+            $service = new \App\Services\CertificateGeneratorService();
+            $result = $service->generateCertificate($userData, $examData, $trainingData);
             
-            // Write JSON to temporary file
-            $tempFile = tempnam(sys_get_temp_dir(), 'cert_data_');
-            file_put_contents($tempFile, $jsonData);
-            
-            $result = Process::run("C:\\Python313\\python.exe {$pythonScript} --file {$tempFile}");
-            
-            // Clean up temp file
-            unlink($tempFile);
-            
-            if ($result->failed()) {
-                Log::error('Python certificate generation failed: ' . $result->errorOutput());
+            if (!$result['success']) {
+                Log::error('Certificate generation error: ' . ($result['error'] ?? 'Unknown error'), ['result' => $result]);
                 return;
             }
-
-            $output = json_decode($result->output(), true);
             
-            if (!$output['success']) {
-                Log::error('Python certificate generation error: ' . $output['error']);
-                return;
-            }
+            $output = $result;
 
-            // Create certificate record with duplicate key handling
+            // Create or update certificate record with duplicate key handling
             try {
-                $certificate = Certificate::create([
-                    'user_id' => $user->id,
-                    'related_training_id' => $training->id,
-                    'related_exam_id' => $exam->id,
-                    'certificate_number' => $output['certificate_number'],
-                    'issue_date' => now()->toDateString(),
-                    'issuer_name' => 'Aqrar Portal',
-                    'status' => 'active',
-                    'digital_signature' => $output['digital_signature'],
-                    'pdf_path' => $output['pdf_path'],
-                    'pdf_url' => 'http://localhost:8000/storage/' . $output['pdf_path'],
-                ]);
+                // Calculate expiry date if certificate validity is set
+                $expiryDate = null;
+                if ($exam->certificate_validity_days) {
+                    $expiryDate = now()->addDays($exam->certificate_validity_days)->toDateString();
+                }
+                
+                if ($existingCertificate) {
+                    // Update existing certificate with PDF info
+                    $existingCertificate->update([
+                        'certificate_number' => $output['certificate_number'],
+                        'digital_signature' => $output['digital_signature'],
+                        'pdf_path' => $output['pdf_path'],
+                        'pdf_url' => url('/storage/' . $output['pdf_path']),
+                        'expiry_date' => $expiryDate ?? $existingCertificate->expiry_date,
+                    ]);
+                    $certificate = $existingCertificate;
+                    Log::info('Updated existing certificate with PDF for user ' . $user->id . ' and exam ' . $exam->id);
+                } else {
+                    // Create new certificate record
+                    $certificate = Certificate::create([
+                        'user_id' => $user->id,
+                        'related_training_id' => $training->id,
+                        'related_exam_id' => $exam->id,
+                        'certificate_number' => $output['certificate_number'],
+                        'issue_date' => now()->toDateString(),
+                        'expiry_date' => $expiryDate,
+                        'issuer_name' => 'Aqrar Portal',
+                        'status' => 'active',
+                        'digital_signature' => $output['digital_signature'],
+                        'pdf_path' => $output['pdf_path'],
+                        'pdf_url' => url('/storage/' . $output['pdf_path']),
+                    ]);
+                    Log::info('Created new certificate with PDF for user ' . $user->id . ' and exam ' . $exam->id);
+                }
                 
                 // Update registration with certificate
                 $registration->update(['certificate_id' => $certificate->id]);
@@ -1752,6 +1924,7 @@ class ExamController extends Controller
             Log::error('Error generating PDF certificate: ' . $e->getMessage());
         }
     }
+    
 
     /**
      * Get user's exam result/history for a specific exam
@@ -1784,32 +1957,90 @@ class ExamController extends Controller
             ->where('related_exam_id', $exam->id)
             ->first();
         
-        // If no certificate exists, create one using Python script
+        // If no certificate exists, create one
         if (!$certificate) {
-            $training = Training::find($exam->training_id);
+            $training = $exam->training_id ? Training::find($exam->training_id) : null;
+            
+            // Try to generate PDF certificate if training exists and has certificate enabled
             if ($training && $training->has_certificate) {
                 Log::info('Creating certificate for user ' . $user->id . ' exam ' . $exam->id);
-                $this->generatePdfCertificate($user, $exam, $training, $passedAttempt);
-                
-                // Reload certificate after creation
+                try {
+                    $this->generatePdfCertificate($user, $exam, $training, $passedAttempt);
+                    
+                    // Reload certificate after creation
+                    $certificate = Certificate::where('user_id', $user->id)
+                        ->where('related_exam_id', $exam->id)
+                        ->first();
+                    
+                    Log::info('Certificate created: ' . ($certificate ? 'Yes' : 'No'));
+                } catch (\Exception $e) {
+                    Log::error('Failed to generate PDF certificate: ' . $e->getMessage());
+                    // Fall through to create simple certificate
+                }
+            }
+            
+            // If still no certificate (either no training, training doesn't have certificate, or PDF generation failed),
+            // create a simple certificate record
+            if (!$certificate) {
+                try {
+                    // Calculate expiry date if certificate validity is set
+                    $expiryDate = null;
+                    if ($exam->certificate_validity_days) {
+                        $expiryDate = now()->addDays($exam->certificate_validity_days)->toDateString();
+                    }
+                    
+                    $certificate = Certificate::create([
+                        'user_id' => $user->id,
+                        'related_training_id' => $exam->training_id,
+                        'related_exam_id' => $exam->id,
+                        'certificate_number' => 'EXAM-' . $exam->id . '-' . $user->id . '-' . now()->format('YmdHis'),
+                        'issue_date' => now()->toDateString(),
+                        'expiry_date' => $expiryDate,
+                        'issuer_name' => 'Aqrar Portal',
+                        'status' => 'active',
+                    ]);
+                    
+                    // Update registration with certificate
+                    $passedAttempt->update(['certificate_id' => $certificate->id]);
+                    
+                    // Reload certificate to ensure it's available
+                    $certificate = $certificate->fresh();
+                    $passedAttempt->refresh();
+                    
+                    Log::info('Simple certificate created for user ' . $user->id . ' exam ' . $exam->id);
+                } catch (\Exception $e) {
+                    Log::error('Failed to create certificate: ' . $e->getMessage());
+                }
+            }
+            
+            // Reload certificate if it was just created
+            if (!$certificate) {
                 $certificate = Certificate::where('user_id', $user->id)
                     ->where('related_exam_id', $exam->id)
                     ->first();
-                
-                Log::info('Certificate created: ' . ($certificate ? 'Yes' : 'No'));
-            } else {
-                Log::info('Training does not have certificate enabled', [
-                    'training_id' => $training->id,
-                    'has_certificate' => $training ? $training->has_certificate : 'null'
-                ]);
             }
+        }
+        
+        // Reload passedAttempt to get certificate relationship
+        $passedAttempt->refresh();
+        $passedAttempt->load('certificate');
+        
+        // Ensure certificate variable is set from the relationship
+        if ($passedAttempt->certificate) {
+            $certificate = $passedAttempt->certificate;
+        } elseif (!$certificate) {
+            // Final fallback: reload certificate directly
+            $certificate = Certificate::where('user_id', $user->id)
+                ->where('related_exam_id', $exam->id)
+                ->first();
         }
         
         // Get all user's attempts for this exam
         $allAttempts = ExamRegistration::where('user_id', $user->id)
             ->where('exam_id', $exam->id)
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->load('certificate');
         
         // Calculate statistics
         $passedCount = $allAttempts->where('status', 'passed')->count();
@@ -1985,8 +2216,10 @@ class ExamController extends Controller
                 'certificate' => $certificate ? [
                     'id' => $certificate->id,
                     'certificate_number' => $certificate->certificate_number,
-                    'issue_date' => $certificate->issue_date->format('Y-m-d'),
-                    'download_url' => 'http://localhost:8000/storage/' . $certificate->pdf_path,
+                    'issue_date' => $certificate->issue_date ? (is_string($certificate->issue_date) ? $certificate->issue_date : (is_object($certificate->issue_date) && method_exists($certificate->issue_date, 'format') ? $certificate->issue_date->format('Y-m-d') : $certificate->issue_date)) : null,
+                    'download_url' => $certificate->pdf_path ? ('http://localhost:8000/storage/' . $certificate->pdf_path) : null,
+                    'verification_url' => $certificate->verification_url ?? null,
+                    'status' => $certificate->status ?? null,
                 ] : null,
             ],
             'attempts' => $formattedAttempts,
