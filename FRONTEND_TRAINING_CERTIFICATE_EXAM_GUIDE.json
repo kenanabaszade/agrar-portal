@@ -1,0 +1,435 @@
+{
+  "training_certificate_exam_system_update": {
+    "version": "2.0",
+    "date": "2025-11-04",
+    "description": "Training sertifikat və imtahan sisteminin yenilənməsi - Frontend Developer üçün tam guide",
+    
+    "important_changes": {
+      "new_field_added": "exam_for_certificate",
+      "pdf_generation": "Backend-də avtomatik olaraq PDF yaradılır, frontend-də heç bir PDF generation lazım deyil",
+      "notification_system": "Backend mövcud notification sistemini genişləndirib, yeni CertificateEarnedMail əlavə edilib",
+      "logic_change": "İmtahan varsa (has_exam=true), exam_for_certificate HƏR ZAMAN true göndərilməlidir"
+    },
+    
+    "frontend_logic_rules": {
+      "rule_1": {
+        "condition": "has_exam = true",
+        "then": "exam_for_certificate = true (MÜTLƏQ)",
+        "explanation": "İmtahan varsa, user sertifikat üçün mütləq imtahan verməlidir"
+      },
+      "rule_2": {
+        "condition": "has_exam = false və has_certificate = true",
+        "then": "exam_for_certificate = false",
+        "explanation": "İmtahan yoxdursa, sertifikat training bitdikdə verilir"
+      },
+      "rule_3": {
+        "condition": "has_exam = false və has_certificate = false",
+        "then": "exam_for_certificate = false",
+        "explanation": "Nə sertifikat, nə də imtahan yoxdur"
+      }
+    },
+    
+    "api_endpoints": {
+      "create_training": {
+        "method": "POST",
+        "url": "/api/v1/trainings",
+        "description": "Yeni training yaradır",
+        "content_type": "multipart/form-data (fayllar üçün) və ya application/json"
+      },
+      "update_training": {
+        "method": "PUT",
+        "url": "/api/v1/trainings/{id}",
+        "description": "Mövcud training-i yeniləyir",
+        "content_type": "multipart/form-data və ya application/json"
+      },
+      "complete_training": {
+        "method": "POST",
+        "url": "/api/v1/trainings/{id}/complete",
+        "description": "Training-i tamamlayır və sertifikat yaradır (şərtlərə uyğun olaraq)"
+      }
+    },
+    
+    "field_details": {
+      "exam_for_certificate": {
+        "type": "boolean",
+        "required": false,
+        "default": false,
+        "description": "Sertifikat üçün imtahan keçmək məcburidirmi?",
+        "frontend_logic": "has_exam === true ? true : false",
+        "use_cases": {
+          "scenario_1": {
+            "has_exam": true,
+            "has_certificate": true,
+            "exam_for_certificate": true,
+            "result": "User imtahan keçdikdə sertifikat alır. Training complete zamani sertifikat yaranmir."
+          },
+          "scenario_2": {
+            "has_exam": false,
+            "has_certificate": true,
+            "exam_for_certificate": false,
+            "result": "User training bitirdikdə dərhal sertifikat alır. İmtahan yoxdur."
+          },
+          "scenario_3": {
+            "has_exam": true,
+            "has_certificate": false,
+            "exam_for_certificate": false,
+            "result": "İmtahan var amma sertifikat verilmir."
+          },
+          "scenario_4": {
+            "has_exam": false,
+            "has_certificate": false,
+            "exam_for_certificate": false,
+            "result": "Nə imtahan, nə də sertifikat yoxdur. Sadə training."
+          }
+        }
+      }
+    },
+    
+    "request_examples": {
+      "example_1_training_with_exam_and_certificate": {
+        "description": "İmtahanlı və sertifikatlı training (ən çox istifadə olunan halət)",
+        "request_body": {
+          "title": {
+            "az": "Kənd təsərrüfatı əsasları",
+            "en": "Agriculture Basics"
+          },
+          "description": {
+            "az": "Bu təlimdə kənd təsərrüfatının əsas prinsipləri öyrədilir",
+            "en": "This training covers basic principles of agriculture"
+          },
+          "trainer_id": 1,
+          "category": "Kənd təsərrüfatı",
+          "type": "online",
+          "start_date": "2025-01-15",
+          "end_date": "2025-01-20",
+          "start_time": "10:00",
+          "end_time": "12:00",
+          "has_exam": true,
+          "exam_id": 5,
+          "exam_required": true,
+          "min_exam_score": 70,
+          "has_certificate": true,
+          "exam_for_certificate": true,
+          "certificate_description": {
+            "az": "Bu sertifikat təsdiq edir ki, istifadəçi təlimi uğurla tamamlamış və imtahanı keçmişdir",
+            "en": "This certificate confirms that the user has successfully completed the training and passed the exam"
+          },
+          "certificate_has_expiry": true,
+          "certificate_expiry_years": 2,
+          "status": "published",
+          "difficulty": "beginner"
+        },
+        "backend_behavior": {
+          "on_training_complete": "Sertifikat yaranmır. User-ə mesaj göstərilir: 'Təlimi uğurla bitirdiniz. İmtahanı keçdikdən sonra sertifikat alacaqsınız.'",
+          "on_exam_pass": "Backend avtomatik PDF sertifikat yaradır və email göndərir"
+        }
+      },
+      
+      "example_2_training_with_certificate_no_exam": {
+        "description": "İmtahansız sertifikatlı training",
+        "request_body": {
+          "title": {
+            "az": "Video dərs seriyası"
+          },
+          "trainer_id": 2,
+          "type": "video",
+          "has_exam": false,
+          "has_certificate": true,
+          "exam_for_certificate": false,
+          "certificate_description": {
+            "az": "Bu sertifikat təsdiq edir ki, istifadəçi video dərs seriyasını tamamlamışdır"
+          },
+          "status": "published"
+        },
+        "backend_behavior": {
+          "on_training_complete": "Backend avtomatik PDF sertifikat yaradır, QR kod generate edir və email göndərir. Response-də certificate object qaytarılır."
+        }
+      },
+      
+      "example_3_training_no_exam_no_certificate": {
+        "description": "Sadə training (nə imtahan, nə sertifikat)",
+        "request_body": {
+          "title": {
+            "az": "İnformasiya sessiyası"
+          },
+          "trainer_id": 3,
+          "type": "online",
+          "has_exam": false,
+          "has_certificate": false,
+          "exam_for_certificate": false,
+          "status": "published"
+        },
+        "backend_behavior": {
+          "on_training_complete": "Sadə completion mesajı: 'Təlimi uğurla bitirdiniz'"
+        }
+      }
+    },
+    
+    "response_structures": {
+      "training_complete_response": {
+        "description": "POST /api/v1/trainings/{id}/complete endpoint-indən gələn cavab",
+        "scenarios": {
+          "scenario_1_exam_true_exam_for_certificate_true": {
+            "condition": "has_exam=true və exam_for_certificate=true",
+            "response": {
+              "message": "Təlimi uğurla bitirdiniz. İmtahanı keçdikdən sonra sertifikat alacaqsınız.",
+              "registration": {
+                "id": 123,
+                "status": "completed",
+                "user_id": 45
+              },
+              "certificate": null,
+              "completion_date": "2025-01-20T12:00:00.000000Z",
+              "exam": {
+                "id": 5,
+                "title": "Kənd təsərrüfatı imtahanı",
+                "duration_minutes": 60,
+                "passing_score": 70,
+                "total_questions": 20
+              },
+              "notification_sent": false,
+              "has_exam": true,
+              "exam_for_certificate": true
+            },
+            "frontend_action": "Imtahan məlumatlarını göstər və user-ə imtahan vermək üçün düymə göstər"
+          },
+          
+          "scenario_2_exam_false_certificate_true": {
+            "condition": "has_exam=false və has_certificate=true",
+            "response": {
+              "message": "Təlimi uğurla bitirdiniz. Sertifikat qazandınız!",
+              "registration": {
+                "id": 124,
+                "status": "completed",
+                "certificate_id": 89
+              },
+              "certificate": {
+                "id": 89,
+                "certificate_number": "CERT-2025-001234",
+                "issue_date": "2025-01-20",
+                "expiry_date": "2027-01-20",
+                "pdf_url": "https://api.example.com/storage/certificates/cert_89.pdf",
+                "qr_code_url": "https://api.example.com/storage/qr_codes/cert_89_qr.png",
+                "verification_url": "https://api.example.com/certificates/verify/CERT-2025-001234",
+                "status": "active"
+              },
+              "completion_date": "2025-01-20T12:00:00.000000Z",
+              "exam": null,
+              "notification_sent": true,
+              "has_exam": false,
+              "exam_for_certificate": false
+            },
+            "frontend_action": "Təbrik mesajı göstər, sertifikatı yükləmək və görmək üçün düymələr göstər. Email göndərildiyini bildiriş ver."
+          },
+          
+          "scenario_3_no_exam_no_certificate": {
+            "condition": "has_exam=false və has_certificate=false",
+            "response": {
+              "message": "Təlimi uğurla bitirdiniz",
+              "registration": {
+                "id": 125,
+                "status": "completed"
+              },
+              "certificate": null,
+              "completion_date": "2025-01-20T12:00:00.000000Z",
+              "exam": null,
+              "notification_sent": false,
+              "has_exam": false,
+              "exam_for_certificate": false
+            },
+            "frontend_action": "Sadə təbrik mesajı göstər"
+          }
+        }
+      },
+      
+      "exam_pass_response": {
+        "description": "POST /api/v1/exams/{id}/submit endpoint-indən gələn cavab (imtahan keçildikdə)",
+        "condition": "exam_for_certificate=true və imtahan keçildi",
+        "response": {
+          "message": "Təbriklər! İmtahanı uğurla keçdiniz və sertifikat qazandınız!",
+          "registration": {
+            "id": 456,
+            "exam_id": 5,
+            "status": "passed",
+            "score": 85,
+            "finished_at": "2025-01-22T14:30:00.000000Z"
+          },
+          "certificate": {
+            "id": 90,
+            "certificate_number": "CERT-2025-001235",
+            "issue_date": "2025-01-22",
+            "pdf_url": "https://api.example.com/storage/certificates/cert_90.pdf",
+            "qr_code_url": "https://api.example.com/storage/qr_codes/cert_90_qr.png",
+            "verification_url": "https://api.example.com/certificates/verify/CERT-2025-001235",
+            "related_training_id": 10,
+            "related_exam_id": 5
+          },
+          "passed": true,
+          "needs_manual_grading": false
+        },
+        "frontend_action": "Təbrik mesajı, sertifikat yükləmə və görüntüləmə düymələri göstər. Email bildirilişi göstər."
+      }
+    },
+    
+    "certificate_details": {
+      "pdf_generation": {
+        "location": "Backend (PHP)",
+        "service": "CertificateGeneratorService",
+        "format": "PDF",
+        "includes": [
+          "User ad və soyad",
+          "Training/Exam başlığı",
+          "Sertifikat nömrəsi",
+          "Verilmə tarixi",
+          "Bitmə tarixi (varsa)",
+          "QR kod (verification üçün)",
+          "Rəqəmsal imza",
+          "Aqrar Portal logosu və dizayn"
+        ],
+        "storage": "storage/app/public/certificates/",
+        "access_url": "/storage/certificates/cert_{id}.pdf"
+      },
+      
+      "qr_code": {
+        "generated_by": "Backend (PHP)",
+        "contains": "Verification URL",
+        "format": "PNG",
+        "storage": "storage/app/public/qr_codes/",
+        "scan_result": "User browser-də sertifikat verification səhifəsinə yönləndirilir"
+      },
+      
+      "email_notification": {
+        "sent_by": "Backend (Laravel Mail)",
+        "mail_class": "CertificateEarnedMail",
+        "template": "resources/views/emails/certificate-earned.blade.php",
+        "includes": [
+          "Təbrik mesajı",
+          "Training məlumatları",
+          "Sertifikat nömrəsi",
+          "PDF yükləmə linki",
+          "Verification linki",
+          "QR kod istifadə təlimatı",
+          "Saytda sertifikat bölməsinə keçid"
+        ],
+        "sent_when": [
+          "Training tamamlandıqda (exam_for_certificate=false)",
+          "İmtahan keçildikdə (exam_for_certificate=true)"
+        ]
+      }
+    },
+    
+    "frontend_ui_recommendations": {
+      "training_create_form": {
+        "certificate_section": {
+          "has_certificate_checkbox": "Sertifikat verilsin?",
+          "certificate_description_field": "Sertifikat təsviri (çoxdilli)",
+          "certificate_expiry_checkbox": "Müddətlidir?",
+          "expiry_fields": "İl/Ay/Gün (varsa)"
+        },
+        "exam_section": {
+          "has_exam_checkbox": "İmtahan var?",
+          "exam_select": "İmtahan seç (dropdown)",
+          "exam_required_checkbox": "İmtahan məcburi?",
+          "min_score_field": "Minimum bal (%)",
+          "exam_for_certificate_info": "QEYD: İmtahan seçildiyi halda, sertifikat yalnız imtahan keçildikdə veriləcək"
+        },
+        "conditional_logic": {
+          "rule_1": "has_exam = true olarsa, exam_for_certificate avtomatik true olur və disabled göstərilir",
+          "rule_2": "has_exam = false olarsa, exam_for_certificate false olur",
+          "rule_3": "has_exam = true olarsa, exam_id field məcburi olur"
+        }
+      },
+      
+      "training_complete_screen": {
+        "scenario_1_exam_pending": {
+          "show": [
+            "Təbrik mesajı: 'Təlimi uğurla bitirdiniz'",
+            "İmtahan məlumatları (exam object-dən)",
+            "İmtahana başla düyməsi",
+            "Məlumat: 'Sertifikat almaq üçün imtahanı keçməlisiniz'"
+          ]
+        },
+        "scenario_2_certificate_earned": {
+          "show": [
+            "Böyük təbrik mesajı: 'Təbriklər! Sertifikat qazandınız!'",
+            "Sertifikat preview (PDF iframe və ya thumbnail)",
+            "Sertifikatı yüklə düyməsi (PDF download)",
+            "Sertifikatı gör düyməsi (yeni tab-da aç)",
+            "Sertifikat nömrəsi",
+            "QR kod (scan edə bilər)",
+            "Məlumat: 'Email-inizə sertifikat göndərildi'"
+          ]
+        },
+        "scenario_3_simple_completion": {
+          "show": [
+            "Təbrik mesajı: 'Təlimi uğurla bitirdiniz'",
+            "Əvvəlki səhifəyə qayıt düyməsi"
+          ]
+        }
+      }
+    },
+    
+    "testing_scenarios": {
+      "test_1": {
+        "description": "İmtahanlı və sertifikatlı training - imtahan keçildikdə sertifikat",
+        "steps": [
+          "1. Training yarat: has_exam=true, has_certificate=true, exam_for_certificate=true",
+          "2. Training-ə qeydiyyatdan keç",
+          "3. Training-i tamamla - cavabda certificate=null olmalıdır",
+          "4. İmtahan ver və keç (score >= min_exam_score)",
+          "5. Cavabda certificate object olmalıdır",
+          "6. PDF link işləməlidir",
+          "7. Email gəlməlidir"
+        ]
+      },
+      "test_2": {
+        "description": "İmtahansız sertifikatlı training - training bitdikdə sertifikat",
+        "steps": [
+          "1. Training yarat: has_exam=false, has_certificate=true",
+          "2. Training-ə qeydiyyatdan keç",
+          "3. Training-i tamamla",
+          "4. Cavabda certificate object olmalıdır",
+          "5. PDF link işləməlidir",
+          "6. Email gəlməlidir"
+        ]
+      },
+      "test_3": {
+        "description": "Sadə training - nə imtahan, nə sertifikat",
+        "steps": [
+          "1. Training yarat: has_exam=false, has_certificate=false",
+          "2. Training-ə qeydiyyatdan keç",
+          "3. Training-i tamamla",
+          "4. Sadə təbrik mesajı alınmalıdır"
+        ]
+      }
+    },
+    
+    "common_mistakes_to_avoid": {
+      "mistake_1": {
+        "error": "has_exam=true olduqda exam_for_certificate=false göndərmək",
+        "correct": "has_exam=true olduqda HƏR ZAMAN exam_for_certificate=true göndərin"
+      },
+      "mistake_2": {
+        "error": "Frontend-də PDF generate etməyə çalışmaq",
+        "correct": "Backend PDF-i yaradır, siz yalnız link-i göstərin"
+      },
+      "mistake_3": {
+        "error": "Certificate response-də pdf_path field-ini istifadə etmək",
+        "correct": "pdf_url field-ini istifadə edin (tam URL)"
+      },
+      "mistake_4": {
+        "error": "Email bildirişini frontend-də göstərməmək",
+        "correct": "notification_sent=true olduqda user-ə bildirin ki email göndərilib"
+      }
+    },
+    
+    "migration_status": {
+      "database": "exam_for_certificate field trainings table-ə əlavə edildi",
+      "backend_code": "Bütün controller və model-lər yeniləndi",
+      "email_template": "certificate-earned.blade.php yaradıldı",
+      "ready_for_testing": true
+    }
+  }
+}
+
+

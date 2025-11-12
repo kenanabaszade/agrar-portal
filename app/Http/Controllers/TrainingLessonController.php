@@ -32,12 +32,16 @@ class TrainingLessonController extends Controller
      */
     public function store(Request $request, TrainingModule $module)
     {
+        // Normalize request data: Convert title_az, title_en format to object format
+        $requestData = $this->normalizeTranslationRequest($request->all());
+        $request->merge($requestData);
+
         $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
+            'title' => ['required', new \App\Rules\TranslationRule(true)],
             'lesson_type' => ['required', 'in:text,video,audio,image,mixed'],
             'duration_minutes' => ['nullable', 'integer', 'min:1'],
-            'content' => ['nullable', 'string'],
-            'description' => ['nullable', 'string'],
+            'content' => ['nullable', new \App\Rules\TranslationRule(false)],
+            'description' => ['nullable', new \App\Rules\TranslationRule(false)],
             'video_url' => ['nullable', 'url'],
             'pdf_url' => ['nullable', 'url'],
             'file_codes' => ['nullable', 'array'],
@@ -134,12 +138,16 @@ class TrainingLessonController extends Controller
      */
     public function update(Request $request, TrainingModule $module, TrainingLesson $lesson)
     {
+        // Normalize request data: Convert title_az, title_en format to object format
+        $requestData = $this->normalizeTranslationRequest($request->all());
+        $request->merge($requestData);
+
         $validated = $request->validate([
-            'title' => ['sometimes', 'string', 'max:255'],
+            'title' => ['sometimes', new \App\Rules\TranslationRule(true)],
             'lesson_type' => ['sometimes', 'in:text,video,audio,image,mixed'],
             'duration_minutes' => ['nullable', 'integer', 'min:1'],
-            'content' => ['nullable', 'string'],
-            'description' => ['nullable', 'string'],
+            'content' => ['nullable', new \App\Rules\TranslationRule(false)],
+            'description' => ['nullable', new \App\Rules\TranslationRule(false)],
             'video_url' => ['nullable', 'url'],
             'pdf_url' => ['nullable', 'url'],
             'media_files' => ['nullable', 'array'],
@@ -286,12 +294,29 @@ class TrainingLessonController extends Controller
                         ->first();
 
                     if (!$existingCert) {
+                        // Calculate expiry date from Training settings
+                        $expiryDate = null;
+                        if ($training->certificate_has_expiry) {
+                            $expiryDate = now();
+                            if ($training->certificate_expiry_years) {
+                                $expiryDate = $expiryDate->addYears($training->certificate_expiry_years);
+                            }
+                            if ($training->certificate_expiry_months) {
+                                $expiryDate = $expiryDate->addMonths($training->certificate_expiry_months);
+                            }
+                            if ($training->certificate_expiry_days) {
+                                $expiryDate = $expiryDate->addDays($training->certificate_expiry_days);
+                            }
+                            $expiryDate = $expiryDate->toDateString();
+                        }
+                        
                         $cert = Certificate::create([
                             'user_id' => $user->id,
                             'related_training_id' => $training->id,
                             'related_exam_id' => null,
                             'certificate_number' => Str::uuid()->toString(),
                             'issue_date' => now()->toDateString(),
+                            'expiry_date' => $expiryDate,
                             'issuer_name' => 'Aqrar Portal',
                             'status' => 'active',
                         ]);
@@ -304,12 +329,29 @@ class TrainingLessonController extends Controller
                         ->first();
 
                     if ($registration && !$registration->certificate_id) {
+                        // Calculate expiry date from Training settings
+                        $expiryDate = null;
+                        if ($training->certificate_has_expiry) {
+                            $expiryDate = now();
+                            if ($training->certificate_expiry_years) {
+                                $expiryDate = $expiryDate->addYears($training->certificate_expiry_years);
+                            }
+                            if ($training->certificate_expiry_months) {
+                                $expiryDate = $expiryDate->addMonths($training->certificate_expiry_months);
+                            }
+                            if ($training->certificate_expiry_days) {
+                                $expiryDate = $expiryDate->addDays($training->certificate_expiry_days);
+                            }
+                            $expiryDate = $expiryDate->toDateString();
+                        }
+                        
                         $cert = Certificate::create([
                             'user_id' => $user->id,
                             'related_training_id' => $training->id,
                             'related_exam_id' => null,
                             'certificate_number' => Str::uuid()->toString(),
                             'issue_date' => now()->toDateString(),
+                            'expiry_date' => $expiryDate,
                             'issuer_name' => 'Aqrar Portal',
                             'status' => 'active',
                         ]);
@@ -515,5 +557,55 @@ class TrainingLessonController extends Controller
             'message' => 'Lessons reordered successfully',
             'lessons' => $module->lessons()->orderBy('sequence')->get()
         ]);
+    }
+
+    /**
+     * Normalize translation request data
+     * Converts format like {title_az: "...", title_en: "..."} to {title: {az: "...", en: "..."}}
+     */
+    private function normalizeTranslationRequest(array $data): array
+    {
+        $translatableFields = ['title', 'content', 'description'];
+        $normalized = $data;
+
+        foreach ($translatableFields as $field) {
+            // Check if field comes as separate language fields (title_az, title_en, etc.)
+            $azKey = $field . '_az';
+            $enKey = $field . '_en';
+            $ruKey = $field . '_ru';
+
+            if (isset($data[$azKey]) || isset($data[$enKey]) || isset($data[$ruKey])) {
+                // Build translation object
+                $translations = [];
+                if (isset($data[$azKey])) {
+                    $translations['az'] = $data[$azKey];
+                    unset($normalized[$azKey]);
+                }
+                if (isset($data[$enKey])) {
+                    $translations['en'] = $data[$enKey];
+                    unset($normalized[$enKey]);
+                }
+                if (isset($data[$ruKey])) {
+                    $translations['ru'] = $data[$ruKey];
+                    unset($normalized[$ruKey]);
+                }
+
+                // If there's also a direct field value (for backward compatibility)
+                if (isset($data[$field]) && !is_array($data[$field])) {
+                    // Use direct value as default az if az not provided
+                    if (!isset($translations['az'])) {
+                        $translations['az'] = $data[$field];
+                    }
+                }
+
+                $normalized[$field] = $translations;
+            } elseif (isset($data[$field]) && !is_array($data[$field])) {
+                // Single string value - convert to translation object with az
+                $normalized[$field] = ['az' => $data[$field]];
+            }
+            // If already in object format, keep it as is
+        }
+
+        return $normalized;
     }
 }

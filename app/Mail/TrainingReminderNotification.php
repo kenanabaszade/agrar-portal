@@ -60,3 +60,5 @@ class TrainingReminderNotification extends Mailable
 
 
 
+
+

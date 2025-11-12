@@ -1,0 +1,925 @@
+{
+  "proposal_title": "Admin Dashboard Hesabatlar Sistemi - Ətraflı Təklif",
+  "description": "Bu sənəd admin dashboard üçün kompleks hesabatlar sisteminin təklifini ehtiva edir",
+  "total_endpoints": 15,
+  "total_statistics": 45,
+  "total_filters": 35,
+  
+  "endpoints": [
+    {
+      "id": 1,
+      "endpoint": "GET /api/v1/admin/reports/overview",
+      "description": "Ümumi sistem hesabatları - dashboard üçün əsas statistika",
+      "statistics_count": 12,
+      "filters": ["date_range", "period"],
+      "response_structure": {
+        "users": {
+          "total_users": "Bütün istifadəçilər",
+          "total_farmers": "Fermerlər",
+          "total_trainers": "Təlimçilər",
+          "new_users_today": "Bu gün yeni istifadəçilər",
+          "new_users_this_month": "Bu ay yeni istifadəçilər",
+          "active_users_30_days": "Son 30 gündə aktiv istifadəçilər",
+          "users_by_region": "Region üzrə paylanma",
+          "users_by_gender": "Cins üzrə paylanma",
+          "users_by_type": "Tip üzrə paylanma",
+          "users_growth_percentage": "Böyümə faizi"
+        },
+        "trainings": {
+          "total_trainings": "Bütün təlimlər",
+          "published_trainings": "Yayımlanmış təlimlər",
+          "draft_trainings": "Qaralama təlimlər",
+          "online_trainings": "Onlayn təlimlər",
+          "offline_trainings": "Offlayn təlimlər",
+          "video_trainings": "Video təlimlər",
+          "trainings_by_category": "Kateqoriya üzrə paylanma",
+          "trainings_by_difficulty": "Çətinlik səviyyəsi üzrə",
+          "trainings_by_status": "Status üzrə paylanma",
+          "average_registrations_per_training": "Təlimə orta qeydiyyat sayı",
+          "most_popular_trainings": "Ən populyar təlimlər (top 10)",
+          "trainings_growth_percentage": "Böyümə faizi"
+        },
+        "registrations": {
+          "total_registrations": "Bütün qeydiyyatlar",
+          "pending_registrations": "Gözləyən qeydiyyatlar",
+          "approved_registrations": "Təsdiqlənmiş qeydiyyatlar",
+          "completed_registrations": "Tamamlanmış qeydiyyatlar",
+          "registrations_this_month": "Bu ay qeydiyyatlar",
+          "registrations_by_status": "Status üzrə paylanma",
+          "registrations_growth_percentage": "Böyümə faizi"
+        },
+        "exams": {
+          "total_exams": "Bütün imtahanlar",
+          "active_exams": "Aktiv imtahanlar",
+          "completed_exams": "Tamamlanmış imtahanlar",
+          "total_exam_registrations": "İmtahan qeydiyyatları",
+          "average_exam_score": "Orta imtahan balı",
+          "exam_pass_rate": "Kecid faizi (%)",
+          "exams_by_difficulty": "Çətinlik üzrə paylanma",
+          "exams_requiring_manual_grading": "Manual qiymətləndirmə tələb edən imtahanlar",
+          "exams_growth_percentage": "Böyümə faizi"
+        },
+        "certificates": {
+          "total_certificates": "Bütün sertifikatlar",
+          "active_certificates": "Aktiv sertifikatlar",
+          "expired_certificates": "Müddəti bitmiş sertifikatlar",
+          "certificates_this_month": "Bu ay verilən sertifikatlar",
+          "certificates_by_type": "Tip üzrə paylanma (training/exam)",
+          "certificates_growth_percentage": "Böyümə faizi"
+        },
+        "meetings": {
+          "total_meetings": "Bütün görüşlər/vebinarlar",
+          "upcoming_meetings": "Gələcək görüşlər",
+          "completed_meetings": "Tamamlanmış görüşlər",
+          "total_participants": "Ümumi iştirakçılar",
+          "average_participants_per_meeting": "Görüşə orta iştirakçı sayı",
+          "meetings_by_category": "Kateqoriya üzrə paylanma",
+          "meetings_growth_percentage": "Böyümə faizi"
+        },
+        "forum": {
+          "total_questions": "Bütün suallar",
+          "total_answers": "Bütün cavablar",
+          "total_views": "Ümumi baxış sayı",
+          "total_likes": "Ümumi bəyənmə sayı",
+          "most_answered_questions": "Ən çox cavablanan suallar (top 10)",
+          "forum_activity_today": "Bu gün forum aktivliyi",
+          "forum_growth_percentage": "Böyümə faizi"
+        },
+        "engagement": {
+          "training_completion_rate": "Təlim tamamlama faizi (%)",
+          "exam_completion_rate": "İmtahan tamamlama faizi (%)",
+          "average_training_progress": "Orta təlim tərəqqisi (%)",
+          "user_retention_rate": "İstifadəçi saxlanma faizi (%)",
+          "average_time_spent_on_platform": "Platformada orta sərf olunan vaxt (saat)"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "endpoint": "GET /api/v1/admin/reports/users",
+      "description": "İstifadəçi hesabatları - detallı istifadəçi statistika",
+      "statistics_count": 8,
+      "filters": ["date_range", "user_type", "region", "gender", "is_active", "email_verified"],
+      "response_structure": {
+        "summary": {
+          "total_users": "Bütün istifadəçilər",
+          "active_users": "Aktiv istifadəçilər",
+          "inactive_users": "Qeyri-aktiv istifadəçilər",
+          "verified_users": "Email doğrulanmış istifadəçilər",
+          "unverified_users": "Email doğrulanmamış istifadəçilər"
+        },
+        "by_type": {
+          "farmers": "Fermerlər",
+          "trainers": "Təlimçilər",
+          "admins": "Adminlər"
+        },
+        "by_region": [
+          {
+            "region": "Region adı",
+            "count": "İstifadəçi sayı",
+            "percentage": "Faiz"
+          }
+        ],
+        "by_gender": {
+          "male": "Kişilər",
+          "female": "Qadınlar",
+          "other": "Digər"
+        },
+        "registration_trend": [
+          {
+            "date": "Tarix",
+            "count": "Yeni istifadəçi sayı"
+          }
+        ],
+        "activity_stats": {
+          "users_with_trainings": "Təlimlərə qeydiyyatdan keçənlər",
+          "users_with_exams": "İmtahan verənlər",
+          "users_with_certificates": "Sertifikatlı istifadəçilər",
+          "active_last_7_days": "Son 7 gündə aktiv olanlar",
+          "active_last_30_days": "Son 30 gündə aktiv olanlar"
+        },
+        "top_users": [
+          {
+            "user_id": "İstifadəçi ID",
+            "name": "Ad Soyad",
+            "trainings_completed": "Tamamlanmış təlimlər",
+            "certificates_earned": "Qazanılan sertifikatlar",
+            "total_score": "Ümumi bal"
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "endpoint": "GET /api/v1/admin/reports/trainings",
+      "description": "Təlim hesabatları - detallı təlim statistika",
+      "statistics_count": 10,
+      "filters": ["date_range", "category", "trainer_id", "status", "type", "difficulty", "has_certificate"],
+      "response_structure": {
+        "summary": {
+          "total_trainings": "Bütün təlimlər",
+          "published_trainings": "Yayımlanmış",
+          "draft_trainings": "Qaralama",
+          "archived_trainings": "Arxivlənmiş"
+        },
+        "by_type": {
+          "online": "Onlayn təlimlər",
+          "offline": "Offlayn təlimlər",
+          "video": "Video təlimlər"
+        },
+        "by_category": [
+          {
+            "category": "Kateqoriya",
+            "count": "Sayı",
+            "percentage": "Faiz"
+          }
+        ],
+        "by_difficulty": {
+          "beginner": "Yeni başlayanlar",
+          "intermediate": "Orta səviyyə",
+          "advanced": "Qabaqcıl"
+        },
+        "by_status": {
+          "published": "Yayımlanmış",
+          "draft": "Qaralama",
+          "archived": "Arxivlənmiş"
+        },
+        "registration_stats": {
+          "total_registrations": "Ümumi qeydiyyatlar",
+          "average_registrations_per_training": "Təlimə orta qeydiyyat",
+          "most_registered_training": "Ən çox qeydiyyat olunan təlim",
+          "least_registered_training": "Ən az qeydiyyat olunan təlim"
+        },
+        "completion_stats": {
+          "total_completed": "Ümumi tamamlanmış",
+          "completion_rate": "Tamamlama faizi (%)",
+          "average_completion_time": "Orta tamamlama müddəti (gün)"
+        },
+        "top_trainings": [
+          {
+            "training_id": "Təlim ID",
+            "title": "Başlıq",
+            "trainer": "Təlimçi",
+            "registrations_count": "Qeydiyyat sayı",
+            "completion_rate": "Tamamlama faizi",
+            "average_rating": "Orta reytinq"
+          }
+        ],
+        "by_trainer": [
+          {
+            "trainer_id": "Təlimçi ID",
+            "trainer_name": "Ad Soyad",
+            "trainings_count": "Təlim sayı",
+            "total_registrations": "Ümumi qeydiyyatlar",
+            "average_rating": "Orta reytinq"
+          }
+        ],
+        "revenue_stats": {
+          "total_trainings": "Ümumi təlimlər",
+          "paid_trainings": "Ödənişli təlimlər",
+          "free_trainings": "Pulsuz təlimlər"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "endpoint": "GET /api/v1/admin/reports/exams",
+      "description": "İmtahan hesabatları - detallı imtahan statistika",
+      "statistics_count": 12,
+      "filters": ["date_range", "category", "training_id", "difficulty", "status", "passing_score_range"],
+      "response_structure": {
+        "summary": {
+          "total_exams": "Bütün imtahanlar",
+          "active_exams": "Aktiv imtahanlar",
+          "completed_exams": "Tamamlanmış imtahanlar",
+          "upcoming_exams": "Gələcək imtahanlar"
+        },
+        "registration_stats": {
+          "total_registrations": "Ümumi qeydiyyatlar",
+          "registrations_by_status": {
+            "pending": "Gözləyən",
+            "in_progress": "Davam edən",
+            "completed": "Tamamlanmış",
+            "passed": "Kecid",
+            "failed": "Kecilmədi"
+          },
+          "average_registrations_per_exam": "İmtahana orta qeydiyyat"
+        },
+        "performance_stats": {
+          "total_completed": "Tamamlanmış imtahanlar",
+          "total_passed": "Kecid imtahanlar",
+          "total_failed": "Kecilmədi",
+          "pass_rate": "Kecid faizi (%)",
+          "average_score": "Orta bal",
+          "highest_score": "Ən yüksək bal",
+          "lowest_score": "Ən aşağı bal"
+        },
+        "by_difficulty": {
+          "easy": "Asan",
+          "medium": "Orta",
+          "hard": "Çətin"
+        },
+        "by_category": [
+          {
+            "category": "Kateqoriya",
+            "count": "Sayı",
+            "average_score": "Orta bal",
+            "pass_rate": "Kecid faizi"
+          }
+        ],
+        "grading_stats": {
+          "auto_graded": "Avtomatik qiymətləndirilmiş",
+          "manual_graded": "Manual qiymətləndirilmiş",
+          "pending_grading": "Gözləyən qiymətləndirmə",
+          "average_grading_time": "Orta qiymətləndirmə vaxtı (saat)"
+        },
+        "top_performers": [
+          {
+            "user_id": "İstifadəçi ID",
+            "name": "Ad Soyad",
+            "total_exams": "İmtahan sayı",
+            "average_score": "Orta bal",
+            "certificates_earned": "Sertifikat sayı"
+          }
+        ],
+        "top_exams": [
+          {
+            "exam_id": "İmtahan ID",
+            "title": "Başlıq",
+            "registrations_count": "Qeydiyyat sayı",
+            "completion_rate": "Tamamlama faizi",
+            "average_score": "Orta bal",
+            "pass_rate": "Kecid faizi"
+          }
+        ],
+        "challenging_questions": [
+          {
+            "question_id": "Sual ID",
+            "exam_title": "İmtahan başlığı",
+            "question_text": "Sual mətni",
+            "correct_answer_rate": "Düzgün cavab faizi (%)",
+            "total_attempts": "Ümumi cəhd sayı"
+          }
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "endpoint": "GET /api/v1/admin/reports/certificates",
+      "description": "Sertifikat hesabatları - detallı sertifikat statistika",
+      "statistics_count": 8,
+      "filters": ["date_range", "certificate_type", "status", "is_expired", "training_id", "exam_id"],
+      "response_structure": {
+        "summary": {
+          "total_certificates": "Bütün sertifikatlar",
+          "active_certificates": "Aktiv sertifikatlar",
+          "expired_certificates": "Müddəti bitmiş",
+          "expiring_soon": "Tezliklə müddəti bitəcək (30 gün)"
+        },
+        "by_type": {
+          "training_certificates": "Təlim sertifikatları",
+          "exam_certificates": "İmtahan sertifikatları",
+          "combined_certificates": "Kombinə sertifikatlar"
+        },
+        "by_status": {
+          "active": "Aktiv",
+          "expired": "Müddəti bitmiş",
+          "revoked": "Ləğv edilmiş"
+        },
+        "issuance_trend": [
+          {
+            "date": "Tarix",
+            "count": "Verilən sertifikat sayı"
+          }
+        ],
+        "by_training": [
+          {
+            "training_id": "Təlim ID",
+            "training_title": "Təlim başlığı",
+            "certificates_issued": "Verilən sertifikat sayı",
+            "expired_count": "Müddəti bitmiş sayı"
+          }
+        ],
+        "by_exam": [
+          {
+            "exam_id": "İmtahan ID",
+            "exam_title": "İmtahan başlığı",
+            "certificates_issued": "Verilən sertifikat sayı"
+          }
+        ],
+        "top_certificate_holders": [
+          {
+            "user_id": "İstifadəçi ID",
+            "name": "Ad Soyad",
+            "total_certificates": "Ümumi sertifikat sayı",
+            "active_certificates": "Aktiv sertifikatlar"
+          }
+        ],
+        "expiry_forecast": {
+          "expiring_this_month": "Bu ay müddəti bitəcək",
+          "expiring_next_month": "Növbəti ay müddəti bitəcək",
+          "expiring_in_3_months": "3 ay ərzində müddəti bitəcək"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "endpoint": "GET /api/v1/admin/reports/meetings",
+      "description": "Görüş və vebinar hesabatları",
+      "statistics_count": 7,
+      "filters": ["date_range", "category", "trainer_id", "status", "is_recurring"],
+      "response_structure": {
+        "summary": {
+          "total_meetings": "Bütün görüşlər",
+          "upcoming_meetings": "Gələcək görüşlər",
+          "completed_meetings": "Tamamlanmış görüşlər",
+          "cancelled_meetings": "Ləğv edilmiş görüşlər"
+        },
+        "participation_stats": {
+          "total_registrations": "Ümumi qeydiyyatlar",
+          "total_attendees": "Ümumi iştirakçılar",
+          "average_attendees_per_meeting": "Görüşə orta iştirakçı",
+          "attendance_rate": "İştirak faizi (%)"
+        },
+        "by_category": [
+          {
+            "category": "Kateqoriya",
+            "count": "Görüş sayı",
+            "total_participants": "Ümumi iştirakçılar"
+          }
+        ],
+        "by_trainer": [
+          {
+            "trainer_id": "Təlimçi ID",
+            "trainer_name": "Ad Soyad",
+            "meetings_count": "Görüş sayı",
+            "total_participants": "Ümumi iştirakçılar",
+            "average_rating": "Orta reytinq"
+          }
+        ],
+        "by_status": {
+          "scheduled": "Planlaşdırılmış",
+          "in_progress": "Davam edən",
+          "completed": "Tamamlanmış",
+          "cancelled": "Ləğv edilmiş"
+        },
+        "top_meetings": [
+          {
+            "meeting_id": "Görüş ID",
+            "title": "Başlıq",
+            "date": "Tarix",
+            "participants_count": "İştirakçı sayı",
+            "attendance_rate": "İştirak faizi"
+          }
+        ],
+        "recurring_meetings": {
+          "total_recurring": "Təkrarlanan görüşlər",
+          "total_single": "Tək görüşlər",
+          "most_popular_recurrence": "Ən populyar təkrarlanma"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "endpoint": "GET /api/v1/admin/reports/forum",
+      "description": "Forum aktivliyi hesabatları",
+      "statistics_count": 6,
+      "filters": ["date_range", "question_type", "category", "status", "is_pinned"],
+      "response_structure": {
+        "summary": {
+          "total_questions": "Bütün suallar",
+          "total_answers": "Bütün cavablar",
+          "total_views": "Ümumi baxış sayı",
+          "total_likes": "Ümumi bəyənmə"
+        },
+        "question_stats": {
+          "by_type": {
+            "general": "Ümumi suallar",
+            "poll": "Sorğular",
+            "help": "Kömək sualları"
+          },
+          "by_status": {
+            "open": "Açıq",
+            "closed": "Bağlı",
+            "resolved": "Həll olunmuş"
+          },
+          "average_answers_per_question": "Suala orta cavab sayı",
+          "most_answered_questions": "Ən çox cavablanan suallar"
+        },
+        "activity_trend": [
+          {
+            "date": "Tarix",
+            "questions_count": "Sual sayı",
+            "answers_count": "Cavab sayı"
+          }
+        ],
+        "top_contributors": [
+          {
+            "user_id": "İstifadəçi ID",
+            "name": "Ad Soyad",
+            "questions_asked": "Verilən suallar",
+            "answers_provided": "Verilən cavablar",
+            "total_likes": "Ümumi bəyənmə"
+          }
+        ],
+        "by_category": [
+          {
+            "category": "Kateqoriya",
+            "questions_count": "Sual sayı",
+            "answers_count": "Cavab sayı"
+          }
+        ],
+        "engagement_metrics": {
+          "average_response_time": "Orta cavab müddəti (saat)",
+          "questions_resolved_rate": "Həll olunmuş suallar faizi (%)",
+          "active_users_last_30_days": "Son 30 gündə aktiv istifadəçilər"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "endpoint": "GET /api/v1/admin/reports/trainers",
+      "description": "Təlimçi performans hesabatları",
+      "statistics_count": 9,
+      "filters": ["trainer_id", "date_range", "category"],
+      "response_structure": {
+        "summary": {
+          "total_trainers": "Ümumi təlimçilər",
+          "active_trainers": "Aktiv təlimçilər",
+          "trainers_with_published_trainings": "Yayımlanmış təlimi olan təlimçilər"
+        },
+        "performance_stats": {
+          "total_trainings_created": "Yaradılmış təlimlər",
+          "total_exams_created": "Yaradılmış imtahanlar",
+          "total_registrations": "Ümumi qeydiyyatlar",
+          "average_rating": "Orta reytinq",
+          "total_certificates_issued": "Verilən sertifikatlar"
+        },
+        "by_trainer": [
+          {
+            "trainer_id": "Təlimçi ID",
+            "name": "Ad Soyad",
+            "trainings_count": "Təlim sayı",
+            "registrations_count": "Qeydiyyat sayı",
+            "average_rating": "Orta reytinq",
+            "certificates_issued": "Verilən sertifikatlar",
+            "total_meetings": "Ümumi görüşlər"
+          }
+        ],
+        "top_trainers": [
+          {
+            "trainer_id": "Təlimçi ID",
+            "name": "Ad Soyad",
+            "score": "Ümumi bal",
+            "rank": "Yer"
+          }
+        ],
+        "trainer_engagement": {
+          "most_active_trainers": "Ən aktiv təlimçilər",
+          "trainers_by_category": "Kateqoriya üzrə təlimçilər",
+          "average_trainings_per_trainer": "Təlimçiyə orta təlim sayı"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "endpoint": "GET /api/v1/admin/reports/engagement",
+      "description": "İstifadəçi aktivliyi və ilhaq hesabatları",
+      "statistics_count": 11,
+      "filters": ["date_range", "user_type", "training_id"],
+      "response_structure": {
+        "summary": {
+          "total_active_users": "Ümumi aktiv istifadəçilər",
+          "daily_active_users": "Günlük aktiv istifadəçilər",
+          "weekly_active_users": "Həftəlik aktiv istifadəçilər",
+          "monthly_active_users": "Aylıq aktiv istifadəçilər"
+        },
+        "training_engagement": {
+          "completion_rate": "Tamamlama faizi (%)",
+          "average_progress": "Orta tərəqqi (%)",
+          "average_time_spent": "Orta sərf olunan vaxt (saat)",
+          "dropout_rate": "Tərk etmə faizi (%)"
+        },
+        "exam_engagement": {
+          "completion_rate": "Tamamlama faizi (%)",
+          "average_attempts": "Orta cəhd sayı",
+          "average_time_spent": "Orta imtahan müddəti (dəqiqə)"
+        },
+        "content_engagement": {
+          "lessons_completed": "Tamamlanmış dərslər",
+          "lessons_in_progress": "Davam edən dərslər",
+          "average_lesson_completion_time": "Orta dərs tamamlama müddəti"
+        },
+        "user_retention": {
+          "day_1_retention": "1 günlük saxlanma",
+          "day_7_retention": "7 günlük saxlanma",
+          "day_30_retention": "30 günlük saxlanma"
+        },
+        "activity_trend": [
+          {
+            "date": "Tarix",
+            "active_users": "Aktiv istifadəçilər",
+            "new_registrations": "Yeni qeydiyyatlar",
+            "completed_trainings": "Tamamlanmış təlimlər"
+          }
+        ],
+        "peak_hours": [
+          {
+            "hour": "Saat",
+            "active_users": "Aktiv istifadəçilər"
+          }
+        ],
+        "device_usage": {
+          "desktop": "Desktop",
+          "mobile": "Mobil",
+          "tablet": "Planşet"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "endpoint": "GET /api/v1/admin/reports/financial",
+      "description": "Maliyyə hesabatları (əgər ödəniş sistemi varsa)",
+      "statistics_count": 8,
+      "filters": ["date_range", "payment_status", "payment_method"],
+      "response_structure": {
+        "summary": {
+          "total_revenue": "Ümumi gəlir",
+          "total_transactions": "Ümumi əməliyyatlar",
+          "pending_payments": "Gözləyən ödənişlər",
+          "completed_payments": "Tamamlanmış ödənişlər"
+        },
+        "by_status": {
+          "pending": "Gözləyən",
+          "completed": "Tamamlanmış",
+          "failed": "Uğursuz",
+          "refunded": "Geri qaytarılmış"
+        },
+        "by_method": {
+          "card": "Kart",
+          "bank_transfer": "Bank köçürməsi",
+          "cash": "Nəğd"
+        },
+        "revenue_trend": [
+          {
+            "date": "Tarix",
+            "amount": "Məbləğ",
+            "transactions_count": "Əməliyyat sayı"
+          }
+        ],
+        "top_earning_trainings": [
+          {
+            "training_id": "Təlim ID",
+            "title": "Başlıq",
+            "revenue": "Gəlir",
+            "transactions_count": "Əməliyyat sayı"
+          }
+        ],
+        "refund_stats": {
+          "total_refunds": "Ümumi geri qaytarmalar",
+          "refund_rate": "Geri qaytarma faizi (%)",
+          "average_refund_amount": "Orta geri qaytarma məbləği"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "endpoint": "GET /api/v1/admin/reports/timeline",
+      "description": "Zaman xətti hesabatları - günlük/həftəlik/aylıq trendlər",
+      "statistics_count": 6,
+      "filters": ["period", "date_range", "metric"],
+      "response_structure": {
+        "daily": [
+          {
+            "date": "Tarix",
+            "new_users": "Yeni istifadəçilər",
+            "new_trainings": "Yeni təlimlər",
+            "new_registrations": "Yeni qeydiyyatlar",
+            "completed_trainings": "Tamamlanmış təlimlər",
+            "certificates_issued": "Verilən sertifikatlar",
+            "exam_completions": "Tamamlanmış imtahanlar"
+          }
+        ],
+        "weekly": [
+          {
+            "week": "Həftə",
+            "metrics": "Müxtəlif metrikalar"
+          }
+        ],
+        "monthly": [
+          {
+            "month": "Ay",
+            "metrics": "Müxtəlif metrikalar"
+          }
+        ],
+        "growth_rates": {
+          "users_growth": "İstifadəçi böyüməsi",
+          "trainings_growth": "Təlim böyüməsi",
+          "registrations_growth": "Qeydiyyat böyüməsi"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "endpoint": "GET /api/v1/admin/reports/comparison",
+      "description": "Müqayisə hesabatları - iki dövr arasında müqayisə",
+      "statistics_count": 5,
+      "filters": ["period_1", "period_2", "metric"],
+      "response_structure": {
+        "period_1": {
+          "start_date": "Başlanğıc tarixi",
+          "end_date": "Bitiş tarixi",
+          "metrics": "Metrikalar"
+        },
+        "period_2": {
+          "start_date": "Başlanğıc tarixi",
+          "end_date": "Bitiş tarixi",
+          "metrics": "Metrikalar"
+        },
+        "comparison": {
+          "difference": "Fərq",
+          "percentage_change": "Faiz dəyişikliyi",
+          "trend": "Tendensiya (up/down/stable)"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "endpoint": "GET /api/v1/admin/reports/export",
+      "description": "Hesabatların export edilməsi (PDF, Excel, CSV)",
+      "statistics_count": 0,
+      "filters": ["report_type", "format", "date_range"],
+      "response_structure": {
+        "download_url": "Yükləmə linki",
+        "file_name": "Fayl adı",
+        "expires_at": "Müddəti bitmə tarixi"
+      }
+    },
+    {
+      "id": 14,
+      "endpoint": "GET /api/v1/admin/reports/custom",
+      "description": "Fərdi hesabatlar - admin tərəfindən seçilən metrikalar",
+      "statistics_count": "Dinamik",
+      "filters": ["selected_metrics", "date_range"],
+      "response_structure": {
+        "custom_metrics": "Seçilən metrikalar",
+        "data": "Məlumatlar"
+      }
+    },
+    {
+      "id": 15,
+      "endpoint": "GET /api/v1/admin/reports/charts",
+      "description": "Qrafik və diagram üçün məlumatlar",
+      "statistics_count": 0,
+      "filters": ["chart_type", "metric", "date_range"],
+      "response_structure": {
+        "chart_type": "Qrafik tipi (line, bar, pie, area)",
+        "data": "Qrafik məlumatları",
+        "labels": "Etiketlər",
+        "series": "Seriyalar"
+      }
+    }
+  ],
+
+  "filters_summary": {
+    "date_filters": [
+      "date_range (start_date, end_date)",
+      "period (today, yesterday, this_week, last_week, this_month, last_month, this_year, last_year, custom)",
+      "created_at",
+      "updated_at"
+    ],
+    "user_filters": [
+      "user_type (farmer, trainer, admin)",
+      "region",
+      "gender",
+      "is_active",
+      "email_verified",
+      "user_id"
+    ],
+    "training_filters": [
+      "category",
+      "trainer_id",
+      "status (published, draft, archived)",
+      "type (online, offline, video)",
+      "difficulty (beginner, intermediate, advanced)",
+      "has_certificate",
+      "has_exam",
+      "training_id"
+    ],
+    "exam_filters": [
+      "category",
+      "training_id",
+      "difficulty",
+      "status",
+      "passing_score_range (min_score, max_score)",
+      "exam_id"
+    ],
+    "certificate_filters": [
+      "certificate_type (training, exam, combined)",
+      "status (active, expired, revoked)",
+      "is_expired",
+      "training_id",
+      "exam_id"
+    ],
+    "meeting_filters": [
+      "category",
+      "trainer_id",
+      "status",
+      "is_recurring"
+    ],
+    "forum_filters": [
+      "question_type",
+      "category",
+      "status",
+      "is_pinned"
+    ],
+    "general_filters": [
+      "search (umumi axtarış)",
+      "sort_by",
+      "sort_order (asc, desc)",
+      "per_page",
+      "page"
+    ]
+  },
+
+  "statistics_summary": {
+    "users_statistics": [
+      "Ümumi istifadəçi sayı",
+      "Aktiv istifadəçilər",
+      "Yeni istifadəçilər",
+      "Region üzrə paylanma",
+      "Cins üzrə paylanma",
+      "Tip üzrə paylanma",
+      "Böyümə faizi",
+      "Aktivlik statistika"
+    ],
+    "trainings_statistics": [
+      "Ümumi təlim sayı",
+      "Yayımlanmış təlimlər",
+      "Kateqoriya üzrə paylanma",
+      "Çətinlik üzrə paylanma",
+      "Qeydiyyat statistika",
+      "Tamamlama statistika",
+      "Reytinq statistika",
+      "Böyümə faizi"
+    ],
+    "exams_statistics": [
+      "Ümumi imtahan sayı",
+      "Aktiv imtahanlar",
+      "Qeydiyyat statistika",
+      "Kecid faizi",
+      "Orta bal",
+      "Çətinlik üzrə paylanma",
+      "Qiymətləndirmə statistika",
+      "Top performanslar"
+    ],
+    "certificates_statistics": [
+      "Ümumi sertifikat sayı",
+      "Aktiv sertifikatlar",
+      "Müddəti bitmiş sertifikatlar",
+      "Tip üzrə paylanma",
+      "Verilmə trendi",
+      "Müddəti bitmə proqnozu",
+      "Böyümə faizi"
+    ],
+    "meetings_statistics": [
+      "Ümumi görüş sayı",
+      "Gələcək görüşlər",
+      "Tamamlanmış görüşlər",
+      "İştirakçı statistika",
+      "Kateqoriya üzrə paylanma",
+      "Təkrarlanma statistika"
+    ],
+    "forum_statistics": [
+      "Ümumi suallar",
+      "Ümumi cavablar",
+      "Baxış sayı",
+      "Bəyənmə sayı",
+      "Aktivlik trendi",
+      "Top kontributorlar"
+    ],
+    "engagement_statistics": [
+      "Aktiv istifadəçilər",
+      "Tamamlama faizi",
+      "Orta tərəqqi",
+      "Saxlanma faizi",
+      "Peak saatlar",
+      "Cihaz istifadəsi"
+    ],
+    "financial_statistics": [
+      "Ümumi gəlir",
+      "Əməliyyat sayı",
+      "Ödəniş statusu",
+      "Gəlir trendi",
+      "Geri qaytarma statistika"
+    ]
+  },
+
+  "implementation_priority": {
+    "high_priority": [
+      "Endpoint 1: Overview (Ümumi sistemi görüntüləmək üçün vacib)",
+      "Endpoint 2: Users (İstifadəçi idarəetməsi üçün vacib)",
+      "Endpoint 3: Trainings (Əsas funksionallıq)",
+      "Endpoint 4: Exams (İmtahan sistemi üçün vacib)"
+    ],
+    "medium_priority": [
+      "Endpoint 5: Certificates",
+      "Endpoint 6: Meetings",
+      "Endpoint 7: Forum",
+      "Endpoint 8: Trainers"
+    ],
+    "low_priority": [
+      "Endpoint 9: Engagement",
+      "Endpoint 10: Financial",
+      "Endpoint 11: Timeline",
+      "Endpoint 12: Comparison",
+      "Endpoint 13: Export",
+      "Endpoint 14: Custom",
+      "Endpoint 15: Charts"
+    ]
+  },
+
+  "recommendations": {
+    "phase_1": {
+      "name": "İlk Faza - Əsas Hesabatlar",
+      "endpoints": [1, 2, 3, 4],
+      "duration": "2-3 həftə",
+      "description": "Əsas hesabatların yaradılması"
+    },
+    "phase_2": {
+      "name": "İkinci Faza - Genişləndirilmiş Hesabatlar",
+      "endpoints": [5, 6, 7, 8],
+      "duration": "2-3 həftə",
+      "description": "Əlavə modullar üçün hesabatlar"
+    },
+    "phase_3": {
+      "name": "Üçüncü Faza - Ətraflı Analitika",
+      "endpoints": [9, 10, 11, 12],
+      "duration": "2-3 həftə",
+      "description": "Dərin analitika və müqayisələr"
+    },
+    "phase_4": {
+      "name": "Dördüncü Faza - Export və Fərdiləşdirmə",
+      "endpoints": [13, 14, 15],
+      "duration": "1-2 həftə",
+      "description": "Export funksionallığı və fərdi hesabatlar"
+    }
+  },
+
+  "estimated_time": {
+    "per_endpoint": "4-8 saat",
+    "total_endpoints": "15",
+    "total_estimated_hours": "60-120 saat",
+    "with_testing": "80-150 saat"
+  },
+
+  "notes": {
+    "performance": "Böyük məlumat bazası üçün cache mekanizmi tövsiyə olunur",
+    "pagination": "Bütün siyahılar üçün pagination lazımdır",
+    "caching": "Statistikalar üçün Redis cache istifadə oluna bilər",
+    "real_time": "Real-time məlumatlar üçün WebSocket və ya polling tövsiyə olunur",
+    "security": "Bütün endpointlər admin authentication tələb edir",
+    "localization": "Bütün cavablar multilang formatında olmalıdır (az/en)"
+  }
+}
+

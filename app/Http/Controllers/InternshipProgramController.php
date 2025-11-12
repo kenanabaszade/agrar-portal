@@ -43,8 +43,7 @@ class InternshipProgramController extends Controller
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                \App\Helpers\TranslationSearchHelper::addMultipleJsonFieldSearch($q, ['title', 'description'], $search);
             });
         }
 

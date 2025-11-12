@@ -1,0 +1,605 @@
+{
+  "title": "Legal Documents API - Frontend Guide",
+  "description": "Complete guide for implementing Privacy Policy and Terms of Service management in frontend",
+  "version": "1.0.0",
+  "base_url": "/api/v1/legal",
+  
+  "authentication": {
+    "admin_endpoints": {
+      "required": true,
+      "method": "Bearer Token",
+      "header": "Authorization: Bearer {token}",
+      "role": "admin"
+    },
+    "public_endpoints": {
+      "required": false,
+      "note": "No authentication needed for reading active documents"
+    }
+  },
+
+  "endpoints": {
+    "privacy_policy": {
+      "admin": {
+        "list": {
+          "method": "GET",
+          "url": "/api/v1/legal/privacy-policies",
+          "query_params": {
+            "per_page": "number (default: 20)",
+            "page": "number (default: 1)"
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "data": [
+                  {
+                    "id": 1,
+                    "content": {
+                      "az": "<div>Quill HTML content...</div>",
+                      "en": "<div>Quill HTML content...</div>",
+                      "ru": "<div>Quill HTML content...</div>"
+                    },
+                    "is_active": true,
+                    "version": 1,
+                    "effective_date": "2025-11-06T00:00:00.000000Z",
+                    "created_by": {
+                      "id": 1,
+                      "name": "Admin User"
+                    },
+                    "updated_by": {
+                      "id": 1,
+                      "name": "Admin User"
+                    },
+                    "created_at": "2025-11-06T00:00:00.000000Z",
+                    "updated_at": "2025-11-06T00:00:00.000000Z"
+                  }
+                ],
+                "current_page": 1,
+                "per_page": 20,
+                "total": 1,
+                "last_page": 1
+              }
+            }
+          },
+          "example": "GET /api/v1/legal/privacy-policies?per_page=10&page=1"
+        },
+        
+        "get_by_id": {
+          "method": "GET",
+          "url": "/api/v1/legal/privacy-policies/{id}",
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "id": 1,
+                "content": {
+                  "az": "<div>Quill HTML content...</div>",
+                  "en": "<div>Quill HTML content...</div>",
+                  "ru": "<div>Quill HTML content...</div>"
+                },
+                "is_active": true,
+                "version": 1,
+                "effective_date": "2025-11-06T00:00:00.000000Z",
+                "created_by": {
+                  "id": 1,
+                  "name": "Admin User"
+                },
+                "updated_by": {
+                  "id": 1,
+                  "name": "Admin User"
+                },
+                "created_at": "2025-11-06T00:00:00.000000Z",
+                "updated_at": "2025-11-06T00:00:00.000000Z"
+              }
+            },
+            "not_found": {
+              "status": 404,
+              "body": {
+                "message": "No query results for model [App\\Models\\PrivacyPolicy] {id}"
+              }
+            }
+          },
+          "example": "GET /api/v1/legal/privacy-policies/1"
+        },
+        
+        "create": {
+          "method": "POST",
+          "url": "/api/v1/legal/privacy-policies",
+          "headers": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer {token}"
+          },
+          "request_body": {
+            "content": {
+              "type": "object",
+              "required": true,
+              "description": "Multilang content with Quill HTML",
+              "structure": {
+                "az": "string (required, Quill HTML)",
+                "en": "string (optional, Quill HTML)",
+                "ru": "string (optional, Quill HTML)"
+              },
+              "note": "At least 'az' language is required. Content should be Quill editor HTML output."
+            },
+            "is_active": {
+              "type": "boolean",
+              "required": false,
+              "default": true,
+              "description": "If true, deactivates all other active policies"
+            },
+            "version": {
+              "type": "integer",
+              "required": false,
+              "default": 1,
+              "min": 1,
+              "description": "Version number of the policy"
+            },
+            "effective_date": {
+              "type": "string (ISO 8601 date)",
+              "required": false,
+              "format": "YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss",
+              "description": "Date when this policy becomes effective"
+            }
+          },
+          "response": {
+            "success": {
+              "status": 201,
+              "body": {
+                "message": "Privacy policy created successfully",
+                "data": {
+                  "id": 1,
+                  "content": {
+                    "az": "<div>Quill HTML content...</div>",
+                    "en": "<div>Quill HTML content...</div>",
+                    "ru": "<div>Quill HTML content...</div>"
+                  },
+                  "is_active": true,
+                  "version": 1,
+                  "effective_date": "2025-11-06T00:00:00.000000Z",
+                  "created_by": {
+                    "id": 1,
+                    "name": "Admin User"
+                  },
+                  "updated_by": null,
+                  "created_at": "2025-11-06T00:00:00.000000Z",
+                  "updated_at": "2025-11-06T00:00:00.000000Z"
+                }
+              }
+            },
+            "validation_error": {
+              "status": 422,
+              "body": {
+                "message": "The given data was invalid.",
+                "errors": {
+                  "content": ["The content field is required."],
+                  "content.az": ["The content.az field is required."]
+                }
+              }
+            }
+          },
+          "example_request": {
+            "content": {
+              "az": "<div><p>Məxfilik siyasəti</p><p>Bu siyasət...</p></div>",
+              "en": "<div><p>Privacy Policy</p><p>This policy...</p></div>",
+              "ru": "<div><p>Политика конфиденциальности</p><p>Эта политика...</p></div>"
+            },
+            "is_active": true,
+            "version": 1,
+            "effective_date": "2025-11-06"
+          }
+        },
+        
+        "update": {
+          "method": "PUT",
+          "url": "/api/v1/legal/privacy-policies/{id}",
+          "headers": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer {token}"
+          },
+          "request_body": {
+            "content": {
+              "type": "object",
+              "required": false,
+              "description": "Multilang content with Quill HTML. Only provide fields you want to update.",
+              "structure": {
+                "az": "string (optional, Quill HTML)",
+                "en": "string (optional, Quill HTML)",
+                "ru": "string (optional, Quill HTML)"
+              },
+              "note": "You can update specific languages only. Other languages remain unchanged."
+            },
+            "is_active": {
+              "type": "boolean",
+              "required": false,
+              "description": "If true, deactivates all other active policies"
+            },
+            "version": {
+              "type": "integer",
+              "required": false,
+              "min": 1
+            },
+            "effective_date": {
+              "type": "string (ISO 8601 date)",
+              "required": false
+            }
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "message": "Privacy policy updated successfully",
+                "data": {
+                  "id": 1,
+                  "content": {
+                    "az": "<div>Updated content...</div>",
+                    "en": "<div>Quill HTML content...</div>",
+                    "ru": "<div>Quill HTML content...</div>"
+                  },
+                  "is_active": true,
+                  "version": 2,
+                  "effective_date": "2025-11-06T00:00:00.000000Z",
+                  "created_by": {
+                    "id": 1,
+                    "name": "Admin User"
+                  },
+                  "updated_by": {
+                    "id": 1,
+                    "name": "Admin User"
+                  },
+                  "created_at": "2025-11-06T00:00:00.000000Z",
+                  "updated_at": "2025-11-06T01:00:00.000000Z"
+                }
+              }
+            }
+          },
+          "example_request": {
+            "content": {
+              "az": "<div><p>Yenilənmiş məzmun...</p></div>"
+            },
+            "version": 2
+          }
+        },
+        
+        "delete": {
+          "method": "DELETE",
+          "url": "/api/v1/legal/privacy-policies/{id}",
+          "headers": {
+            "Authorization": "Bearer {token}"
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "message": "Privacy policy deleted successfully"
+              }
+            },
+            "not_found": {
+              "status": 404,
+              "body": {
+                "message": "No query results for model [App\\Models\\PrivacyPolicy] {id}"
+              }
+            }
+          },
+          "note": "Soft delete is used. The record is marked as deleted but not removed from database."
+        }
+      },
+      
+      "public": {
+        "get_active": {
+          "method": "GET",
+          "url": "/api/v1/legal/privacy-policy",
+          "query_params": {
+            "lang": "string (optional, default: 'az')",
+            "values": ["az", "en", "ru"]
+          },
+          "response": {
+            "success": {
+              "status": 200,
+              "body": {
+                "id": 1,
+                "content": "<div>Quill HTML content in requested language...</div>",
+                "content_full": {
+                  "az": "<div>Quill HTML content...</div>",
+                  "en": "<div>Quill HTML content...</div>",
+                  "ru": "<div>Quill HTML content...</div>"
+                },
+                "version": 1,
+                "effective_date": "2025-11-06T00:00:00.000000Z",
+                "created_at": "2025-11-06T00:00:00.000000Z",
+                "updated_at": "2025-11-06T00:00:00.000000Z"
+              }
+            },
+            "not_found": {
+              "status": 404,
+              "body": {
+                "message": "Privacy policy not found"
+              }
+            }
+          },
+          "example": "GET /api/v1/legal/privacy-policy?lang=az"
+        }
+      }
+    },
+    
+    "terms_of_service": {
+      "admin": {
+        "list": {
+          "method": "GET",
+          "url": "/api/v1/legal/terms-of-service",
+          "query_params": {
+            "per_page": "number (default: 20)",
+            "page": "number (default: 1)"
+          },
+          "response": "Same structure as privacy policies list"
+        },
+        
+        "get_by_id": {
+          "method": "GET",
+          "url": "/api/v1/legal/terms-of-service/{id}",
+          "response": "Same structure as privacy policy get_by_id"
+        },
+        
+        "create": {
+          "method": "POST",
+          "url": "/api/v1/legal/terms-of-service",
+          "request_body": "Same structure as privacy policy create",
+          "response": "Same structure as privacy policy create"
+        },
+        
+        "update": {
+          "method": "PUT",
+          "url": "/api/v1/legal/terms-of-service/{id}",
+          "request_body": "Same structure as privacy policy update",
+          "response": "Same structure as privacy policy update"
+        },
+        
+        "delete": {
+          "method": "DELETE",
+          "url": "/api/v1/legal/terms-of-service/{id}",
+          "response": "Same structure as privacy policy delete"
+        }
+      },
+      
+      "public": {
+        "get_active": {
+          "method": "GET",
+          "url": "/api/v1/legal/terms-of-service",
+          "query_params": {
+            "lang": "string (optional, default: 'az')"
+          },
+          "response": "Same structure as privacy policy get_active"
+        }
+      }
+    }
+  },
+
+  "quill_editor_integration": {
+    "description": "How to integrate Quill editor with this API",
+    "setup": {
+      "step_1": "Install Quill editor in your frontend project",
+      "step_2": "Initialize Quill editor with rich text formatting",
+      "step_3": "Get HTML content from Quill using editor.root.innerHTML",
+      "step_4": "Send HTML content in multilang format to API"
+    },
+    "example_code": {
+      "javascript_vue": {
+        "setup": "import Quill from 'quill'; import 'quill/dist/quill.snow.css';",
+        "initialization": "const editor = new Quill('#editor', { theme: 'snow' });",
+        "get_content": "const htmlContent = editor.root.innerHTML;",
+        "send_to_api": {
+          "content": {
+            "az": "editorAZ.root.innerHTML",
+            "en": "editorEN.root.innerHTML",
+            "ru": "editorRU.root.innerHTML"
+          }
+        },
+        "set_content": "editor.root.innerHTML = '<div>Content from API</div>';"
+      }
+    },
+    "important_notes": [
+      "Quill HTML is stored as-is in the database",
+      "Content includes all Quill formatting tags (div, p, strong, em, etc.)",
+      "When displaying, use v-html in Vue or dangerouslySetInnerHTML in React",
+      "Be careful with XSS - content is trusted from admin users",
+      "Content is stored in JSON format with language keys"
+    ]
+  },
+
+  "frontend_implementation_guide": {
+    "admin_panel": {
+      "pages": [
+        {
+          "name": "Privacy Policies List",
+          "endpoint": "GET /api/v1/legal/privacy-policies",
+          "features": [
+            "Display all privacy policies",
+            "Show active status",
+            "Show version number",
+            "Show creation date",
+            "Actions: View, Edit, Delete, Activate"
+          ],
+          "ui_components": [
+            "Table with pagination",
+            "Status badge (Active/Inactive)",
+            "Action buttons",
+            "Create new button"
+          ]
+        },
+        {
+          "name": "Create/Edit Privacy Policy",
+          "endpoints": [
+            "POST /api/v1/legal/privacy-policies",
+            "PUT /api/v1/legal/privacy-policies/{id}"
+          ],
+          "features": [
+            "Three Quill editors (one for each language: az, en, ru)",
+            "Language tabs or separate sections",
+            "Form fields: is_active, version, effective_date",
+            "Save button",
+            "Preview button"
+          ],
+          "ui_components": [
+            "Quill editor for AZ",
+            "Quill editor for EN",
+            "Quill editor for RU",
+            "Toggle for is_active",
+            "Input for version",
+            "Date picker for effective_date",
+            "Save/Cancel buttons"
+          ]
+        },
+        {
+          "name": "Terms of Service",
+          "note": "Same structure as Privacy Policy pages"
+        }
+      ]
+    },
+    
+    "public_pages": {
+      "privacy_policy_page": {
+        "endpoint": "GET /api/v1/legal/privacy-policy?lang={currentLang}",
+        "features": [
+          "Display active privacy policy",
+          "Language selector",
+          "HTML content rendering"
+        ],
+        "ui_components": [
+          "Language switcher",
+          "HTML content display (v-html or dangerouslySetInnerHTML)",
+          "Last updated date"
+        ]
+      },
+      "terms_of_service_page": {
+        "endpoint": "GET /api/v1/legal/terms-of-service?lang={currentLang}",
+        "note": "Same structure as privacy policy page"
+      }
+    }
+  },
+
+  "error_handling": {
+    "common_errors": [
+      {
+        "status": 401,
+        "message": "Unauthenticated",
+        "cause": "Missing or invalid token",
+        "solution": "Check authentication token"
+      },
+      {
+        "status": 403,
+        "message": "This action is unauthorized",
+        "cause": "User doesn't have admin role",
+        "solution": "Ensure user has admin role"
+      },
+      {
+        "status": 404,
+        "message": "Privacy policy not found",
+        "cause": "Invalid ID or soft deleted",
+        "solution": "Check ID and ensure record exists"
+      },
+      {
+        "status": 422,
+        "message": "The given data was invalid",
+        "cause": "Validation errors",
+        "solution": "Check errors object for specific field issues"
+      },
+      {
+        "status": 500,
+        "message": "Internal server error",
+        "cause": "Server error",
+        "solution": "Contact backend developer"
+      }
+    ],
+    "validation_errors": {
+      "content": {
+        "required": "Content field is required",
+        "az_required": "At least 'az' language content is required",
+        "invalid_format": "Content must be an array with language keys (az, en, ru)"
+      },
+      "version": {
+        "min": "Version must be at least 1",
+        "integer": "Version must be an integer"
+      },
+      "effective_date": {
+        "date": "Effective date must be a valid date"
+      }
+    }
+  },
+
+  "best_practices": {
+    "content_management": [
+      "Always provide at least 'az' language content",
+      "Use Quill's built-in formatting tools",
+      "Test HTML rendering in different browsers",
+      "Keep content clean and well-formatted",
+      "Version your documents when making significant changes"
+    ],
+    "ui_ux": [
+      "Show loading states during API calls",
+      "Display success/error messages",
+      "Confirm before deleting",
+      "Show preview before activating",
+      "Allow draft saves (is_active: false)",
+      "Display last updated date and user"
+    ],
+    "security": [
+      "Sanitize HTML content if needed (though admin content is trusted)",
+      "Use HTTPS for all API calls",
+      "Store authentication tokens securely",
+      "Implement proper error handling"
+    ]
+  },
+
+  "example_workflows": {
+    "create_new_privacy_policy": {
+      "steps": [
+        "1. Admin navigates to Privacy Policies page",
+        "2. Clicks 'Create New' button",
+        "3. Opens create form with three Quill editors",
+        "4. Fills content in AZ, EN, RU languages",
+        "5. Sets version number (optional)",
+        "6. Sets effective date (optional)",
+        "7. Sets is_active to true (if this should be active)",
+        "8. Clicks 'Save'",
+        "9. Frontend sends POST request to /api/v1/legal/privacy-policies",
+        "10. If is_active is true, backend deactivates old policies",
+        "11. Display success message",
+        "12. Redirect to list page"
+      ]
+    },
+    "update_existing_policy": {
+      "steps": [
+        "1. Admin navigates to Privacy Policies list",
+        "2. Clicks 'Edit' on a policy",
+        "3. Loads policy data via GET /api/v1/legal/privacy-policies/{id}",
+        "4. Populates Quill editors with existing content",
+        "5. Admin makes changes",
+        "6. Updates version number",
+        "7. Clicks 'Save'",
+        "8. Frontend sends PUT request to /api/v1/legal/privacy-policies/{id}",
+        "9. Backend updates only provided fields",
+        "10. Display success message"
+      ]
+    },
+    "display_public_policy": {
+      "steps": [
+        "1. User navigates to Privacy Policy page",
+        "2. Frontend gets current language from locale",
+        "3. Sends GET request to /api/v1/legal/privacy-policy?lang={lang}",
+        "4. Backend returns active policy with translated content",
+        "5. Frontend renders HTML content using v-html or dangerouslySetInnerHTML",
+        "6. User can switch language",
+        "7. Frontend makes new request with different lang parameter"
+      ]
+    }
+  },
+
+  "testing_examples": {
+    "curl_commands": {
+      "create_privacy_policy": "curl -X POST http://localhost:8000/api/v1/legal/privacy-policies -H 'Content-Type: application/json' -H 'Authorization: Bearer {token}' -d '{\"content\":{\"az\":\"<div><p>Test</p></div>\"},\"is_active\":true}'",
+      "get_active_privacy_policy": "curl -X GET 'http://localhost:8000/api/v1/legal/privacy-policy?lang=az'",
+      "list_privacy_policies": "curl -X GET http://localhost:8000/api/v1/legal/privacy-policies -H 'Authorization: Bearer {token}'"
+    }
+  }
+}
+
+

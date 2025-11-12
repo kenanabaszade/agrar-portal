@@ -361,18 +361,24 @@ class DashboardController extends Controller
         $newCertificates = $this->getNewCertificates($user, $currentMonth);
 
         // 4. Total Learning Hours (Ümumi Öyrənmə Saatı)
-        $totalLearningHours = $this->getTotalLearningHours($user);
-        $learningHoursThisWeek = $this->getLearningHoursThisWeek($user, $currentWeekStart);
+        $totalLearningMinutes = $this->getTotalLearningMinutes($user);
+        $learningMinutesThisWeek = $this->getLearningMinutesThisWeek($user, $currentWeekStart);
+
+        $trainingSummaries = $this->getUserTrainingSummaries($user);
+        $ongoingCourses = $this->getOngoingCourses($user, $trainingSummaries);
+        $averageProgress = $this->getAverageProgress($user, $trainingSummaries);
 
         return response()->json([
             'completed_courses' => [
                 'count' => $completedCourses,
                 'this_month_change' => $completedThisMonth,
-                'goal_percentage' => $this->calculateGoalPercentage($completedCourses, $completedCourses + $ongoingCourses)
+                'goal_percentage' => $this->calculateGoalPercentage($completedCourses, $completedCourses + $ongoingCourses),
+                'count_of_all_courses' => $completedCourses + $ongoingCourses,
+                'user_completes' => $completedCourses,
             ],
             'ongoing_courses' => [
                 'count' => $ongoingCourses,
-                'average_progress' => $this->getAverageProgress($user)
+                'average_progress' => $averageProgress
             ],
             'certificates_earned' => [
                 'count' => $certificatesEarned,
@@ -380,9 +386,11 @@ class DashboardController extends Controller
                 'completion_percentage' => $this->calculateGoalPercentage($certificatesEarned, $completedCourses)
             ],
             'total_learning_hours' => [
-                'hours' => round($totalLearningHours, 1),
-                'this_week_change' => round($learningHoursThisWeek, 1),
-                'goal_percentage' => $this->calculateGoalPercentage($totalLearningHours, 50) // Assume goal is 50 hours
+                'minutes' => (int) round($totalLearningMinutes),
+                'this_week_change' => (int) round($learningMinutesThisWeek),
+                'goal_percentage' => $this->calculateGoalPercentage($totalLearningMinutes, 50 * 60),
+                'total_learning_minutes' => $trainingSummaries ? $this->sumTrainingDurations($trainingSummaries) : (int) round($totalLearningMinutes),
+                'user_complete_percentage' => $trainingSummaries ? $this->calculateUserCompletionPercentage($trainingSummaries) : 0,
             ]
         ]);
     }
@@ -440,54 +448,45 @@ class DashboardController extends Controller
     /**
      * Get ongoing courses count
      */
-    private function getOngoingCourses($user)
+    private function getOngoingCourses($user, ?array $trainingSummaries = null)
     {
-        // Count trainings where user has registrations but not completed
-        return TrainingRegistration::where('user_id', $user->id)
-            ->whereIn('status', ['approved', 'pending'])
+        $summaries = $trainingSummaries ?? $this->getUserTrainingSummaries($user);
+
+        if (empty($summaries)) {
+            return 0;
+        }
+
+        return collect($summaries)
+            ->where('is_completed', false)
             ->count();
     }
 
     /**
      * Get average progress percentage for ongoing courses
      */
-    private function getAverageProgress($user)
+    private function getAverageProgress($user, ?array $trainingSummaries = null)
     {
-        // Get all training IDs that user is registered for but not completed
-        $trainingIds = TrainingRegistration::where('user_id', $user->id)
-            ->whereIn('status', ['approved', 'pending'])
-            ->pluck('training_id');
+        $summaries = $trainingSummaries ?? $this->getUserTrainingSummaries($user);
 
-        if ($trainingIds->isEmpty()) {
+        if (empty($summaries)) {
             return 0;
         }
 
-        $totalProgress = 0;
-        $count = 0;
+        $ongoing = array_filter($summaries, function ($summary) {
+            return $summary['is_completed'] === false;
+        });
 
-        foreach ($trainingIds as $trainingId) {
-            $training = Training::find($trainingId);
-            if (!$training) continue;
-
-            // Get total lessons for this training
-            $totalLessons = $training->modules->sum(function($module) {
-                return $module->lessons->count();
-            });
-
-            if ($totalLessons == 0) continue;
-
-            // Get completed lessons for this training
-            $completedLessons = UserTrainingProgress::where('user_id', $user->id)
-                ->where('training_id', $trainingId)
-                ->where('status', 'completed')
-                ->count();
-
-            $progress = ($completedLessons / $totalLessons) * 100;
-            $totalProgress += $progress;
-            $count++;
+        if (empty($ongoing)) {
+            return 0;
         }
 
-        return $count > 0 ? round($totalProgress / $count, 0) : 0;
+        $sum = array_reduce($ongoing, function ($carry, $summary) {
+            return $carry + ($summary['completion_percentage'] ?? 0);
+        }, 0.0);
+
+        $average = $sum / count($ongoing);
+
+        return (int) round($average, 0);
     }
 
     /**
@@ -512,7 +511,7 @@ class DashboardController extends Controller
     /**
      * Get total learning hours
      */
-    private function getTotalLearningHours($user)
+    private function getTotalLearningMinutes($user)
     {
         // Get all completed lessons with their actual durations
         $completedProgress = UserTrainingProgress::with('lesson')
@@ -531,13 +530,13 @@ class DashboardController extends Controller
             }
         }
 
-        return $totalMinutes / 60; // Convert minutes to hours
+        return $totalMinutes;
     }
 
     /**
      * Get learning hours this week
      */
-    private function getLearningHoursThisWeek($user, $currentWeekStart)
+    private function getLearningMinutesThisWeek($user, $currentWeekStart)
     {
         // Get completed lessons this week
         $progresses = UserTrainingProgress::with('lesson')
@@ -557,7 +556,7 @@ class DashboardController extends Controller
             }
         }
 
-        return $totalMinutes / 60; // Convert minutes to hours
+        return $totalMinutes;
     }
 
     /**
@@ -570,5 +569,111 @@ class DashboardController extends Controller
         }
         $percentage = ($current / $goal) * 100;
         return min(round($percentage, 0), 100); // Cap at 100%
+    }
+
+    /**
+     * Build training progress summaries for the given user.
+     */
+    private function getUserTrainingSummaries($user): array
+    {
+        $registrations = TrainingRegistration::where('user_id', $user->id)->get(['training_id', 'status']);
+        $registrationStatuses = $registrations->pluck('status', 'training_id')->toArray();
+        $trainingIdsFromRegistrations = $registrations->pluck('training_id')->toArray();
+
+        $progressStats = UserTrainingProgress::where('user_id', $user->id)
+            ->select('training_id')
+            ->selectRaw("SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_lessons")
+            ->groupBy('training_id')
+            ->get();
+        $completedLessonsMap = $progressStats->pluck('completed_lessons', 'training_id')->map(fn($value) => (int) $value)->toArray();
+        $progressTrainingIds = $progressStats->pluck('training_id')->toArray();
+
+        $certificateMap = Certificate::where('user_id', $user->id)
+            ->whereNotNull('related_training_id')
+            ->pluck('id', 'related_training_id')
+            ->toArray();
+        $certificateTrainingIds = array_keys($certificateMap);
+
+        $trainingIds = array_unique(array_merge($trainingIdsFromRegistrations, $progressTrainingIds, $certificateTrainingIds));
+
+        if (empty($trainingIds)) {
+            return [];
+        }
+
+        $trainings = Training::with(['modules.lessons'])
+            ->whereIn('id', $trainingIds)
+            ->get()
+            ->keyBy('id');
+
+        $summaries = [];
+
+        foreach ($trainingIds as $trainingId) {
+            if (!isset($trainings[$trainingId])) {
+                continue;
+            }
+
+            $training = $trainings[$trainingId];
+            $totalLessons = $training->modules->sum(function ($module) {
+                return $module->lessons->count();
+            });
+            $completedLessons = $completedLessonsMap[$trainingId] ?? 0;
+            $registrationStatus = $registrationStatuses[$trainingId] ?? null;
+            $hasCertificate = array_key_exists($trainingId, $certificateMap);
+
+            if ($totalLessons > 0) {
+                $isCompleted = $completedLessons >= $totalLessons;
+                $completionPercentage = $totalLessons > 0
+                    ? round(($completedLessons / $totalLessons) * 100, 2)
+                    : 0;
+            } else {
+                $isCompleted = ($registrationStatus === 'completed') || $hasCertificate;
+                $completionPercentage = $isCompleted ? 100 : 0;
+            }
+
+            $summaries[$trainingId] = [
+                'training_id' => $trainingId,
+                'total_lessons' => $totalLessons,
+                'completed_lessons' => $completedLessons,
+                'registration_status' => $registrationStatus,
+                'has_certificate' => $hasCertificate,
+                'is_completed' => $isCompleted,
+                'completion_percentage' => $completionPercentage,
+                'total_duration_minutes' => $training->modules->sum(function ($module) {
+                    return $module->lessons->sum('duration_minutes');
+                }),
+            ];
+        }
+
+        return $summaries;
+    }
+
+    private function sumTrainingDurations(array $summaries): int
+    {
+        $totalMinutes = 0;
+
+        foreach ($summaries as $summary) {
+            if (!empty($summary['total_duration_minutes'])) {
+                $totalMinutes += (int) $summary['total_duration_minutes'];
+            }
+        }
+
+        return $totalMinutes;
+    }
+
+    private function calculateUserCompletionPercentage(array $summaries): int
+    {
+        $totalLessons = 0;
+        $completedLessons = 0;
+
+        foreach ($summaries as $summary) {
+            $totalLessons += (int) ($summary['total_lessons'] ?? 0);
+            $completedLessons += (int) ($summary['completed_lessons'] ?? 0);
+        }
+
+        if ($totalLessons === 0) {
+            return 0;
+        }
+
+        return (int) round(($completedLessons / $totalLessons) * 100);
     }
 }

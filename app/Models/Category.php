@@ -39,7 +39,10 @@ class Category extends Model
      */
     public function scopeOrdered($query)
     {
-        return $query->orderBy('sort_order')->orderBy('name');
+        $locale = app()->getLocale() ?? 'az';
+        return $query->orderBy('sort_order')
+            ->orderByRaw("name->>'{$locale}' ASC")
+            ->orderByRaw("name->>'az' ASC"); // Fallback to az if locale doesn't exist
     }
 
     /**

@@ -424,3 +424,5 @@ Bu komanda:
 2. Frontend-də like/unlike funksionallığını əlavə edin
 3. UI-da like düymələrini və sayğacları göstərin
 
+
+

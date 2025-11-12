@@ -10,7 +10,7 @@ class ExamUserAnswer extends Model
     use HasFactory;
 
     protected $fillable = [
-        'registration_id', 'question_id', 'choice_id', 'choice_ids', 'answer_text', 'is_correct', 'answered_at', 'needs_manual_grading'
+        'registration_id', 'question_id', 'choice_id', 'choice_ids', 'answer_text', 'is_correct', 'answered_at', 'needs_manual_grading', 'admin_feedback', 'graded_at', 'graded_by'
     ];
 
     protected $casts = [
@@ -18,6 +18,8 @@ class ExamUserAnswer extends Model
         'is_correct' => 'boolean',
         'answered_at' => 'datetime',
         'needs_manual_grading' => 'boolean',
+        'graded_at' => 'datetime',
+        'admin_feedback' => 'array',
     ];
 
     public function registration()
@@ -33,6 +35,11 @@ class ExamUserAnswer extends Model
     public function choice()
     {
         return $this->belongsTo(ExamChoice::class);
+    }
+
+    public function gradedBy()
+    {
+        return $this->belongsTo(User::class, 'graded_by');
     }
 }
 

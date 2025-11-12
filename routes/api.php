@@ -54,6 +54,11 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
     Route::get('trainings/offline/{training}', [\App\Http\Controllers\TrainingController::class, 'offlineDetail'])
         ->middleware('optional.auth'); // Offline training detalları - token varsa user məlumatlarını qaytarır
     
+    // Trainers endpoints (public access)
+    Route::get('trainers', [\App\Http\Controllers\TrainerController::class, 'index']);
+    Route::get('trainers/{id}', [\App\Http\Controllers\TrainerController::class, 'show'])
+        ->where('id', '[0-9]+');
+    
     // Telimats endpoint (public access)
     Route::get('telimats', [\App\Http\Controllers\EducationalContentController::class, 'telimats']);
     Route::get('education/telimats', [\App\Http\Controllers\EducationalContentController::class, 'telimats']);
@@ -77,6 +82,10 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
     // About Page (Haqqımızda) - Public access (optional auth)
     Route::get('about', [\App\Http\Controllers\AboutPageController::class, 'index']);
     
+    // Legal Documents - Public access (active versions only)
+    Route::get('legal/privacy-policy', [\App\Http\Controllers\LegalDocumentController::class, 'getActivePrivacyPolicy']);
+    Route::get('legal/terms-of-service', [\App\Http\Controllers\LegalDocumentController::class, 'getActiveTermsOfService']);
+    
     // Upload endpoint (for authenticated users)
     Route::post('upload', [\App\Http\Controllers\UploadController::class, 'upload'])
         ->middleware('auth:sanctum');
@@ -94,6 +103,18 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         Route::get('user-statistics', [\App\Http\Controllers\DashboardController::class, 'userStatistics']);
         Route::get('training-stats', [\App\Http\Controllers\TrainingStatsController::class, 'index']);
         
+        // Admin Reports (admin only)
+        Route::prefix('admin/reports')->middleware('role:admin')->group(function () {
+            Route::get('overview', [\App\Http\Controllers\ReportsController::class, 'overview']);
+            Route::get('users', [\App\Http\Controllers\ReportsController::class, 'users']);
+            Route::get('trainings', [\App\Http\Controllers\ReportsController::class, 'trainings']);
+            Route::get('exams', [\App\Http\Controllers\ReportsController::class, 'exams']);
+            Route::get('certificates', [\App\Http\Controllers\ReportsController::class, 'certificates']);
+            Route::get('meetings', [\App\Http\Controllers\ReportsController::class, 'meetings']);
+            Route::get('forum', [\App\Http\Controllers\ReportsController::class, 'forum']);
+            Route::get('trainers', [\App\Http\Controllers\ReportsController::class, 'trainers']);
+        });
+        
         // 2FA Management (for authenticated users)
         Route::get('auth/2fa/status', [\App\Http\Controllers\AuthController::class, 'getTwoFactorStatus']);
         Route::post('auth/2fa/enable', [\App\Http\Controllers\AuthController::class, 'enableTwoFactor']);
@@ -110,6 +131,11 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         // Training Completion (for students)
         Route::post('trainings/{training}/complete', [\App\Http\Controllers\TrainingController::class, 'markTrainingCompleted']);
         Route::get('trainings/{training}/completion-status', [\App\Http\Controllers\TrainingController::class, 'getTrainingCompletionStatus']);
+
+        // Training Ratings
+        Route::post('trainings/{training}/rating', [\App\Http\Controllers\TrainingRatingController::class, 'store']);
+        Route::get('trainings/{training}/rating', [\App\Http\Controllers\TrainingRatingController::class, 'show']);
+        Route::delete('trainings/{training}/rating', [\App\Http\Controllers\TrainingRatingController::class, 'destroy']);
         
         // Training Media Management (separate endpoints for advanced file operations)
         Route::post('trainings/{training}/upload-media', [\App\Http\Controllers\TrainingController::class, 'uploadMedia'])->middleware('role:admin,trainer');
@@ -154,6 +180,7 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         Route::get('exams/comprehensive-stats', [\App\Http\Controllers\ExamController::class, 'getComprehensiveStats'])->middleware('role:admin');
         Route::get('exams/detailed-list', [\App\Http\Controllers\ExamController::class, 'getDetailedExamList'])->middleware('role:admin');
         Route::get('exams/form-data', [\App\Http\Controllers\ExamController::class, 'getFormData'])->middleware('role:admin,trainer');
+        Route::get('exams/dropdown', [\App\Http\Controllers\ExamController::class, 'dropdown'])->middleware('role:admin,trainer');
         Route::apiResource('exams', \App\Http\Controllers\ExamController::class)->middleware('role:admin,trainer');
         
         // Public exam endpoints
@@ -161,6 +188,7 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         
         // Exam taking (for students)
         Route::post('exams/{exam}/start', [\App\Http\Controllers\ExamController::class, 'start']);
+        Route::post('exams/{exam}/start-attempt', [\App\Http\Controllers\ExamController::class, 'startAttempt']);
         Route::post('exams/{exam}/submit', [\App\Http\Controllers\ExamController::class, 'submit']);
         Route::get('exams/{exam}/result', [\App\Http\Controllers\ExamController::class, 'getUserExamResult']);
         
@@ -247,7 +275,10 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         Route::get('users/stats', [\App\Http\Controllers\UsersController::class, 'getStats'])->middleware('role:admin');
         Route::get('users', [\App\Http\Controllers\UsersController::class, 'index'])->middleware('role:admin');
         Route::get('users/simple', [\App\Http\Controllers\UsersController::class, 'simpleList']);
-        Route::get('trainers', [\App\Http\Controllers\UsersController::class, 'trainersList']);
+        // Trainers list endpoint moved to public routes - see TrainerController@index
+        // Route::get('trainers', [\App\Http\Controllers\UsersController::class, 'trainersList']); // REMOVED - use /api/v1/trainers (public)
+        Route::get('trainers/list-for-training', [\App\Http\Controllers\TrainerController::class, 'listForTraining'])->middleware('role:admin');
+        Route::post('trainers', [\App\Http\Controllers\TrainerController::class, 'store'])->middleware('role:admin');
         Route::get('categories', [\App\Http\Controllers\UsersController::class, 'categoriesList']);
         Route::post('users', [\App\Http\Controllers\UsersController::class, 'store'])->middleware('role:admin');
         Route::get('users/{user}', [\App\Http\Controllers\UsersController::class, 'show'])->middleware('role:admin');
@@ -273,6 +304,23 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         Route::get('google/check-access', [\App\Http\Controllers\GoogleAuthController::class, 'checkAccess']);
         Route::post('google/revoke-access', [\App\Http\Controllers\GoogleAuthController::class, 'revokeAccess']);
         Route::get('google/oauth2-code', [\App\Http\Controllers\GoogleAuthController::class, 'getOAuth2Code']);
+
+        // Legal Documents Management (admin only)
+        Route::prefix('legal')->middleware('role:admin')->group(function () {
+            // Privacy Policies
+            Route::get('privacy-policies', [\App\Http\Controllers\LegalDocumentController::class, 'indexPrivacyPolicies']);
+            Route::get('privacy-policies/{privacyPolicy}', [\App\Http\Controllers\LegalDocumentController::class, 'showPrivacyPolicy']);
+            Route::post('privacy-policies', [\App\Http\Controllers\LegalDocumentController::class, 'storePrivacyPolicy']);
+            Route::put('privacy-policies/{privacyPolicy}', [\App\Http\Controllers\LegalDocumentController::class, 'updatePrivacyPolicy']);
+            Route::delete('privacy-policies/{privacyPolicy}', [\App\Http\Controllers\LegalDocumentController::class, 'destroyPrivacyPolicy']);
+            
+            // Terms of Service
+            Route::get('terms-of-service/list', [\App\Http\Controllers\LegalDocumentController::class, 'indexTermsOfService']);
+            Route::get('terms-of-service/{termsOfService}', [\App\Http\Controllers\LegalDocumentController::class, 'showTermsOfService']);
+            Route::post('terms-of-service', [\App\Http\Controllers\LegalDocumentController::class, 'storeTermsOfService']);
+            Route::put('terms-of-service/{termsOfService}', [\App\Http\Controllers\LegalDocumentController::class, 'updateTermsOfService']);
+            Route::delete('terms-of-service/{termsOfService}', [\App\Http\Controllers\LegalDocumentController::class, 'destroyTermsOfService']);
+        });
     });
 
     // Google OAuth2 callback (without auth middleware)
@@ -349,7 +397,9 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         
         // Admin Exam Management
         Route::prefix('admin')->middleware('role:admin')->group(function () {
+            // pending-reviews must be before {exam} route to avoid conflict
             Route::get('exams/pending-reviews', [\App\Http\Controllers\AdminExamController::class, 'getPendingReviews']);
+            Route::get('exams/{exam}', [\App\Http\Controllers\AdminExamController::class, 'show']);
             Route::get('exams/{registrationId}/for-grading', [\App\Http\Controllers\AdminExamController::class, 'getExamForGrading']);
             Route::post('exams/{registrationId}/grade-text-questions', [\App\Http\Controllers\AdminExamController::class, 'gradeTextQuestions']);
         });
@@ -358,7 +408,15 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         Route::apiResource('service-packages', \App\Http\Controllers\ServicePackageController::class)
             ->except(['index', 'show'])
             ->middleware('role:admin');
-    });
+    }); // End of v1 prefix group
+});
+
+// Admin Exam Management (without v1 prefix for backward compatibility)
+Route::prefix('admin')->middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    Route::get('exams/pending-reviews', [\App\Http\Controllers\AdminExamController::class, 'getPendingReviews']);
+    Route::get('exams/{exam}', [\App\Http\Controllers\AdminExamController::class, 'show']);
+    Route::get('exams/{registrationId}/for-grading', [\App\Http\Controllers\AdminExamController::class, 'getExamForGrading']);
+    Route::post('exams/{registrationId}/grade-text-questions', [\App\Http\Controllers\AdminExamController::class, 'gradeTextQuestions']);
 });
 
 // Public certificate verification routes (no authentication required)
