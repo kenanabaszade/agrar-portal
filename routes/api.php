@@ -98,6 +98,9 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('auth/logout', [\App\Http\Controllers\AuthController::class, 'logout']);
         
+        // Contact Form - Requires authentication
+        Route::post('contact', [\App\Http\Controllers\ContactController::class, 'store']);
+        
         // Dashboard
         Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'index']);
         Route::get('user-statistics', [\App\Http\Controllers\DashboardController::class, 'userStatistics']);
