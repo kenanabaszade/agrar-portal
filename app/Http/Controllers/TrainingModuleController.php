@@ -21,19 +21,14 @@ class TrainingModuleController extends Controller
      */
     public function store(Request $request, Training $training)
     {
+        // Normalize request data: Convert title_az, title_en format to object format
+        $requestData = $this->normalizeTranslationRequest($request->all());
+        $request->merge($requestData);
+
         $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
+            'title' => ['required', new \App\Rules\TranslationRule(true)],
             'sequence' => ['nullable', 'integer', 'min:1'],
         ]);
-
-        // Check if module with same title already exists
-        $existingModule = $training->modules()->where('title', $validated['title'])->first();
-        if ($existingModule) {
-            return response()->json([
-                'message' => 'Module with this title already exists',
-                'existing_module' => $existingModule
-            ], 409);
-        }
 
         // If no sequence provided, set it to the next available sequence
         if (!isset($validated['sequence'])) {
@@ -71,8 +66,12 @@ class TrainingModuleController extends Controller
             abort(404, 'Module not found in this training');
         }
 
+        // Normalize request data: Convert title_az, title_en format to object format
+        $requestData = $this->normalizeTranslationRequest($request->all());
+        $request->merge($requestData);
+
         $validated = $request->validate([
-            'title' => ['sometimes', 'string', 'max:255'],
+            'title' => ['sometimes', new \App\Rules\TranslationRule(true)],
             'sequence' => ['sometimes', 'integer', 'min:1'],
         ]);
 
@@ -101,5 +100,55 @@ class TrainingModuleController extends Controller
         $module->delete();
         
         return response()->json(['message' => 'Module deleted successfully']);
+    }
+
+    /**
+     * Normalize translation request data
+     * Converts format like {title_az: "...", title_en: "..."} to {title: {az: "...", en: "..."}}
+     */
+    private function normalizeTranslationRequest(array $data): array
+    {
+        $translatableFields = ['title'];
+        $normalized = $data;
+
+        foreach ($translatableFields as $field) {
+            // Check if field comes as separate language fields (title_az, title_en, etc.)
+            $azKey = $field . '_az';
+            $enKey = $field . '_en';
+            $ruKey = $field . '_ru';
+
+            if (isset($data[$azKey]) || isset($data[$enKey]) || isset($data[$ruKey])) {
+                // Build translation object
+                $translations = [];
+                if (isset($data[$azKey])) {
+                    $translations['az'] = $data[$azKey];
+                    unset($normalized[$azKey]);
+                }
+                if (isset($data[$enKey])) {
+                    $translations['en'] = $data[$enKey];
+                    unset($normalized[$enKey]);
+                }
+                if (isset($data[$ruKey])) {
+                    $translations['ru'] = $data[$ruKey];
+                    unset($normalized[$ruKey]);
+                }
+
+                // If there's also a direct field value (for backward compatibility)
+                if (isset($data[$field]) && !is_array($data[$field])) {
+                    // Use direct value as default az if az not provided
+                    if (!isset($translations['az'])) {
+                        $translations['az'] = $data[$field];
+                    }
+                }
+
+                $normalized[$field] = $translations;
+            } elseif (isset($data[$field]) && !is_array($data[$field])) {
+                // Single string value - convert to translation object with az
+                $normalized[$field] = ['az' => $data[$field]];
+            }
+            // If already in object format, keep it as is
+        }
+
+        return $normalized;
     }
 }

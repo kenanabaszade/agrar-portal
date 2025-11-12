@@ -106,7 +106,11 @@ class AuthController extends Controller
             return response()->json(['message' => 'OTP has expired. Please request a new one.'], 400);
         }
 
-        if ($user->otp_code !== $validated['otp']) {
+        // Compare OTP codes as strings (trim whitespace and ensure string type)
+        $storedOtp = trim((string) $user->otp_code);
+        $providedOtp = trim((string) $validated['otp']);
+        
+        if ($storedOtp !== $providedOtp) {
             return response()->json(['message' => 'Invalid OTP code'], 422);
         }
 
@@ -200,7 +204,11 @@ class AuthController extends Controller
             return response()->json(['message' => 'OTP has expired. Please request a new one.'], 400);
         }
 
-        if ($user->otp_code !== $validated['otp']) {
+        // Compare OTP codes as strings (trim whitespace and ensure string type)
+        $storedOtp = trim((string) $user->otp_code);
+        $providedOtp = trim((string) $validated['otp']);
+        
+        if ($storedOtp !== $providedOtp) {
             return response()->json(['message' => 'Invalid OTP code'], 422);
         }
 
@@ -392,7 +400,11 @@ class AuthController extends Controller
             return response()->json(['message' => 'OTP has expired. Please request a new one.'], 400);
         }
 
-        if ($user->otp_code !== $validated['otp']) {
+        // Compare OTP codes as strings (trim whitespace and ensure string type)
+        $storedOtp = trim((string) $user->otp_code);
+        $providedOtp = trim((string) $validated['otp']);
+        
+        if ($storedOtp !== $providedOtp) {
             return response()->json(['message' => 'Invalid OTP code'], 422);
         }
 
@@ -521,7 +533,11 @@ class AuthController extends Controller
             return response()->json(['message' => 'OTP has expired. Please login again.'], 400);
         }
 
-        if ($user->otp_code !== $validated['otp']) {
+        // Compare OTP codes as strings (trim whitespace and ensure string type)
+        $storedOtp = trim((string) $user->otp_code);
+        $providedOtp = trim((string) $validated['otp']);
+        
+        if ($storedOtp !== $providedOtp) {
             return response()->json(['message' => 'Invalid OTP code'], 422);
         }
 

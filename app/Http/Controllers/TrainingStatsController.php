@@ -50,10 +50,24 @@ class TrainingStatsController extends Controller
         
         $activeTrainingsGrowth = $this->calculateGrowthPercentage($activeTrainingsLastMonth, $activeTrainingsThisMonth);
 
-        // Ümumi İştirakçılar və Growth
-        $totalParticipants = TrainingRegistration::count();
-        $totalParticipantsLastMonth = TrainingRegistration::where('created_at', '<', $lastMonth)->count();
-        $totalParticipantsThisMonth = TrainingRegistration::where('created_at', '>=', $lastMonth)->where('created_at', '<', $currentMonth)->count();
+        // Ümumi İştirakçılar və Growth (ən azı bir dərsi tamamlayan unikal istifadəçilər)
+        $totalParticipants = UserTrainingProgress::where('status', 'completed')
+            ->whereNotNull('user_id')
+            ->distinct()
+            ->count('user_id');
+
+        $totalParticipantsLastMonth = UserTrainingProgress::where('status', 'completed')
+            ->whereNotNull('user_id')
+            ->where('updated_at', '>=', $lastMonth)
+            ->where('updated_at', '<', $currentMonth)
+            ->distinct()
+            ->count('user_id');
+
+        $totalParticipantsThisMonth = UserTrainingProgress::where('status', 'completed')
+            ->whereNotNull('user_id')
+            ->where('updated_at', '>=', $currentMonth)
+            ->distinct()
+            ->count('user_id');
         $totalParticipantsGrowth = $this->calculateGrowthPercentage($totalParticipantsLastMonth, $totalParticipantsThisMonth);
 
         // Orta Tamamlanma və Growth

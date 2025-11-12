@@ -22,9 +22,7 @@ class ForumController extends Controller
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('summary', 'like', "%{$search}%")
-                  ->orWhere('body', 'like', "%{$search}%");
+                \App\Helpers\TranslationSearchHelper::addMultipleJsonFieldSearch($q, ['title', 'summary', 'body'], $search);
             });
         }
 

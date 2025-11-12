@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasTranslations;
 
 class Category extends Model
 {
-    use HasFactory;
+    use HasFactory, HasTranslations;
+
+    protected $translatable = ['name', 'description'];
 
     protected $fillable = [
         'name',
@@ -17,6 +20,8 @@ class Category extends Model
     ];
 
     protected $casts = [
+        'name' => 'array',
+        'description' => 'array',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];
@@ -34,7 +39,10 @@ class Category extends Model
      */
     public function scopeOrdered($query)
     {
-        return $query->orderBy('sort_order')->orderBy('name');
+        $locale = app()->getLocale() ?? 'az';
+        return $query->orderBy('sort_order')
+            ->orderByRaw("name->>'{$locale}' ASC")
+            ->orderByRaw("name->>'az' ASC"); // Fallback to az if locale doesn't exist
     }
 
     /**

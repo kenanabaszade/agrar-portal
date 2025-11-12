@@ -7,16 +7,14 @@ use App\Models\ExamRegistration;
 use App\Models\ExamQuestion;
 use App\Models\ExamChoice;
 use App\Models\ExamUserAnswer;
-use App\Models\ExamAnswer;
 use App\Models\Certificate;
-use App\Models\User;
-use App\Models\Training;
+use App\Models\TrainingLesson;
+use App\Models\UserTrainingProgress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Services\TranslationHelper;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Process;
-use Illuminate\Support\Facades\Log;
 
 class ExamController extends Controller
 {
@@ -26,20 +24,8 @@ class ExamController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Exam::with(['training.trainer:id,first_name,last_name'])
-            ->withCount([
-                'questions',
-                'registrations',
-                'registrations as completed_registrations_count' => function ($q) {
-                    $q->whereIn('status', ['passed', 'failed', 'completed']);
-                },
-                'registrations as passed_registrations_count' => function ($q) {
-                    $q->where('status', 'passed');
-                }
-            ])
-            ->when($request->boolean('include_questions'), function ($q) {
-                $q->with('questions:id,exam_id,question_text,question_type,points');
-            });
+        $query = Exam::with(['training.trainer', 'questions'])
+            ->withCount(['questions', 'registrations']);
 
         // Search functionality
         if ($request->filled('search')) {
@@ -110,12 +96,8 @@ class ExamController extends Controller
         $exams->getCollection()->transform(function ($exam) {
             $now = now();
             
-            // Determine status - check database status first, then date-based status
-            if ($exam->status === 'draft') {
-                $exam->status = 'draft';
-            } elseif ($exam->status === 'archived') {
-                $exam->status = 'archived';
-            } elseif ($exam->start_date && $exam->start_date->isFuture()) {
+            // Determine status with null checks
+            if ($exam->start_date && $exam->start_date->isFuture()) {
                 $exam->status = 'upcoming';
             } elseif ($exam->end_date && $exam->end_date->isPast()) {
                 $exam->status = 'ended';
@@ -134,15 +116,19 @@ class ExamController extends Controller
                 $exam->training_title = null;
             }
 
-            // Use cached count attributes from withCount (no additional queries!)
-            $totalRegistrations = $exam->registrations_count ?? 0;
-            $completedRegistrations = $exam->completed_registrations_count ?? 0;
-            $passedRegistrations = $exam->passed_registrations_count ?? 0;
+            // Calculate completion rate
+            $totalRegistrations = $exam->registrations_count;
+            $completedRegistrations = $exam->registrations()
+                ->whereIn('status', ['passed', 'failed', 'completed'])->count();
             
             $exam->completion_rate = $totalRegistrations > 0 
                 ? round(($completedRegistrations / $totalRegistrations) * 100, 1) 
                 : 0;
 
+            // Pass rate
+            $passedRegistrations = $exam->registrations()
+                ->where('status', 'passed')->count();
+            
             $exam->pass_rate = $completedRegistrations > 0 
                 ? round(($passedRegistrations / $completedRegistrations) * 100, 1) 
                 : 0;
@@ -255,12 +241,8 @@ class ExamController extends Controller
         $exams->getCollection()->transform(function ($exam) {
             $now = now();
             
-            // Determine status - check database status first, then date-based status
-            if ($exam->status === 'draft') {
-                $exam->status = 'draft';
-            } elseif ($exam->status === 'archived') {
-                $exam->status = 'archived';
-            } elseif ($exam->start_date && $exam->start_date->isFuture()) {
+            // Determine status
+            if ($exam->start_date && $exam->start_date->isFuture()) {
                 $exam->status = 'upcoming';
             } elseif ($exam->end_date && $exam->end_date->isPast()) {
                 $exam->status = 'ended';
@@ -433,13 +415,14 @@ class ExamController extends Controller
         // Get categories from proper category system
         $categories = \App\Models\Category::active()->ordered()->get(['id', 'name']);
 
-        // Get trainings based on user role
-        $trainingsQuery = \App\Models\Training::select('id', 'title', 'category')
-            ->with([
-                'trainer:id,first_name,last_name',
-                'category:id,name'
-            ])
-            ->orderBy('title');
+                                      // Get trainings based on user role
+            $locale = app()->getLocale() ?? 'az';
+            $trainingsQuery = \App\Models\Training::select('id', 'title', 'category')
+                ->with([
+                    'trainer:id,first_name,last_name'
+                ])
+                ->orderByRaw("title->>'{$locale}' ASC")
+                ->orderByRaw("title->>'az' ASC"); // Fallback to az if locale doesn't exist
 
         // If user is trainer, only show their trainings
         if ($user->user_type === 'trainer') {
@@ -493,95 +476,159 @@ class ExamController extends Controller
     {
         $validated = $request->validate([
             // Exam basic information
-            'training_id' => ['nullable', 'exists:trainings,id'],
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'sertifikat_description' => ['nullable', 'string'],
+            'training_id' => ['nullable', 'exists:trainings,id'], // Optional for independent exams
+            'title' => ['required'],
+            'description' => ['nullable'],
+            'category' => ['required_without:training_id', 'string', 'max:255'], // Required if no training
             'passing_score' => ['required', 'integer', 'min:0', 'max:100'],
-            'duration_minutes' => ['required', 'integer', 'min:1', 'max:480'],
+            'duration_minutes' => ['required', 'integer', 'min:1', 'max:480'], // Max 8 hours
+            'start_date' => ['nullable', 'date', 'after_or_equal:today'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            
+            // New enhanced fields
+            'rules' => ['nullable', 'string'],
+            'instructions' => ['nullable', 'string'],
+            'hashtags' => ['nullable', 'array'],
+            'hashtags.*' => ['string', 'max:50'],
+            'time_warning_minutes' => ['nullable', 'integer', 'min:1', 'max:60'],
             'max_attempts' => ['nullable', 'integer', 'min:1', 'max:10'],
-            
-            // New exam system fields
-            'exam_question_count' => ['required', 'integer', 'min:1'],
-            'shuffle_questions' => ['nullable', 'boolean'],
-            'shuffle_choices' => ['nullable', 'boolean'],
-            'show_result_immediately' => ['nullable', 'boolean'],
-            'show_correct_answers' => ['nullable', 'boolean'],
-            'show_explanations' => ['nullable', 'boolean'],
-            'auto_submit' => ['nullable', 'boolean'],
-            
-            // Questions validation
-            'questions' => ['required', 'array', 'min:1'],
-            'questions.*.question_text' => ['required', 'string'],
+                          'randomize_questions' => ['nullable', 'boolean'],
+              'randomize_choices' => ['nullable', 'boolean'],
+              'shuffle_questions' => ['nullable', 'boolean'], // Alias for randomize_questions
+              'shuffle_choices' => ['nullable', 'boolean'], // Alias for randomize_choices
+              'show_results_immediately' => ['nullable', 'boolean'],
+              'show_result_immediately' => ['nullable', 'boolean'], // Alias for show_results_immediately
+              'show_correct_answers' => ['nullable', 'boolean'],
+              'show_explanations' => ['nullable', 'boolean'],
+              'allow_tab_switching' => ['nullable', 'boolean'],
+              'track_tab_changes' => ['nullable', 'boolean'],
+              'exam_question_count' => ['nullable', 'integer', 'min:1'],
+
+              // Questions validation
+            'questions' => ['required', 'array', 'min:1'], // At least 1 question required
+            'questions.*.question_text' => ['required'],
             'questions.*.question_type' => ['required', 'in:single_choice,multiple_choice,true_false,text'],
             'questions.*.difficulty' => ['nullable', 'in:easy,medium,hard'],
             'questions.*.question_media' => ['nullable', 'array'],
-            'questions.*.explanation' => ['nullable', 'string'],
+            'questions.*.question_media.*.type' => ['required_with:questions.*.question_media', 'in:image,video,audio,document'],
+            'questions.*.question_media.*.url' => ['required_with:questions.*.question_media', 'url'],
+            'questions.*.question_media.*.title' => ['nullable', 'string'],
+            'questions.*.question_media.*.description' => ['nullable', 'string'],
+            'questions.*.explanation' => ['nullable'],
+            'questions.*.points' => ['nullable', 'integer', 'min:1'],
             'questions.*.is_required' => ['nullable', 'boolean'],
             'questions.*.sequence' => ['nullable', 'integer', 'min:1'],
+            'questions.*.metadata' => ['nullable', 'array'],
             
-            // Choices validation
+            // Choices validation (required for single_choice, multiple_choice, and true_false)
             'questions.*.choices' => ['required_if:questions.*.question_type,single_choice,multiple_choice,true_false', 'array'],
-            'questions.*.choices.*.choice_text' => ['required', 'string'],
-            'questions.*.choices.*.is_correct' => ['required', 'boolean'],
-            'questions.*.choices.*.explanation' => ['nullable', 'string'],
-            'questions.*.choices.*.sequence' => ['nullable', 'integer', 'min:1'],
-        ]);
+            'questions.*.choices.*.choice_text' => ['required'],
+            'questions.*.choices.*.choice_media' => ['nullable', 'array'],
+            'questions.*.choices.*.choice_media.*.type' => ['required_with:questions.*.choices.*.choice_media', 'in:image,video,audio,document'],
+            'questions.*.choices.*.choice_media.*.url' => ['required_with:questions.*.choices.*.choice_media', 'url'],
+            'questions.*.choices.*.choice_media.*.title' => ['nullable', 'string'],
+            'questions.*.choices.*.choice_media.*.description' => ['nullable', 'string'],
+            'questions.*.choices.*.is_correct' => ['required'], // Will be normalized to boolean
+            'questions.*.choices.*.explanation' => ['nullable'],
+            'questions.*.choices.*.points' => ['nullable', 'integer', 'min:0'],
+            'questions.*.choices.*.metadata' => ['nullable', 'array'],
+                  ]);
 
-        // Additional validation
-        $totalQuestions = count($validated['questions']);
-        $examQuestionCount = $validated['exam_question_count'];
-        
-        if ($examQuestionCount > $totalQuestions) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => ['exam_question_count' => ["İmtahanda göstəriləcək sual sayı ($examQuestionCount) ümumi sual sayından ($totalQuestions) çox ola bilməz"]]
-            ], 422);
-        }
-        
-        // Validate correct answers for choice questions
-        foreach ($validated['questions'] as $index => $question) {
-            if (in_array($question['question_type'], ['single_choice', 'multiple_choice', 'true_false'])) {
-                if (!isset($question['choices']) || empty($question['choices'])) {
-                    return response()->json([
-                        'message' => 'Validation failed',
-                        'errors' => ["questions.{$index}.choices" => ['Choice questions must have at least one choice']]
-                    ], 422);
-                }
-                
-                $hasCorrectAnswer = collect($question['choices'])->contains('is_correct', true);
-                if (!$hasCorrectAnswer) {
-                    return response()->json([
-                        'message' => 'Validation failed',
-                        'errors' => ["questions.{$index}.choices" => ['At least one choice must be marked as correct']]
-                    ], 422);
-                }
-            }
-        }
+          // Normalize field aliases (map frontend field names to backend field names)
+          if (isset($validated['shuffle_questions']) && !isset($validated['randomize_questions'])) {
+              $validated['randomize_questions'] = $validated['shuffle_questions'];
+              unset($validated['shuffle_questions']);
+          }
+          if (isset($validated['shuffle_choices']) && !isset($validated['randomize_choices'])) {
+              $validated['randomize_choices'] = $validated['shuffle_choices'];
+              unset($validated['shuffle_choices']);
+          }
+          if (isset($validated['show_result_immediately']) && !isset($validated['show_results_immediately'])) {
+              $validated['show_results_immediately'] = $validated['show_result_immediately'];
+              unset($validated['show_result_immediately']);
+          }
+          
+          // Normalize exam-level multilang fields
+          if (isset($validated['title'])) {
+              $validated['title'] = TranslationHelper::normalizeTranslation($validated['title']);
+          }
+          if (isset($validated['description'])) {
+              $validated['description'] = TranslationHelper::normalizeTranslation($validated['description']);
+          }
+
+          // Normalize multilang fields and is_correct values
+          foreach ($validated['questions'] as $index => &$question) {
+              // Normalize question_text (multilang)
+              if (isset($question['question_text'])) {
+                  $question['question_text'] = TranslationHelper::normalizeTranslation($question['question_text']);
+              }
+              
+              // Normalize explanation (multilang)
+              if (isset($question['explanation'])) {
+                  $question['explanation'] = TranslationHelper::normalizeTranslation($question['explanation']);
+              }
+              
+              // Normalize choices
+              if (isset($question['choices']) && is_array($question['choices'])) {
+                  foreach ($question['choices'] as &$choice) {
+                      // Normalize choice_text (multilang)
+                      if (isset($choice['choice_text'])) {
+                          $choice['choice_text'] = TranslationHelper::normalizeTranslation($choice['choice_text']);
+                      }
+                      
+                      // Normalize choice explanation (multilang)
+                      if (isset($choice['explanation'])) {
+                          $choice['explanation'] = TranslationHelper::normalizeTranslation($choice['explanation']);
+                      }
+                      
+                      // Normalize is_correct: convert "on" string to boolean true
+                      if (isset($choice['is_correct'])) {
+                          // Handle "on" string from HTML checkboxes
+                          if ($choice['is_correct'] === 'on' || $choice['is_correct'] === '1' || $choice['is_correct'] === 1) {
+                              $choice['is_correct'] = true;
+                          } elseif ($choice['is_correct'] === '' || $choice['is_correct'] === '0' || $choice['is_correct'] === 0 || $choice['is_correct'] === false) {
+                              $choice['is_correct'] = false;
+                          }
+                          // Ensure it's boolean
+                          $choice['is_correct'] = (bool) $choice['is_correct'];
+                      }
+                  }
+                  unset($choice); // Unset reference
+              }
+              
+              // Validate choices for choice-based questions
+              if (in_array($question['question_type'], ['single_choice', 'multiple_choice', 'true_false'])) {
+                  if (!isset($question['choices']) || empty($question['choices'])) {
+                      return response()->json([
+                          'message' => 'Validation failed',
+                          'errors' => ["questions.{$index}.choices" => ['Choice questions must have at least one choice']]
+                      ], 422);
+                  }
+                  
+                  $hasCorrectAnswer = collect($question['choices'])->contains('is_correct', true);
+                  if (!$hasCorrectAnswer) {
+                      return response()->json([
+                          'message' => 'Validation failed',
+                          'errors' => ["questions.{$index}.choices" => ['At least one choice must be marked as correct']]
+                      ], 422);
+                  }
+              }
+          }
+          unset($question); // Unset reference
 
         // Create exam and questions in a database transaction
-        $exam = DB::transaction(function () use ($validated) {
+        $exam = DB::transaction(function () use ($validated, $request) {
             // Extract exam data
             $examData = collect($validated)->except('questions')->toArray();
             
-            // Set defaults
-            $examData['auto_submit'] = $validated['auto_submit'] ?? false; // Default false
-            $examData['randomize_questions'] = $validated['shuffle_questions'] ?? true;
-            $examData['randomize_choices'] = $validated['shuffle_choices'] ?? true;
-            $examData['show_results_immediately'] = $validated['show_result_immediately'] ?? true;
+            // If training is provided, use training's category
+            if ($examData['training_id']) {
+                $training = \App\Models\Training::find($examData['training_id']);
+                $examData['category'] = $training->category;
+            }
+            // Otherwise, use the provided category for independent exam
             
             $exam = Exam::create($examData);
-            
-            // Update training with exam_id if training_id is provided
-            if ($examData['training_id'] ?? null) {
-                $training = \App\Models\Training::find($examData['training_id']);
-                if ($training) {
-                    $training->update([
-                        'exam_id' => $exam->id,
-                        'has_exam' => true
-                    ]);
-                }
-            }
             
             // Create questions
             foreach ($validated['questions'] as $index => $questionData) {
@@ -607,16 +654,15 @@ class ExamController extends Controller
                     'metadata' => $questionData['metadata'] ?? null,
                 ]);
 
-                // Create choices if question type requires them
-                if (in_array($questionData['question_type'], ['single_choice', 'multiple_choice', 'true_false']) && !empty($choices)) {
-                    foreach ($choices as $choiceIndex => $choiceData) {
+                                  // Create choices if question type requires them
+                  if (in_array($questionData['question_type'], ['single_choice', 'multiple_choice', 'true_false']) && !empty($choices)) {
+                    foreach ($choices as $choiceData) {
                         $question->choices()->create([
                             'choice_text' => $choiceData['choice_text'],
                             'choice_media' => $choiceData['choice_media'] ?? null,
                             'explanation' => $choiceData['explanation'] ?? null,
                             'is_correct' => $choiceData['is_correct'],
-                            'points' => 0, // Yeni sistemdə points yoxdur
-                            'sequence' => $choiceData['sequence'] ?? ($choiceIndex + 1),
+                            'points' => $choiceData['points'] ?? 0,
                             'metadata' => $choiceData['metadata'] ?? null,
                         ]);
                     }
@@ -627,33 +673,40 @@ class ExamController extends Controller
         });
         
         // Load relationships for response
-        $exam->load(['training', 'questions.choices']);
+        $exam->load(['training.trainer', 'questions.choices']);
+        
+        // Add audit log
+        \App\Models\AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'created',
+            'entity' => 'exam',
+            'entity_id' => $exam->id,
+            'details' => [
+                'title' => $exam->title,
+                'exam_type' => $exam->training_id ? 'training_based' : 'independent',
+                'training_id' => $exam->training_id,
+                'training_title' => $exam->training ? $exam->training->title : null,
+                'category' => $exam->category,
+                'questions_count' => $exam->questions()->count(),
+                'total_points' => $exam->questions()->sum('points'),
+                'difficulty_breakdown' => $exam->questions()->get()->groupBy('difficulty')->map->count(),
+            ]
+        ]);
 
         return response()->json([
-            'message' => 'İmtahan uğurla yaradıldı',
-            'exam' => [
-                'id' => $exam->id,
-                'title' => $exam->title,
-                'description' => $exam->description,
-                'training_id' => $exam->training_id,
-                'duration_minutes' => $exam->duration_minutes,
-                'passing_score' => $exam->passing_score,
-                'max_attempts' => $exam->max_attempts,
+            'message' => 'Exam created successfully with questions',
+            'exam' => $exam,
+            'summary' => [
                 'total_questions' => $exam->questions()->count(),
-                'exam_question_count' => $exam->exam_question_count,
-                'shuffle_questions' => $exam->randomize_questions,
-                'shuffle_choices' => $exam->randomize_choices,
-                'show_result_immediately' => $exam->show_results_immediately,
-                'show_correct_answers' => $exam->show_correct_answers,
-                'show_explanations' => $exam->show_explanations,
-                'auto_submit' => $exam->auto_submit,
-                'created_at' => $exam->created_at,
-                'updated_at' => $exam->updated_at,
+                'total_points' => $exam->questions()->sum('points'),
+                'question_types' => $exam->questions()->get()->groupBy('question_type')->map(function($questions) {
+                    return $questions->count();
+                }),
             ]
         ], 201);
     }
 
-    public function show(Exam $exam)
+        public function show(Exam $exam)
     {
         $exam->load([
             'training.trainer',
@@ -676,66 +729,133 @@ class ExamController extends Controller
             'total_registrations' => $totalRegistrations,
             'completed_registrations' => $completedRegistrations,
             'passed_registrations' => $passedRegistrations,
-            'completion_rate' => $totalRegistrations > 0 
-                ? round(($completedRegistrations / $totalRegistrations) * 100, 1) 
+            'completion_rate' => $totalRegistrations > 0
+                ? round(($completedRegistrations / $totalRegistrations) * 100, 1)
                 : 0,
-            'pass_rate' => $completedRegistrations > 0 
-                ? round(($passedRegistrations / $completedRegistrations) * 100, 1) 
+            'pass_rate' => $completedRegistrations > 0
+                ? round(($passedRegistrations / $completedRegistrations) * 100, 1)
                 : 0,
             'average_score' => $exam->registrations()
                 ->whereNotNull('score')->avg('score') ?: 0,
             'total_questions' => $exam->questions()->count(),
         ];
 
+        // Ensure all exam configuration fields are included in response
+        // These fields are needed for frontend display
+        // Also add alias fields for frontend compatibility
+        $exam->makeVisible([
+            'exam_question_count',
+            'randomize_questions',
+            'randomize_choices',
+            'show_results_immediately',
+            'show_correct_answers',
+            'show_explanations',
+            'allow_tab_switching',
+            'track_tab_changes',
+            'auto_submit',
+            'time_warning_minutes',
+            'max_attempts',
+            'passing_score',
+            'duration_minutes',
+            'start_date',
+            'end_date',
+            'rules',
+            'instructions',
+            'hashtags',
+        ]);
+        
+        // Add alias fields for frontend compatibility (shuffle_questions, shuffle_choices, show_result_immediately)
+        // These aliases map to the actual database fields
+        $exam->shuffle_questions = $exam->randomize_questions ?? false;
+        $exam->shuffle_choices = $exam->randomize_choices ?? false;
+        $exam->show_result_immediately = $exam->show_results_immediately ?? false;
+        
+        // Apply exam_question_count limit to questions if set
+        if ($exam->exam_question_count && $exam->exam_question_count > 0 && $exam->questions->count() > $exam->exam_question_count) {
+            $allQuestions = $exam->questions;
+            
+            // Apply randomization if enabled
+            if ($exam->randomize_questions || $exam->randomize_questions === true) {
+                $allQuestions = $allQuestions->shuffle();
+            } else {
+                $allQuestions = $allQuestions->sortBy('sequence');
+            }
+            
+            // Limit questions
+            $limitedQuestions = $allQuestions->take($exam->exam_question_count);
+            
+            // Reset sequence to start from 1 for limited questions
+            $limitedQuestions->each(function ($question, $index) {
+                $question->sequence = $index + 1;
+            });
+            
+            // Apply choice randomization if enabled
+            if ($exam->randomize_choices || $exam->randomize_choices === true) {
+                $limitedQuestions->each(function ($question) {
+                    $question->setRelation('choices', $question->choices->shuffle());
+                });
+            }
+            
+            // Replace questions relation with limited questions
+            $exam->setRelation('questions', $limitedQuestions);
+        } else {
+            // Apply choice randomization if enabled (even if no limit)
+            if ($exam->randomize_choices || $exam->randomize_choices === true) {
+                $exam->questions->each(function ($question) {
+                    $question->setRelation('choices', $question->choices->shuffle());
+                });
+            }
+        }
+
         // Add user-specific information if authenticated
         if (auth()->check()) {
             $user = auth()->user();
-            
+
             // Get user's exam attempts
             $userAttempts = $exam->registrations()
                 ->where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
                 ->get();
-            
+
             $userExamAttempts = $userAttempts->count();
-            
+
             // Get user's last attempt
             $userLastAttempt = $userAttempts->first();
-            
+
             // Check if user can start exam
             $userCanStartExam = true;
             $reason = null;
-            
+
             // Check if exam has start/end dates
             if ($exam->start_date && now() < $exam->start_date) {
                 $userCanStartExam = false;
                 $reason = 'Exam has not started yet';
             }
-            
+
             if ($exam->end_date && now() > $exam->end_date) {
                 $userCanStartExam = false;
                 $reason = 'Exam has ended';
             }
-            
+
             // Check if user has already passed (if max_attempts is set)
             if ($exam->max_attempts && $userAttempts->where('status', 'passed')->count() > 0) {
                 $userCanStartExam = false;
                 $reason = 'User has already passed this exam';
             }
-            
+
             // Check if user has exceeded max attempts
             if ($exam->max_attempts && $userExamAttempts >= $exam->max_attempts) {
                 $userCanStartExam = false;
                 $reason = 'Maximum attempts exceeded';
             }
-            
+
             // Check if user has an active attempt (started but not completed)
             $activeAttempt = $userAttempts->where('status', 'in_progress')->first();
             if ($activeAttempt) {
                 $userCanStartExam = false;
                 $reason = 'User has an active attempt in progress';
             }
-            
+
             $exam->user_info = [
                 'user_exam_attempts' => $userExamAttempts,
                 'user_can_start_exam' => $userCanStartExam,
@@ -750,7 +870,7 @@ class ExamController extends Controller
                     'time_spent_minutes' => $userLastAttempt->time_spent_minutes
                 ] : null,
                 'max_attempts' => $exam->max_attempts,
-                'remaining_attempts' => $exam->max_attempts ? 
+                'remaining_attempts' => $exam->max_attempts ?
                     max(0, $exam->max_attempts - $userExamAttempts) : null
             ];
         } else {
@@ -777,20 +897,50 @@ class ExamController extends Controller
         $passedRegistrations = $exam->registrations()
             ->where('status', 'passed')->count();
 
-        $exam->stats = [
+                $exam->stats = [
             'total_registrations' => $totalRegistrations,
             'completed_registrations' => $completedRegistrations,
             'passed_registrations' => $passedRegistrations,
-            'completion_rate' => $totalRegistrations > 0 
-                ? round(($completedRegistrations / $totalRegistrations) * 100, 1) 
+            'completion_rate' => $totalRegistrations > 0
+                ? round(($completedRegistrations / $totalRegistrations) * 100, 1)
                 : 0,
-            'pass_rate' => $completedRegistrations > 0 
-                ? round(($passedRegistrations / $completedRegistrations) * 100, 1) 
+            'pass_rate' => $completedRegistrations > 0
+                ? round(($passedRegistrations / $completedRegistrations) * 100, 1)
                 : 0,
             'average_score' => $exam->registrations()
                 ->whereNotNull('score')->avg('score') ?: 0,
             'total_questions' => $exam->questions()->count(),
         ];
+
+        // Ensure all exam configuration fields are included in response
+        // These fields are needed for frontend display
+        // Also add alias fields for frontend compatibility
+        $exam->makeVisible([
+            'exam_question_count',
+            'randomize_questions',
+            'randomize_choices',
+            'show_results_immediately',
+            'show_correct_answers',
+            'show_explanations',
+            'allow_tab_switching',
+            'track_tab_changes',
+            'auto_submit',
+            'time_warning_minutes',
+            'max_attempts',
+            'passing_score',
+            'duration_minutes',
+            'start_date',
+            'end_date',
+            'rules',
+            'instructions',
+            'hashtags',
+        ]);
+        
+        // Add alias fields for frontend compatibility (shuffle_questions, shuffle_choices, show_result_immediately)
+        // These aliases map to the actual database fields
+        $exam->shuffle_questions = $exam->randomize_questions ?? false;
+        $exam->shuffle_choices = $exam->randomize_choices ?? false;
+        $exam->show_result_immediately = $exam->show_results_immediately ?? false;
 
         // Add user-specific information if authenticated
         if (auth()->check()) {
@@ -868,179 +1018,81 @@ class ExamController extends Controller
     public function update(Request $request, Exam $exam)
     {
         $validated = $request->validate([
-            // Exam basic information
             'training_id' => ['sometimes', 'exists:trainings,id'],
             'title' => ['sometimes', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'sertifikat_description' => ['nullable', 'string'],
             'passing_score' => ['sometimes', 'integer', 'min:0', 'max:100'],
             'duration_minutes' => ['sometimes', 'integer', 'min:1', 'max:480'],
-            'max_attempts' => ['nullable', 'integer', 'min:1', 'max:10'],
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             
-            // New exam system fields
-            'exam_question_count' => ['sometimes', 'integer', 'min:1'],
-            'shuffle_questions' => ['nullable', 'boolean'],
-            'shuffle_choices' => ['nullable', 'boolean'],
-            'show_result_immediately' => ['nullable', 'boolean'],
+            // New enhanced fields
+            'rules' => ['nullable', 'string'],
+            'instructions' => ['nullable', 'string'],
+            'hashtags' => ['nullable', 'array'],
+            'hashtags.*' => ['string', 'max:50'],
+            'time_warning_minutes' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'max_attempts' => ['nullable', 'integer', 'min:1', 'max:10'],
+            'randomize_questions' => ['nullable', 'boolean'],
+            'randomize_choices' => ['nullable', 'boolean'],
+            'shuffle_questions' => ['nullable', 'boolean'], // Alias for randomize_questions
+            'shuffle_choices' => ['nullable', 'boolean'], // Alias for randomize_choices
+            'show_results_immediately' => ['nullable', 'boolean'],
+            'show_result_immediately' => ['nullable', 'boolean'], // Alias for show_results_immediately
             'show_correct_answers' => ['nullable', 'boolean'],
             'show_explanations' => ['nullable', 'boolean'],
+            'allow_tab_switching' => ['nullable', 'boolean'],
+            'track_tab_changes' => ['nullable', 'boolean'],
+            'exam_question_count' => ['nullable', 'integer', 'min:1'],
             'auto_submit' => ['nullable', 'boolean'],
-            
-            // Questions validation (optional for update)
-            'questions' => ['sometimes', 'array', 'min:1'],
-            'questions.*.question_text' => ['required_with:questions', 'string'],
-            'questions.*.question_type' => ['required_with:questions', 'in:single_choice,multiple_choice,true_false,text'],
-            'questions.*.difficulty' => ['nullable', 'in:easy,medium,hard'],
-            'questions.*.question_media' => ['nullable', 'array'],
-            'questions.*.explanation' => ['nullable', 'string'],
-            'questions.*.is_required' => ['nullable', 'boolean'],
-            'questions.*.sequence' => ['nullable', 'integer', 'min:1'],
-            
-            // Choices validation
-            'questions.*.choices' => ['required_if:questions.*.question_type,single_choice,multiple_choice,true_false', 'array'],
-            'questions.*.choices.*.choice_text' => ['required', 'string'],
-            'questions.*.choices.*.is_correct' => ['required', 'boolean'],
-            'questions.*.choices.*.explanation' => ['nullable', 'string'],
-            'questions.*.choices.*.sequence' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        // Additional validation if questions are provided
-        if (isset($validated['questions'])) {
-            $totalQuestions = count($validated['questions']);
-            $examQuestionCount = $validated['exam_question_count'] ?? $exam->exam_question_count;
-            
-            if ($examQuestionCount > $totalQuestions) {
-                return response()->json([
-                    'message' => 'Validation failed',
-                    'errors' => ['exam_question_count' => ["İmtahanda göstəriləcək sual sayı ($examQuestionCount) ümumi sual sayından ($totalQuestions) çox ola bilməz"]]
-                ], 422);
-            }
-            
-            // Validate correct answers for choice questions
-            foreach ($validated['questions'] as $index => $question) {
-                if (in_array($question['question_type'], ['single_choice', 'multiple_choice', 'true_false'])) {
-                    if (!isset($question['choices']) || empty($question['choices'])) {
-                        return response()->json([
-                            'message' => 'Validation failed',
-                            'errors' => ["questions.{$index}.choices" => ['Choice questions must have at least one choice']]
-                        ], 422);
-                    }
-                    
-                    $hasCorrectAnswer = collect($question['choices'])->contains('is_correct', true);
-                    if (!$hasCorrectAnswer) {
-                        return response()->json([
-                            'message' => 'Validation failed',
-                            'errors' => ["questions.{$index}.choices" => ['At least one choice must be marked as correct']]
-                        ], 422);
-                    }
-                }
+        // Normalize field aliases (map frontend field names to backend field names)
+        if (isset($validated['shuffle_questions']) && !isset($validated['randomize_questions'])) {
+            $validated['randomize_questions'] = $validated['shuffle_questions'];
+            unset($validated['shuffle_questions']);
+        }
+        if (isset($validated['shuffle_choices']) && !isset($validated['randomize_choices'])) {
+            $validated['randomize_choices'] = $validated['shuffle_choices'];
+            unset($validated['shuffle_choices']);
+        }
+        if (isset($validated['show_result_immediately']) && !isset($validated['show_results_immediately'])) {
+            $validated['show_results_immediately'] = $validated['show_result_immediately'];
+            unset($validated['show_result_immediately']);
+        }
+
+        // Store original values for audit
+        $originalValues = $exam->only(array_keys($validated));
+        
+        $exam->update($validated);
+        
+        // Load relationships for response
+        $exam->load(['training.trainer', 'questions']);
+
+        // Calculate changes safely
+        $changes = [];
+        foreach ($validated as $key => $value) {
+            if (!isset($originalValues[$key]) || $originalValues[$key] != $value) {
+                $changes[$key] = $value;
             }
         }
 
-        // Update exam in transaction
-        $exam = DB::transaction(function () use ($validated, $exam) {
-            // Extract exam data (exclude questions)
-            $examData = collect($validated)->except('questions')->toArray();
-            
-            // Set defaults for new fields
-            $examData['auto_submit'] = $validated['auto_submit'] ?? false; // Default false
-            if (isset($validated['shuffle_questions'])) {
-                $examData['randomize_questions'] = $validated['shuffle_questions'];
-            }
-            if (isset($validated['shuffle_choices'])) {
-                $examData['randomize_choices'] = $validated['shuffle_choices'];
-            }
-            if (isset($validated['show_result_immediately'])) {
-                $examData['show_results_immediately'] = $validated['show_result_immediately'];
-            }
-            
-            $exam->update($examData);
-            
-            // Update training with exam_id if training_id is provided
-            if (isset($validated['training_id']) && $validated['training_id']) {
-                $training = \App\Models\Training::find($validated['training_id']);
-                if ($training) {
-                    $training->update([
-                        'exam_id' => $exam->id,
-                        'has_exam' => true
-                    ]);
-                }
-            }
-            
-            // If questions are provided, delete old ones and create new ones
-            if (isset($validated['questions'])) {
-                // Delete old questions and choices
-                $exam->questions()->each(function ($question) {
-                    $question->choices()->delete();
-                });
-                $exam->questions()->delete();
-                
-                // Create new questions
-                foreach ($validated['questions'] as $index => $questionData) {
-                    // Set default values
-                    $questionData['is_required'] = $questionData['is_required'] ?? true;
-                    $questionData['sequence'] = $questionData['sequence'] ?? ($index + 1);
-                    
-                    // Extract choices data
-                    $choices = $questionData['choices'] ?? [];
-                    unset($questionData['choices']);
-                    
-                    // Create question
-                    $question = $exam->questions()->create([
-                        'question_text' => $questionData['question_text'],
-                        'question_media' => $questionData['question_media'] ?? null,
-                        'explanation' => $questionData['explanation'] ?? null,
-                        'question_type' => $questionData['question_type'],
-                        'difficulty' => $questionData['difficulty'] ?? 'medium',
-                        'points' => 0, // Yeni sistemdə points yoxdur
-                        'is_required' => $questionData['is_required'],
-                        'sequence' => $questionData['sequence'],
-                        'metadata' => null,
-                    ]);
-
-                    // Create choices if question type requires them
-                    if (in_array($questionData['question_type'], ['single_choice', 'multiple_choice', 'true_false']) && !empty($choices)) {
-                        foreach ($choices as $choiceIndex => $choiceData) {
-                            $question->choices()->create([
-                                'choice_text' => $choiceData['choice_text'],
-                                'choice_media' => $choiceData['choice_media'] ?? null,
-                                'explanation' => $choiceData['explanation'] ?? null,
-                                'is_correct' => $choiceData['is_correct'],
-                                'points' => 0, // Yeni sistemdə points yoxdur
-                                'sequence' => $choiceData['sequence'] ?? ($choiceIndex + 1),
-                                'metadata' => null,
-                            ]);
-                        }
-                    }
-                }
-            }
-            
-            return $exam;
-        });
-        
-        // Load relationships for response
-        $exam->load(['training', 'questions.choices']);
+        // Add audit log
+        \App\Models\AuditLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'updated',
+            'entity' => 'exam',
+            'entity_id' => $exam->id,
+            'details' => [
+                'title' => $exam->title,
+                'changes' => $changes,
+                'original' => $originalValues,
+            ]
+        ]);
 
         return response()->json([
-            'message' => 'İmtahan uğurla yeniləndi',
-            'exam' => [
-                'id' => $exam->id,
-                'title' => $exam->title,
-                'description' => $exam->description,
-                'training_id' => $exam->training_id,
-                'duration_minutes' => $exam->duration_minutes,
-                'passing_score' => $exam->passing_score,
-                'max_attempts' => $exam->max_attempts,
-                'total_questions' => $exam->questions()->count(),
-                'exam_question_count' => $exam->exam_question_count,
-                'shuffle_questions' => $exam->randomize_questions,
-                'shuffle_choices' => $exam->randomize_choices,
-                'show_result_immediately' => $exam->show_results_immediately,
-                'show_correct_answers' => $exam->show_correct_answers,
-                'show_explanations' => $exam->show_explanations,
-                'auto_submit' => $exam->auto_submit,
-                'updated_at' => $exam->updated_at,
-            ]
+            'message' => 'Exam updated successfully',
+            'exam' => $exam
         ]);
     }
 
@@ -1064,20 +1116,7 @@ class ExamController extends Controller
         ];
 
         $examId = $exam->id;
-        $trainingId = $exam->training_id;
-        
         $exam->delete();
-        
-        // Update training to remove exam_id if exam was linked to a training
-        if ($trainingId) {
-            $training = \App\Models\Training::find($trainingId);
-            if ($training) {
-                $training->update([
-                    'exam_id' => null,
-                    'has_exam' => false
-                ]);
-            }
-        }
 
         // Add audit log
         \App\Models\AuditLog::create([
@@ -1106,7 +1145,7 @@ class ExamController extends Controller
                 
             if ($attemptCount >= $exam->max_attempts) {
                 return response()->json([
-                    'message' => 'Maksimum cəhd sayına çatdınız',
+                    'message' => 'Maximum attempts exceeded',
                     'max_attempts' => $exam->max_attempts,
                     'attempts_used' => $attemptCount
                 ], 422);
@@ -1118,107 +1157,78 @@ class ExamController extends Controller
             ->where('exam_id', $exam->id)
             ->max('attempt_number') + 1;
             
-        // Get all questions for this exam
-        $allQuestions = $exam->questions()->with('choices')->get();
-        
-        if ($allQuestions->isEmpty()) {
-            return response()->json([
-                'message' => 'Bu imtahanda sual yoxdur'
-            ], 422);
-        }
-        
-        // Select random questions based on exam_question_count
-        $selectedQuestions = $allQuestions;
-        if ($exam->exam_question_count < $allQuestions->count()) {
-            $selectedQuestions = $allQuestions->random($exam->exam_question_count)->values();
-        }
-        
-        // Shuffle questions if enabled
-        if ($exam->randomize_questions) {
-            $selectedQuestions = $selectedQuestions->shuffle();
-        }
-        
-        // Shuffle choices for each question if enabled
-        if ($exam->randomize_choices) {
-            $selectedQuestions->each(function ($question) {
-                $question->setRelation('choices', $question->choices->shuffle());
-            });
-        }
-        
-        // Check if there's an existing registration that needs to be reset
-        $existingRegistration = ExamRegistration::where('user_id', $user->id)
-            ->where('exam_id', $exam->id)
-            ->first();
-        
-        if ($existingRegistration) {
-            // If there's an existing registration, delete it to allow creating a new one
-            // (since we have a unique constraint on user_id + exam_id)
-            $existingRegistration->delete();
-        }
-        
-        // Create exam registration
-        $registration = ExamRegistration::create([
+        $reg = ExamRegistration::create([
             'user_id' => $user->id,
             'exam_id' => $exam->id,
             'status' => 'in_progress',
             'started_at' => now(),
             'attempt_number' => $nextAttemptNumber,
-            'selected_question_ids' => $selectedQuestions->pluck('id')->toArray(),
-            'total_questions' => $selectedQuestions->count(),
         ]);
         
-        // Format questions for frontend
-        $formattedQuestions = $selectedQuestions->map(function ($question) {
-            $questionData = [
-                'id' => $question->id,
-                'question_text' => $question->question_text,
-                'question_type' => $question->question_type,
-                'difficulty' => $question->difficulty,
-                'question_media' => $question->question_media,
-                'explanation' => $question->explanation,
-                'is_required' => $question->is_required,
-                'sequence' => $question->sequence,
-            ];
+        return response()->json($reg);
+    }
+
+    /**
+     * Start exam attempt - increments attempt count when user starts exam
+     * This endpoint should be called by frontend when user opens/enters exam
+     * Returns current attempt number (e.g., "2/3")
+     */
+    public function startAttempt(Exam $exam, Request $request)
+    {
+        $user = $request->user();
+        
+        // Check if user has exceeded max attempts
+        $existingRegistrations = ExamRegistration::where('user_id', $user->id)
+            ->where('exam_id', $exam->id)
+            ->get();
             
-            // Add choices for choice-based questions
-            if (in_array($question->question_type, ['single_choice', 'multiple_choice', 'true_false'])) {
-                $questionData['choices'] = $question->choices->map(function ($choice) {
-                    return [
-                        'id' => $choice->id,
-                        'choice_text' => $choice->choice_text,
-                        'choice_media' => $choice->choice_media,
-                        'explanation' => $choice->explanation,
-                        'sequence' => $choice->sequence,
-                        // Don't send is_correct to frontend
-                    ];
-                });
-            }
+        $totalAttempts = $existingRegistrations->count();
+        
+        if ($exam->max_attempts && $totalAttempts >= $exam->max_attempts) {
+            return response()->json([
+                'message' => 'Maksimum cəhd sayını keçmisiniz',
+                'max_attempts' => $exam->max_attempts,
+                'attempts_used' => $totalAttempts,
+                'current_attempt' => $totalAttempts,
+                'attempt_text' => "{$totalAttempts}/{$exam->max_attempts}",
+                'can_start' => false
+            ], 403);
+        }
+        
+        // Check if there's already an active (in_progress) attempt
+        $activeRegistration = $existingRegistrations->where('status', 'in_progress')->first();
+        
+        if ($activeRegistration) {
+            // Use existing active attempt
+            $currentAttempt = $activeRegistration->attempt_number;
+        } else {
+            // Create new attempt
+            $nextAttemptNumber = $existingRegistrations->max('attempt_number') ?? 0;
+            $nextAttemptNumber += 1;
             
-            return $questionData;
-        });
+            $registration = ExamRegistration::create([
+                'user_id' => $user->id,
+                'exam_id' => $exam->id,
+                'status' => 'in_progress',
+                'started_at' => now(),
+                'attempt_number' => $nextAttemptNumber,
+            ]);
+            
+            $currentAttempt = $nextAttemptNumber;
+        }
+        
+        // Calculate attempt text (e.g., "2/3")
+        $attemptText = $exam->max_attempts 
+            ? "{$currentAttempt}/{$exam->max_attempts}" 
+            : "{$currentAttempt}";
         
         return response()->json([
-            'message' => 'İmtahan başladı',
-            'registration' => [
-                'id' => $registration->id,
-                'exam_id' => $registration->exam_id,
-                'status' => $registration->status,
-                'attempt_number' => $registration->attempt_number,
-                'started_at' => $registration->started_at,
-                'total_questions' => $registration->total_questions,
-                'time_limit_minutes' => $exam->duration_minutes,
-            ],
-            'exam' => [
-                'id' => $exam->id,
-                'title' => $exam->title,
-                'description' => $exam->description,
-                'duration_minutes' => $exam->duration_minutes,
-                'passing_score' => $exam->passing_score,
-                'show_result_immediately' => $exam->show_results_immediately,
-                'show_correct_answers' => $exam->show_correct_answers,
-                'show_explanations' => $exam->show_explanations,
-            ],
-            'questions' => $formattedQuestions,
+            'message' => 'Exam attempt started',
+            'current_attempt' => $currentAttempt,
+            'max_attempts' => $exam->max_attempts,
+            'attempt_text' => $attemptText,
+            'can_start' => true,
+            'registration_id' => $activeRegistration->id ?? $registration->id ?? null
         ]);
     }
 
@@ -1306,40 +1316,116 @@ class ExamController extends Controller
         ]);
     }
 
-    // Get exam questions for taking (without correct answers)
+        // Get exam questions for taking (without correct answers)
     public function getExamForTaking(Exam $exam)
     {
-        $query = $exam->questions()
-            ->where('is_required', true)
-            ->with(['choices' => function ($query) use ($exam) {
-                if ($exam->randomize_choices) {
-                    $query->inRandomOrder();
-                } else {
-                    $query->orderBy('id');
-                }
-            }]);
-            
-        if ($exam->randomize_questions) {
-            $query->inRandomOrder();
-        } else {
-            $query->orderBy('sequence');
-        }
+        $user = request()->user();
         
-        $questions = $query->get()->map(function ($question) {
-            return $question->getForExam();
-        });
+        // Get all required questions first
+        $allQuestions = $exam->questions()
+            ->where('is_required', true)
+            ->get();
 
-        // Get user's exam registration for timing info
-        $registration = ExamRegistration::where('user_id', request()->user()->id)
+        // Apply exam_question_count limit if set
+        // If exam_question_count is set and less than total questions, randomly select that many
+        if ($exam->exam_question_count && $exam->exam_question_count > 0 && $allQuestions->count() > $exam->exam_question_count) {
+            // If randomize_questions is true, use random selection
+            // Otherwise, take first N questions by sequence
+            if ($exam->randomize_questions || $exam->randomize_questions === true) {
+                $allQuestions = $allQuestions->shuffle();
+            } else {
+                $allQuestions = $allQuestions->sortBy('sequence');
+            }
+            
+            // Take only the specified number of questions
+            $allQuestions = $allQuestions->take($exam->exam_question_count);
+            
+            // Reset sequence to start from 1 for limited questions
+            $allQuestions->each(function ($question, $index) {
+                $question->sequence = $index + 1;
+            });
+        } else {
+            // If no limit or limit >= total, use all questions
+            // Apply sorting based on randomize_questions
+            if ($exam->randomize_questions || $exam->randomize_questions === true) {
+                $allQuestions = $allQuestions->shuffle();
+                // Reset sequence after shuffle
+                $allQuestions->each(function ($question, $index) {
+                    $question->sequence = $index + 1;
+                });
+            } else {
+                $allQuestions = $allQuestions->sortBy('sequence');
+            }
+        }
+
+        // Get or create user's active registration
+        $registration = ExamRegistration::where('user_id', $user->id)
             ->where('exam_id', $exam->id)
+            ->where('status', 'in_progress')
+            ->latest()
             ->first();
 
+        // If no active registration, create one
+        if (!$registration) {
+            $existingRegistrations = ExamRegistration::where('user_id', $user->id)
+                ->where('exam_id', $exam->id)
+                ->get();
+            
+            $attemptNumber = $existingRegistrations->count() + 1;
+            $registration = ExamRegistration::create([
+                'user_id' => $user->id,
+                'exam_id' => $exam->id,
+                'status' => 'in_progress',
+                'started_at' => now(),
+                'attempt_number' => $attemptNumber
+            ]);
+        }
+
+        // Save selected question IDs to registration for later reference
+        $selectedQuestionIds = $allQuestions->pluck('id')->toArray();
+        $registration->update([
+            'selected_question_ids' => $selectedQuestionIds,
+            'total_questions' => count($selectedQuestionIds)
+        ]);
+
+        // Load choices for each question and apply randomization if needed
+        $questions = $allQuestions->map(function ($question) use ($exam) {
+            // Load choices
+            $choicesQuery = $question->choices();
+            
+            // Apply choice randomization if enabled
+            if ($exam->randomize_choices || $exam->randomize_choices === true) {
+                $choices = $question->choices()->inRandomOrder()->get();
+            } else {
+                $choices = $question->choices()->orderBy('id')->get();
+            }
+            
+            // Get question data without correct answers
+            $questionData = $question->getForExam();
+            
+            // Replace choices with randomized/shuffled ones
+            $questionData['choices'] = $choices->map(function ($choice) {
+                return [
+                    'id' => $choice->id,
+                    'choice_text' => $choice->choice_text,
+                    'choice_media' => $choice->choice_media,
+                    'explanation' => null, // Don't show explanation before submission
+                    'points' => $choice->points,
+                    'metadata' => $choice->metadata,
+                    // Don't include is_correct - it will be revealed after submission
+                ];
+            })->values();
+            
+            return $questionData;
+        })->values();
+
+                // Calculate timing info from registration
         $timeInfo = null;
         if ($registration && $registration->started_at) {
             $timeElapsed = $registration->started_at->diffInMinutes(now());
             $timeRemaining = max(0, $exam->duration_minutes - $timeElapsed);
             $timeExceeded = $timeElapsed > $exam->duration_minutes;
-            
+
             $timeInfo = [
                 'time_elapsed_minutes' => $timeElapsed,
                 'time_remaining_minutes' => $timeRemaining,
@@ -1361,13 +1447,18 @@ class ExamController extends Controller
                 'passing_score' => $exam->passing_score,
                 'time_warning_minutes' => $exam->time_warning_minutes,
                 'max_attempts' => $exam->max_attempts,
+                'exam_question_count' => $exam->exam_question_count,
                 'randomize_questions' => $exam->randomize_questions,
                 'randomize_choices' => $exam->randomize_choices,
+                'shuffle_questions' => $exam->randomize_questions ?? false,
+                'shuffle_choices' => $exam->randomize_choices ?? false,
                 'show_results_immediately' => $exam->show_results_immediately,
+                'show_result_immediately' => $exam->show_results_immediately ?? false,
                 'show_correct_answers' => $exam->show_correct_answers,
                 'show_explanations' => $exam->show_explanations,
                 'allow_tab_switching' => $exam->allow_tab_switching,
                 'track_tab_changes' => $exam->track_tab_changes,
+                'auto_submit' => $exam->auto_submit ?? false,
             ],
             'questions' => $questions,
             'total_questions' => $questions->count(),
@@ -1389,29 +1480,37 @@ class ExamController extends Controller
             'answers.*.answer_text' => ['nullable', 'string'],
         ]);
 
-        // Check if user has completed the related training
+        // Check if user has completed the related training (only if training requires completion before exam)
         if ($exam->training_id) {
             $training = \App\Models\Training::find($exam->training_id);
             
-            if ($training->type === 'video') {
-                // For video trainings, check if user has certificate
-                $trainingCompletion = \App\Models\Certificate::where('user_id', $request->user()->id)
-                    ->where('related_training_id', $exam->training_id)
-                    ->first();
-            } else {
-                // For non-video trainings, check registration status
-            $trainingCompletion = \App\Models\TrainingRegistration::where('user_id', $request->user()->id)
-                ->where('training_id', $exam->training_id)
-                ->where('status', 'completed')
-                ->first();
-            }
-            
-            if (!$trainingCompletion) {
-                return response()->json([
-                    'message' => 'Bu imtahanı vermək üçün əvvəlcə əlaqəli təlimi tamamlamalısınız',
-                    'training_id' => $exam->training_id,
-                    'training_title' => $exam->training->title ?? 'Unknown Training'
-                ], 403);
+            if ($training) {
+                // Skip training completion check for video trainings
+                // Video trainings don't require registration and users can take exam anytime
+                if ($training->type === 'video') {
+                    // Video trainings allow exam without completion requirement
+                    // Skip this check
+                } else {
+                    // For non-video trainings, check if training requires completion before exam
+                    $requiresCompletion = $training->exam_required ?? false;
+                    
+                    if ($requiresCompletion) {
+                        // Check TrainingRegistration status for non-video trainings
+                        $trainingCompletion = \App\Models\TrainingRegistration::where('user_id', $request->user()->id)
+                            ->where('training_id', $exam->training_id)
+                            ->where('status', 'completed')
+                            ->first();
+                        
+                        if (!$trainingCompletion) {
+                            return response()->json([
+                                'message' => 'Bu imtahanı vermək üçün əvvəlcə əlaqəli təlimi tamamlamalısınız',
+                                'training_id' => $exam->training_id,
+                                'training_title' => $training->title ?? 'Unknown Training',
+                                'training_type' => $training->type ?? 'unknown'
+                            ], 403);
+                        }
+                    }
+                }
             }
         }
 
@@ -1434,7 +1533,7 @@ class ExamController extends Controller
                     $certificate = [
                         'id' => $cert->id,
                         'certificate_number' => $cert->certificate_number,
-                        'issue_date' => $cert->issue_date ? (is_string($cert->issue_date) ? $cert->issue_date : (is_object($cert->issue_date) && method_exists($cert->issue_date, 'format') ? $cert->issue_date->format('d.m.Y') : $cert->issue_date)) : null,
+                        'issue_date' => $cert->issue_date->format('d.m.Y'),
                         'status' => $cert->status,
                         'is_active' => $cert->isActive(),
                         'download_url' => $cert->download_url,
@@ -1474,141 +1573,70 @@ class ExamController extends Controller
             ], 403);
         }
 
-        // Check if user has an active attempt
-        // First try to find by status, if not found try to find the most recent one that's not completed/passed
+        // Get active attempt (should exist from start/getExamForTaking)
         $activeRegistration = $existingRegistrations->where('status', 'in_progress')->first();
         
-        // If no in_progress found, check for the most recent registration that might still be active
         if (!$activeRegistration) {
-            $activeRegistration = $existingRegistrations
-                ->whereNotIn('status', ['completed', 'passed', 'failed', 'cancelled'])
-                ->sortByDesc('started_at')
+            // If no active registration, use firstOrCreate to avoid unique constraint violation
+            // Check if there's any existing registration (even if not in_progress)
+            $existingRegistration = ExamRegistration::where('user_id', $request->user()->id)
+                ->where('exam_id', $exam->id)
                 ->first();
-                
-            // If found and it has started_at, verify it's still within time limit
-            if ($activeRegistration && $activeRegistration->started_at) {
-                $timeElapsed = now()->diffInMinutes($activeRegistration->started_at);
-                if ($timeElapsed > $exam->duration_minutes) {
-                    // Time expired, can't use this registration
-                    $activeRegistration = null;
-                } else {
-                    // Still within time, update status to in_progress if needed
-                    if ($activeRegistration->status !== 'in_progress') {
-                        $activeRegistration->update(['status' => 'in_progress']);
-                    }
+            
+            if ($existingRegistration) {
+                // Use existing registration and update it
+                $registration = $existingRegistration;
+                // Update status to in_progress if it's not already
+                if ($registration->status !== 'in_progress') {
+                    $registration->update([
+                        'status' => 'in_progress',
+                        'started_at' => $registration->started_at ?? now(),
+                    ]);
                 }
-            }
-        }
-        
-        // If still no active registration found, try to auto-create one as a fallback
-        // (This handles cases where start endpoint wasn't called or failed)
-        if (!$activeRegistration && $existingRegistrations->isEmpty()) {
-            try {
-                // Get all questions for this exam
-                $allQuestions = $exam->questions()->with('choices')->get();
-                
-                if ($allQuestions->isEmpty()) {
-                    return response()->json([
-                        'message' => 'Bu imtahanda sual yoxdur',
-                        'exam_id' => $exam->id
-                    ], 422);
-                }
-                
-                // Select random questions based on exam_question_count
-                $selectedQuestions = $allQuestions;
-                if ($exam->exam_question_count < $allQuestions->count()) {
-                    $selectedQuestions = $allQuestions->random($exam->exam_question_count)->values();
-                }
-                
-                // Create registration automatically
-                $nextAttemptNumber = 1;
-                $activeRegistration = ExamRegistration::create([
+            } else {
+                // Create new registration only if none exists
+                $attemptNumber = 1;
+                $registration = ExamRegistration::create([
                     'user_id' => $request->user()->id,
                     'exam_id' => $exam->id,
                     'status' => 'in_progress',
                     'started_at' => now(),
-                    'attempt_number' => $nextAttemptNumber,
-                    'selected_question_ids' => $selectedQuestions->pluck('id')->toArray(),
-                    'total_questions' => $selectedQuestions->count(),
+                    'attempt_number' => $attemptNumber
                 ]);
-            } catch (\Exception $e) {
-                // If auto-creation fails, return helpful error
-                return response()->json([
-                    'message' => 'Aktiv imtahan tapılmadı və yeni imtahan yaradıla bilmədi. Lütfən əvvəlcə imtahanı başlatmaq üçün POST /api/v1/exams/{id}/start endpoint-ini çağırın.',
-                    'exam_id' => $exam->id,
-                    'exam_title' => $exam->title,
-                    'error' => config('app.debug') ? $e->getMessage() : null,
-                    'debug_info' => [
-                        'total_registrations' => $existingRegistrations->count(),
-                        'all_statuses' => $existingRegistrations->pluck('status')->toArray()
-                    ]
-                ], 404);
             }
+        } else {
+            $registration = $activeRegistration;
         }
-        
-        if (!$activeRegistration) {
-            // Check if there's a recent registration that might have timed out or was closed
-            $recentRegistration = $existingRegistrations->where('started_at', '!=', null)
-                ->sortByDesc('started_at')
-                ->first();
-            
-            // If there's a recent registration but it's not in_progress, provide more helpful error
-            if ($recentRegistration) {
-                return response()->json([
-                    'message' => 'Aktiv imtahan tapılmadı. Əvvəlcə imtahanı başlatmalısınız.',
-                    'exam_id' => $exam->id,
-                    'exam_title' => $exam->title,
-                    'hint' => 'Yeni imtahan başlatmaq üçün POST /api/v1/exams/' . $exam->id . '/start endpoint-ini çağırın',
-                    'debug_info' => [
-                        'last_registration_status' => $recentRegistration->status,
-                        'last_registration_started_at' => $recentRegistration->started_at,
-                        'all_registrations' => $existingRegistrations->map(function ($reg) {
-                            return [
-                                'id' => $reg->id,
-                                'status' => $reg->status,
-                                'started_at' => $reg->started_at,
-                                'attempt_number' => $reg->attempt_number
-                            ];
-                        })->values()
-                    ]
-                ], 404);
-            }
-            
-            return response()->json([
-                'message' => 'Aktiv imtahan tapılmadı. Əvvəlcə imtahanı başlatmalısınız.',
-                'exam_id' => $exam->id,
-                'exam_title' => $exam->title,
-                'hint' => 'Yeni imtahan başlatmaq üçün POST /api/v1/exams/' . $exam->id . '/start endpoint-ini çağırın',
-                'debug_info' => [
-                    'total_registrations' => $existingRegistrations->count(),
-                    'all_statuses' => $existingRegistrations->pluck('status')->toArray()
-                ]
-            ], 404);
-        }
-
-        // Use the existing active registration
-        $registration = $activeRegistration;
         
         // Force update the updated_at timestamp
         $registration->touch();
 
-        // Check if time limit exceeded
-        $timeElapsed = $registration->started_at ? now()->diffInMinutes($registration->started_at) : 0;
+        // Check if time limit exceeded (for new attempts, this will be false initially)
+        $timeElapsed = 0; // New attempt, no time elapsed yet
         $timeLimit = $exam->duration_minutes;
-        $timeExceeded = $timeElapsed > $timeLimit;
-        
-        // Track if there are text questions (needed for certificate generation)
-        $hasTextQuestions = false;
+        $timeExceeded = false; // Will be checked during submission
 
         try {
-            DB::transaction(function () use ($registration, $data, $exam, $request, $timeExceeded, &$hasTextQuestions) {
-                // Use registration's total_questions for scoring (this is the actual number of questions shown to user)
-                $totalQuestionsForScoring = $registration->total_questions ?? count($data['answers']);
-                $correctAnswers = 0;
+            DB::transaction(function () use ($registration, $data, $exam, $request, $timeExceeded) {
+                $totalPoints = 0;
+                $earnedPoints = 0;
+                $hasTextQuestions = false;
                 $textQuestionsCount = 0;
+                
+                // Get selected question IDs from registration if available (for exam_question_count)
+                $selectedQuestionIds = $registration->selected_question_ids ?? null;
                 
                 // Load all questions with choices in a single query to avoid N+1 problem
                 $questionIds = collect($data['answers'])->pluck('question_id');
+                
+                // If selected_question_ids exist, only validate answers for those questions
+                if ($selectedQuestionIds && is_array($selectedQuestionIds)) {
+                    // Filter questionIds to only include selected ones
+                    $questionIds = $questionIds->filter(function ($id) use ($selectedQuestionIds) {
+                        return in_array($id, $selectedQuestionIds);
+                    });
+                }
+                
                 $questions = ExamQuestion::where('exam_id', $exam->id)
                     ->whereIn('id', $questionIds)
                     ->with('choices')
@@ -1621,20 +1649,44 @@ class ExamController extends Controller
                         continue; // Skip invalid question IDs
                     }
 
-                    // Check if this is a text question
-                    if ($question->question_type === 'text') {
-                        $hasTextQuestions = true;
-                        $textQuestionsCount++;
-                    } else {
-                        // For auto-graded questions, check if answer is correct
-                        $isCorrect = $question->isAnswerCorrect($ans);
-                        if ($isCorrect) {
-                            $correctAnswers++;
+                    if ($question->is_required) {
+                        $totalPoints += $question->points;
+                        
+                        // Check if this is a text question
+                        if ($question->question_type === 'text') {
+                            $hasTextQuestions = true;
+                            $textQuestionsCount++;
+                        }
+                        
+                        // Calculate points with error handling
+                        try {
+                            $questionPoints = $question->calculatePoints($ans);
+                            
+                            // If questionPoints is null, it means manual grading needed
+                            if ($questionPoints === null) {
+                                // Text question with answer - will be graded manually
+                                $earnedPoints += 0; // Don't add points yet
+                            } else {
+                                $earnedPoints += $questionPoints;
+                            }
+                        } catch (\Exception $e) {
+                            \Log::error('Error calculating points for question ' . $question->id . ': ' . $e->getMessage());
+                            // Skip points calculation if there's an error
                         }
                     }
 
-                    // Store user answer
+                    // Store user answer with simplified approach
                     try {
+                        // Calculate if answer is correct
+                        $isCorrect = false;
+                        if ($question->question_type === 'text') {
+                            // Text questions need manual grading, is_correct will be set by admin
+                            $isCorrect = false; // Will be updated by admin
+                        } else {
+                            // Use isAnswerCorrect method to check if answer is correct
+                            $isCorrect = $question->isAnswerCorrect($ans);
+                        }
+                        
                         ExamUserAnswer::updateOrCreate([
                             'registration_id' => $registration->id,
                             'question_id' => $question->id,
@@ -1642,6 +1694,7 @@ class ExamController extends Controller
                             'choice_id' => $ans['choice_id'] ?? null,
                             'choice_ids' => $ans['choice_ids'] ?? null,
                             'answer_text' => $ans['answer_text'] ?? null,
+                            'is_correct' => $isCorrect,
                             'answered_at' => now(),
                             'needs_manual_grading' => $question->question_type === 'text' && !empty(trim($ans['answer_text'] ?? '')),
                         ]);
@@ -1651,28 +1704,38 @@ class ExamController extends Controller
                     }
                 }
 
-                // Calculate score using new system: (correct_answers * 100) / total_questions
-                $autoGradedQuestions = $totalQuestionsForScoring - $textQuestionsCount;
-                $score = $autoGradedQuestions > 0 ? (int) floor(($correctAnswers * 100) / $autoGradedQuestions) : 0;
-                
-                // Determine if passed based on auto-graded questions
+                // Calculate score based on whether there are text questions
+                if ($hasTextQuestions) {
+                    // If there are text questions, calculate partial score from auto-graded questions only
+                    $autoGradedPoints = $totalPoints - ($textQuestionsCount * 1); // Assuming each text question is worth 1 point for now
+                    $score = $autoGradedPoints > 0 ? (int) floor(($earnedPoints / $autoGradedPoints) * 100) : 0;
+                    $passed = false; // Will be determined after manual grading
+                } else {
+                    // All questions are auto-graded
+                    $score = $totalPoints > 0 ? (int) floor(($earnedPoints / $totalPoints) * 100) : 0;
                     $passed = $score >= (int) $exam->passing_score;
+                }
 
-                // Determine final status based on new logic
+            // Determine final status
             if ($timeExceeded) {
                 $finalStatus = 'timeout';
             } elseif ($hasTextQuestions) {
-                    // If there are text questions, check if auto-graded score is sufficient
-                    if ($passed && $exam->show_results_immediately) {
-                        // If auto-graded questions are sufficient and show_result_immediately is true
-                        $finalStatus = 'passed';
+                $finalStatus = 'pending_review'; // Needs manual grading
             } else {
-                        // Need manual grading for text questions
-                        $finalStatus = 'pending_review';
-                    }
-                } else {
-                    // All questions are auto-graded
                 $finalStatus = $passed ? 'passed' : 'failed';
+            }
+
+            // Calculate total questions count
+            $totalQuestionsCount = $registration->total_questions;
+            if (!$totalQuestionsCount || $totalQuestionsCount === 0) {
+                // If not set, calculate from selected_question_ids or all questions
+                if ($registration->selected_question_ids && is_array($registration->selected_question_ids)) {
+                    $totalQuestionsCount = count($registration->selected_question_ids);
+                } else {
+                    // Count unique questions answered
+                    $answeredQuestionIds = collect($data['answers'])->pluck('question_id')->unique();
+                    $totalQuestionsCount = $answeredQuestionIds->count();
+                }
             }
 
             $registration->update([
@@ -1681,8 +1744,26 @@ class ExamController extends Controller
                 'finished_at' => now(),
                 'needs_manual_grading' => $hasTextQuestions,
                 'auto_graded_score' => $hasTextQuestions ? $score : null,
+                'total_questions' => $totalQuestionsCount,
             ]);
-        });
+
+            if ($passed && !$timeExceeded && !$hasTextQuestions) {
+                // Check if training provides certificates
+                $training = \App\Models\Training::find($exam->training_id);
+                if ($training && $training->has_certificate) {
+                    $cert = Certificate::create([
+                        'user_id' => $request->user()->id,
+                        'related_training_id' => $exam->training_id,
+                        'related_exam_id' => $exam->id,
+                        'certificate_number' => Str::uuid()->toString(),
+                        'issue_date' => now()->toDateString(),
+                        'issuer_name' => 'Aqrar Portal',
+                        'status' => 'active',
+                    ]);
+                    $registration->update(['certificate_id' => $cert->id]);
+                }
+            }
+            });
 
         } catch (\Exception $e) {
             \Log::error('Error in exam submission: ' . $e->getMessage());
@@ -1696,77 +1777,7 @@ class ExamController extends Controller
             ], 500);
         }
 
-        // Refresh the registration to get updated data
-        $registration->refresh();
-        
-        // Handle certificate generation and email notification outside transaction
-        try {
-            // Generate certificate if exam is passed (regardless of text questions)
-            // Text questions with manual grading will be handled after grading is complete
-            if ($registration->status === 'passed' && !$timeExceeded) {
-                // Check if certificate already exists
-                $existingCertificate = Certificate::where('user_id', $request->user()->id)
-                    ->where('related_exam_id', $exam->id)
-                    ->first();
-                
-                if (!$existingCertificate) {
-                    // Check if training provides certificates
-                    $training = $exam->training_id ? Training::find($exam->training_id) : null;
-                    
-                    if ($training && $training->has_certificate) {
-                        // Generate PDF certificate using PHP service
-                        try {
-                            $this->generatePdfCertificate($request->user(), $exam, $training, $registration);
-                        } catch (\Exception $e) {
-                            \Log::error('PDF certificate generation failed: ' . $e->getMessage());
-                            // Fall through to create simple certificate
-                        }
-                    }
-                    
-                    // If still no certificate (either no training, training doesn't have certificate, or PDF generation failed),
-                    // create a simple certificate record
-                    $certificate = Certificate::where('user_id', $request->user()->id)
-                        ->where('related_exam_id', $exam->id)
-                        ->first();
-                        
-                    if (!$certificate) {
-                        try {
-                            // Calculate expiry date if certificate validity is set
-                            $expiryDate = null;
-                            if ($exam->certificate_validity_days) {
-                                $expiryDate = now()->addDays($exam->certificate_validity_days)->toDateString();
-                            }
-                            
-                            $certificate = Certificate::create([
-                                'user_id' => $request->user()->id,
-                                'related_training_id' => $exam->training_id,
-                                'related_exam_id' => $exam->id,
-                                'certificate_number' => 'EXAM-' . $exam->id . '-' . $request->user()->id . '-' . now()->format('YmdHis'),
-                                'issue_date' => now()->toDateString(),
-                                'expiry_date' => $expiryDate,
-                                'issuer_name' => 'Aqrar Portal',
-                                'status' => 'active',
-                            ]);
-                            
-                            // Update registration with certificate
-                            $registration->update(['certificate_id' => $certificate->id]);
-                        } catch (\Exception $e) {
-                            \Log::error('Failed to create simple certificate: ' . $e->getMessage());
-                        }
-                    }
-                }
-            }
-            
-            // Send email notification based on status
-            $this->sendExamNotification($request->user(), $exam, $registration, $registration->status);
-        } catch (\Exception $e) {
-            \Log::error('Error in post-submission tasks: ' . $e->getMessage());
-            // Don't fail the entire request for certificate/email errors
-        }
-        
-        // Refresh registration to ensure certificate relationship is loaded
-        $registration->refresh();
-        $response = $registration->load('certificate');
+        $response = ExamRegistration::find($registration->id)->load('certificate');
         
         // Add timing information to response
         $response->time_elapsed_minutes = $timeElapsed;
@@ -1803,439 +1814,325 @@ class ExamController extends Controller
     }
 
     /**
-     * Generate PDF certificate using Python script
-     */
-    private function generatePdfCertificate($user, $exam, $training, $registration)
-    {
-        try {
-            // Check if certificate already exists for this user and exam
-            $existingCertificate = Certificate::where('user_id', $user->id)
-                ->where('related_exam_id', $exam->id)
-                ->first();
-                
-            if ($existingCertificate) {
-                // If certificate exists but has no PDF, try to generate it
-                if (!$existingCertificate->pdf_path) {
-                    Log::info('Certificate exists but has no PDF, attempting to generate PDF for user ' . $user->id . ' and exam ' . $exam->id);
-                    // Continue with PDF generation below
-                } else {
-                    Log::info('Certificate already exists with PDF for user ' . $user->id . ' and exam ' . $exam->id);
-                    // Update registration with existing certificate
-                    $registration->update(['certificate_id' => $existingCertificate->id]);
-                    return;
-                }
-            }
-            
-            // Prepare data for certificate generation
-            $userData = [
-                'id' => $user->id,
-                'first_name' => $user->first_name,
-                'last_name' => $user->last_name,
-                'email' => $user->email,
-            ];
-            
-            $examData = [
-                'id' => $exam->id,
-                'title' => $exam->title,
-                'description' => $exam->description,
-                'sertifikat_description' => $exam->sertifikat_description,
-            ];
-            
-            $trainingData = [
-                'id' => $training->id,
-                'title' => $training->title,
-                'description' => $training->description,
-            ];
-
-            // Use PHP certificate generator service
-            $service = new \App\Services\CertificateGeneratorService();
-            $result = $service->generateCertificate($userData, $examData, $trainingData);
-            
-            if (!$result['success']) {
-                Log::error('Certificate generation error: ' . ($result['error'] ?? 'Unknown error'), ['result' => $result]);
-                return;
-            }
-            
-            $output = $result;
-
-            // Create or update certificate record with duplicate key handling
-            try {
-                // Calculate expiry date if certificate validity is set
-                $expiryDate = null;
-                if ($exam->certificate_validity_days) {
-                    $expiryDate = now()->addDays($exam->certificate_validity_days)->toDateString();
-                }
-                
-                if ($existingCertificate) {
-                    // Update existing certificate with PDF info
-                    $existingCertificate->update([
-                        'certificate_number' => $output['certificate_number'],
-                        'digital_signature' => $output['digital_signature'],
-                        'pdf_path' => $output['pdf_path'],
-                        'pdf_url' => url('/storage/' . $output['pdf_path']),
-                        'expiry_date' => $expiryDate ?? $existingCertificate->expiry_date,
-                    ]);
-                    $certificate = $existingCertificate;
-                    Log::info('Updated existing certificate with PDF for user ' . $user->id . ' and exam ' . $exam->id);
-                } else {
-                    // Create new certificate record
-                    $certificate = Certificate::create([
-                        'user_id' => $user->id,
-                        'related_training_id' => $training->id,
-                        'related_exam_id' => $exam->id,
-                        'certificate_number' => $output['certificate_number'],
-                        'issue_date' => now()->toDateString(),
-                        'expiry_date' => $expiryDate,
-                        'issuer_name' => 'Aqrar Portal',
-                        'status' => 'active',
-                        'digital_signature' => $output['digital_signature'],
-                        'pdf_path' => $output['pdf_path'],
-                        'pdf_url' => url('/storage/' . $output['pdf_path']),
-                    ]);
-                    Log::info('Created new certificate with PDF for user ' . $user->id . ' and exam ' . $exam->id);
-                }
-                
-                // Update registration with certificate
-                $registration->update(['certificate_id' => $certificate->id]);
-                
-            } catch (\Illuminate\Database\QueryException $e) {
-                if ($e->getCode() == '23505') { // Unique violation
-                    Log::warning('Certificate with number ' . $output['certificate_number'] . ' already exists, using existing certificate');
-                    
-                    // Find existing certificate
-                    $existingCert = Certificate::where('certificate_number', $output['certificate_number'])->first();
-                    if ($existingCert) {
-                        $registration->update(['certificate_id' => $existingCert->id]);
-                        Log::info('Updated registration with existing certificate ID: ' . $existingCert->id);
-                    }
-                } else {
-                    throw $e; // Re-throw if it's not a unique violation
-                }
-            }
-
-            Log::info('PDF certificate generated successfully', [
-                'user_id' => $user->id,
-                'exam_id' => $exam->id,
-                'certificate_id' => $certificate->id ?? 'existing',
-                'digital_signature' => $output['digital_signature']
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error generating PDF certificate: ' . $e->getMessage());
-        }
-    }
-    
-
-    /**
      * Get user's exam result/history for a specific exam
      */
     public function getUserExamResult(Exam $exam, Request $request)
     {
-        $user = $request->user();
+        $userId = $request->user()->id;
         
-        // Check if user has passed this exam
-        $passedAttempt = ExamRegistration::where('user_id', $user->id)
+        // Get all user's attempts for this exam
+        $attempts = ExamRegistration::where('user_id', $userId)
             ->where('exam_id', $exam->id)
-            ->where('status', 'passed')
-            ->first();
+            ->with('certificate')
+            ->orderBy('created_at', 'desc')
+            ->get();
         
-        if (!$passedAttempt) {
+        if ($attempts->isEmpty()) {
             return response()->json([
-                'message' => 'Bu imtahanı hələ keçməmisiniz',
+                'message' => 'Bu imtahan üçün heç bir cəhdiniz yoxdur',
                 'exam' => [
                     'id' => $exam->id,
                     'title' => $exam->title,
                     'passing_score' => $exam->passing_score,
+                    'max_attempts' => $exam->max_attempts,
                 ],
-                'has_passed' => false,
-                'certificate' => null,
+                'has_attempts' => false,
+                'attempts' => [],
             ]);
         }
         
-        // Check if user has certificate for this exam
-        $certificate = Certificate::where('user_id', $user->id)
-            ->where('related_exam_id', $exam->id)
-            ->first();
-        
-        // If no certificate exists, create one
-        if (!$certificate) {
-            $training = $exam->training_id ? Training::find($exam->training_id) : null;
-            
-            // Try to generate PDF certificate if training exists and has certificate enabled
-            if ($training && $training->has_certificate) {
-                Log::info('Creating certificate for user ' . $user->id . ' exam ' . $exam->id);
-                try {
-                    $this->generatePdfCertificate($user, $exam, $training, $passedAttempt);
-                    
-                    // Reload certificate after creation
-                    $certificate = Certificate::where('user_id', $user->id)
-                        ->where('related_exam_id', $exam->id)
-                        ->first();
-                    
-                    Log::info('Certificate created: ' . ($certificate ? 'Yes' : 'No'));
-                } catch (\Exception $e) {
-                    Log::error('Failed to generate PDF certificate: ' . $e->getMessage());
-                    // Fall through to create simple certificate
-                }
-            }
-            
-            // If still no certificate (either no training, training doesn't have certificate, or PDF generation failed),
-            // create a simple certificate record
-            if (!$certificate) {
-                try {
-                    // Calculate expiry date if certificate validity is set
-                    $expiryDate = null;
-                    if ($exam->certificate_validity_days) {
-                        $expiryDate = now()->addDays($exam->certificate_validity_days)->toDateString();
-                    }
-                    
-                    $certificate = Certificate::create([
-                        'user_id' => $user->id,
-                        'related_training_id' => $exam->training_id,
-                        'related_exam_id' => $exam->id,
-                        'certificate_number' => 'EXAM-' . $exam->id . '-' . $user->id . '-' . now()->format('YmdHis'),
-                        'issue_date' => now()->toDateString(),
-                        'expiry_date' => $expiryDate,
-                        'issuer_name' => 'Aqrar Portal',
-                        'status' => 'active',
-                    ]);
-                    
-                    // Update registration with certificate
-                    $passedAttempt->update(['certificate_id' => $certificate->id]);
-                    
-                    // Reload certificate to ensure it's available
-                    $certificate = $certificate->fresh();
-                    $passedAttempt->refresh();
-                    
-                    Log::info('Simple certificate created for user ' . $user->id . ' exam ' . $exam->id);
-                } catch (\Exception $e) {
-                    Log::error('Failed to create certificate: ' . $e->getMessage());
-                }
-            }
-            
-            // Reload certificate if it was just created
-            if (!$certificate) {
-                $certificate = Certificate::where('user_id', $user->id)
-                    ->where('related_exam_id', $exam->id)
-                    ->first();
-            }
+        // Get best attempt
+        $bestAttempt = $attempts->where('status', 'passed')->sortByDesc('score')->first();
+        if (!$bestAttempt) {
+            $bestAttempt = $attempts->sortByDesc('score')->first();
         }
         
-        // Reload passedAttempt to get certificate relationship
-        $passedAttempt->refresh();
-        $passedAttempt->load('certificate');
-        
-        // Ensure certificate variable is set from the relationship
-        if ($passedAttempt->certificate) {
-            $certificate = $passedAttempt->certificate;
-        } elseif (!$certificate) {
-            // Final fallback: reload certificate directly
-            $certificate = Certificate::where('user_id', $user->id)
-                ->where('related_exam_id', $exam->id)
-                ->first();
-        }
-        
-        // Get all user's attempts for this exam
-        $allAttempts = ExamRegistration::where('user_id', $user->id)
-            ->where('exam_id', $exam->id)
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->load('certificate');
-        
-        // Calculate statistics
-        $passedCount = $allAttempts->where('status', 'passed')->count();
-        $failedCount = $allAttempts->where('status', 'failed')->count();
-        $pendingCount = $allAttempts->where('status', 'pending_review')->count();
-        $averageScore = $allAttempts->avg('score');
-        $bestScore = $allAttempts->max('score');
-        
-        // Calculate correct and incorrect answers for best attempt using new system
-        $bestAttemptAnswers = ExamUserAnswer::where('registration_id', $passedAttempt->id)->get();
-        $totalQuestions = $passedAttempt->total_questions ?? $exam->questions()->count();
-        $correctAnswers = 0;
-        $incorrectAnswers = 0;
-        
-        // Get questions with choices for detailed results
-        $questionIds = $bestAttemptAnswers->pluck('question_id');
-        $questions = ExamQuestion::whereIn('id', $questionIds)
-            ->with('choices')
-            ->get()
-            ->keyBy('id');
-        
-        // Format questions with user answers and correct answers
-        $detailedQuestions = [];
-        
-        foreach ($bestAttemptAnswers as $answer) {
-            $question = $questions->get($answer->question_id);
-            if (!$question) continue;
-            
-            $isCorrect = false;
-            if (!$question->needsManualGrading()) {
-                $isCorrect = $question->isAnswerCorrect($answer);
-                if ($isCorrect) {
-                    $correctAnswers++;
-                } else {
-                    $incorrectAnswers++;
-                }
-            }
-            
-            // Format question with user answer and correct answer
-            $questionData = [
-                'id' => $question->id,
-                'question_text' => $question->question_text,
-                'question_type' => $question->question_type,
-                'difficulty' => $question->difficulty,
-                'explanation' => $exam->show_explanations ? $question->explanation : null,
-                'is_correct' => $isCorrect,
-                'user_answer' => [
-                    'choice_id' => $answer->choice_id,
-                    'choice_ids' => $answer->choice_ids,
-                    'answer_text' => $answer->answer_text,
-                    'answered_at' => $answer->answered_at,
-                ],
-                'correct_answer' => null,
-                'choices' => []
-            ];
-            
-            // Add choices with correct answers marked
-            if (in_array($question->question_type, ['single_choice', 'multiple_choice', 'true_false'])) {
-                $questionData['choices'] = $question->choices->map(function ($choice) use ($exam) {
-                    return [
-                        'id' => $choice->id,
-                        'choice_text' => $choice->choice_text,
-                        'is_correct' => $exam->show_correct_answers ? $choice->is_correct : null,
-                        'sequence' => $choice->sequence,
-                    ];
-                });
-                
-                // Mark correct answer only if show_correct_answers is true
-                if ($exam->show_correct_answers) {
-                    if ($question->question_type === 'single_choice' || $question->question_type === 'true_false') {
-                        $correctChoice = $question->choices->where('is_correct', true)->first();
-                        if ($correctChoice) {
-                            $questionData['correct_answer'] = [
-                                'choice_id' => $correctChoice->id,
-                                'choice_text' => $correctChoice->choice_text,
-                            ];
-                        }
-                    } elseif ($question->question_type === 'multiple_choice') {
-                        $correctChoices = $question->choices->where('is_correct', true);
-                        $questionData['correct_answer'] = [
-                            'choice_ids' => $correctChoices->pluck('id')->toArray(),
-                            'choices' => $correctChoices->map(function ($choice) {
-                                return [
-                                    'id' => $choice->id,
-                                    'choice_text' => $choice->choice_text,
-                                ];
-                            })->toArray(),
-                        ];
-                    }
-                }
-            }
-            
-            $detailedQuestions[] = $questionData;
-        }
-        
-        // Format all attempts
-        $formattedAttempts = $allAttempts->map(function ($attempt) use ($totalQuestions) {
+        // Format attempts with questions and answers if allowed
+        $formattedAttempts = $attempts->map(function ($attempt) use ($exam) {
             $certificate = null;
             if ($attempt->certificate) {
             $certificate = [
                 'id' => $attempt->certificate->id,
-                    'certificate_number' => $attempt->certificate->certificate_number,
-                    'issue_date' => $attempt->certificate->issue_date->format('Y-m-d'),
-                    'download_url' => 'http://localhost:8000/storage/' . $attempt->certificate->pdf_path,
-                ];
+                'issue_date' => $attempt->certificate->issue_date->format('d.m.Y'),
+                'status' => $attempt->certificate->status,
+                'is_active' => $attempt->certificate->isActive(),
+                'pdf_url' => $attempt->certificate->pdf_url,
+                // Frontend üçün sadə məlumatlar
+                'user_name' => $attempt->certificate->user->first_name . ' ' . $attempt->certificate->user->last_name,
+                'training_title' => $attempt->certificate->training ? $attempt->certificate->training->title : null,
+                'training_category' => $attempt->certificate->training ? $attempt->certificate->training->category : null,
+                'exam_title' => $attempt->certificate->exam ? $attempt->certificate->exam->title : null,
+                'exam_score' => $attempt->score,
+                'passing_score' => $attempt->certificate->exam ? $attempt->certificate->exam->passing_score : null,
+            ];
             }
             
-            // Calculate correct and incorrect answers for this attempt using new system
-            $attemptAnswers = ExamUserAnswer::where('registration_id', $attempt->id)->get();
-            $correctAnswers = 0;
-            $incorrectAnswers = 0;
-            $attemptTotalQuestions = $attempt->total_questions ?? $totalQuestions;
-            
-            foreach ($attemptAnswers as $answer) {
-                $question = ExamQuestion::find($answer->question_id);
-                if ($question && !$question->needsManualGrading()) {
-                    $isCorrect = $question->isAnswerCorrect($answer);
-                    if ($isCorrect) {
-                        $correctAnswers++;
-                    } else {
-                        $incorrectAnswers++;
-                    }
-                }
-            }
-            
-            return [
+            $attemptData = [
                 'id' => $attempt->id,
-                'exam_id' => $attempt->exam_id,
-                'status' => $attempt->status,
                 'score' => $attempt->score,
-                'time_spent_minutes' => $attempt->time_spent_minutes,
+                'status' => $attempt->status,
                 'attempt_number' => $attempt->attempt_number,
                 'started_at' => $attempt->started_at,
                 'finished_at' => $attempt->finished_at,
-                'created_at' => $attempt->created_at,
-                'correct_answers' => $correctAnswers,
-                'incorrect_answers' => $incorrectAnswers,
-                'total_questions' => $attemptTotalQuestions,
+                'time_spent_minutes' => $attempt->time_spent_minutes,
+                'needs_manual_grading' => $attempt->needs_manual_grading,
                 'certificate' => $certificate,
+                'created_at' => $attempt->created_at,
             ];
+            
+            // Add questions with answers if exam settings allow it
+            if ($exam->show_correct_answers || $exam->show_explanations) {
+                // Get selected question IDs for this attempt
+                $selectedQuestionIds = $attempt->selected_question_ids ?? [];
+                
+                // If no selected questions, get all questions from exam
+                if (empty($selectedQuestionIds)) {
+                    $questions = ExamQuestion::where('exam_id', $exam->id)
+                        ->where('is_required', true)
+                        ->with('choices')
+                        ->orderBy('sequence')
+                        ->get();
+                } else {
+                    $questions = ExamQuestion::where('exam_id', $exam->id)
+                        ->whereIn('id', $selectedQuestionIds)
+                        ->with('choices')
+                        ->orderBy('sequence')
+                        ->get();
+                }
+                
+                // Get user answers for this attempt
+                $userAnswers = ExamUserAnswer::where('registration_id', $attempt->id)
+                    ->with(['question', 'choice'])
+                    ->get()
+                    ->keyBy('question_id');
+                
+                // Format questions with answers
+                $attemptData['questions'] = $questions->map(function ($question) use ($userAnswers, $exam) {
+                    $userAnswer = $userAnswers->get($question->id);
+                    
+                    $questionData = [
+                        'id' => $question->id,
+                        'question_text' => $question->question_text,
+                        'question_type' => $question->question_type,
+                        'question_media' => $question->question_media,
+                        'points' => $question->points,
+                        'sequence' => $question->sequence,
+                        'is_required' => $question->is_required,
+                    ];
+                    
+                    // Add explanation if allowed
+                    if ($exam->show_explanations) {
+                        $questionData['explanation'] = $question->explanation;
+                    }
+                    
+                    // Process choices
+                    if ($question->choices->isNotEmpty()) {
+                        $questionData['choices'] = $question->choices->map(function ($choice) use ($userAnswer, $exam) {
+                            $choiceData = [
+                                'id' => $choice->id,
+                                'choice_text' => $choice->choice_text,
+                                'choice_media' => $choice->choice_media,
+                                'points' => $choice->points,
+                                'sequence' => $choice->sequence,
+                            ];
+                            
+                            // Show correct answer if allowed
+                            if ($exam->show_correct_answers) {
+                                $choiceData['is_correct'] = $choice->is_correct;
+                            }
+                            
+                            // Show explanation if allowed
+                            if ($exam->show_explanations && $choice->explanation) {
+                                $choiceData['explanation'] = $choice->explanation;
+                            }
+                            
+                            return $choiceData;
+                        });
+                    }
+                    
+                    // Add user answer
+                    if ($userAnswer) {
+                        $questionData['user_answer'] = [
+                            'choice_id' => $userAnswer->choice_id,
+                            'choice_ids' => $userAnswer->choice_ids,
+                            'answer_text' => $userAnswer->answer_text,
+                            'is_correct' => $exam->show_correct_answers ? $userAnswer->is_correct : null,
+                            'admin_feedback' => $userAnswer->admin_feedback,
+                            'graded_at' => $userAnswer->graded_at,
+                        ];
+                    } else {
+                        $questionData['user_answer'] = null;
+                    }
+                    
+                    return $questionData;
+                });
+            }
+            
+            return $attemptData;
         });
         
-        // Prepare response
-        $response = [
+        // Calculate statistics
+        $passedCount = $attempts->where('status', 'passed')->count();
+        $failedCount = $attempts->where('status', 'failed')->count();
+        $pendingCount = $attempts->where('status', 'pending_review')->count();
+        $averageScore = $attempts->avg('score');
+        
+        return response()->json([
             'exam' => [
                 'id' => $exam->id,
                 'title' => $exam->title,
                 'description' => $exam->description,
                 'passing_score' => $exam->passing_score,
                 'max_attempts' => $exam->max_attempts,
-                'total_questions' => $totalQuestions,
-                'exam_question_count' => $exam->exam_question_count,
-                'shuffle_questions' => $exam->randomize_questions,
-                'shuffle_choices' => $exam->randomize_choices,
-                'show_result_immediately' => $exam->show_results_immediately,
-                'show_correct_answers' => $exam->show_correct_answers,
-                'show_explanations' => $exam->show_explanations,
+                'duration_minutes' => $exam->duration_minutes,
             ],
-            'best_attempt' => [
-                'id' => $passedAttempt->id,
-                'exam_id' => $passedAttempt->exam_id,
-                'status' => $passedAttempt->status,
-                'score' => $passedAttempt->score,
-                'time_spent_minutes' => $passedAttempt->time_spent_minutes,
-                'attempt_number' => $passedAttempt->attempt_number,
-                'started_at' => $passedAttempt->started_at,
-                'finished_at' => $passedAttempt->finished_at,
-                'created_at' => $passedAttempt->created_at,
-                'correct_answers' => $correctAnswers,
-                'incorrect_answers' => $incorrectAnswers,
-                'total_questions' => $totalQuestions,
-                'questions' => $detailedQuestions,
-                'certificate' => $certificate ? [
-                    'id' => $certificate->id,
-                    'certificate_number' => $certificate->certificate_number,
-                    'issue_date' => $certificate->issue_date ? (is_string($certificate->issue_date) ? $certificate->issue_date : (is_object($certificate->issue_date) && method_exists($certificate->issue_date, 'format') ? $certificate->issue_date->format('Y-m-d') : $certificate->issue_date)) : null,
-                    'download_url' => $certificate->pdf_path ? ('http://localhost:8000/storage/' . $certificate->pdf_path) : null,
-                    'verification_url' => $certificate->verification_url ?? null,
-                    'status' => $certificate->status ?? null,
-                ] : null,
-            ],
-            'attempts' => $formattedAttempts,
+            'has_attempts' => true,
+            'total_attempts' => $attempts->count(),
+            'remaining_attempts' => $exam->max_attempts ? max(0, $exam->max_attempts - $attempts->count()) : null,
             'statistics' => [
                 'passed_count' => $passedCount,
                 'failed_count' => $failedCount,
                 'pending_count' => $pendingCount,
                 'average_score' => round($averageScore, 2),
-                'best_score' => $bestScore,
+                'best_score' => $bestAttempt ? $bestAttempt->score : null,
             ],
-            'has_attempts' => $allAttempts->count() > 0,
-            'total_attempts' => $allAttempts->count(),
-            'remaining_attempts' => $exam->max_attempts ? max(0, $exam->max_attempts - $allAttempts->count()) : null,
+            'best_attempt' => $bestAttempt ? $this->formatAttemptWithQuestions($bestAttempt, $exam) : null,
+            'attempts' => $formattedAttempts,
+        ]);
+    }
+
+    /**
+     * Format attempt with questions and answers for result display
+     */
+    private function formatAttemptWithQuestions($attempt, $exam)
+    {
+        $certificate = null;
+        if ($attempt->certificate) {
+            $certificate = [
+                'id' => $attempt->certificate->id,
+                'issue_date' => $attempt->certificate->issue_date->format('d.m.Y'),
+                'status' => $attempt->certificate->status,
+                'is_active' => $attempt->certificate->isActive(),
+                'pdf_url' => $attempt->certificate->pdf_url,
+                'user_name' => $attempt->certificate->user->first_name . ' ' . $attempt->certificate->user->last_name,
+                'training_title' => $attempt->certificate->training ? $attempt->certificate->training->title : null,
+                'training_category' => $attempt->certificate->training ? $attempt->certificate->training->category : null,
+                'exam_title' => $attempt->certificate->exam ? $attempt->certificate->exam->title : null,
+                'exam_score' => $attempt->score,
+                'passing_score' => $attempt->certificate->exam ? $attempt->certificate->exam->passing_score : null,
+            ];
+        }
+        
+        $attemptData = [
+            'id' => $attempt->id,
+            'score' => $attempt->score,
+            'status' => $attempt->status,
+            'attempt_number' => $attempt->attempt_number,
+            'finished_at' => $attempt->finished_at,
+            'certificate' => $certificate,
         ];
         
-        return response()->json($response);
+        // Add questions with answers if exam settings allow it
+        if ($exam->show_correct_answers || $exam->show_explanations) {
+            // Get selected question IDs for this attempt
+            $selectedQuestionIds = $attempt->selected_question_ids ?? [];
+            
+            // If no selected questions, get all questions from exam
+            if (empty($selectedQuestionIds)) {
+                $questions = ExamQuestion::where('exam_id', $exam->id)
+                    ->where('is_required', true)
+                    ->with('choices')
+                    ->orderBy('sequence')
+                    ->get();
+            } else {
+                $questions = ExamQuestion::where('exam_id', $exam->id)
+                    ->whereIn('id', $selectedQuestionIds)
+                    ->with('choices')
+                    ->orderBy('sequence')
+                    ->get();
+            }
+            
+            // Get user answers for this attempt
+            $userAnswers = ExamUserAnswer::where('registration_id', $attempt->id)
+                ->with(['question', 'choice'])
+                ->get()
+                ->keyBy('question_id');
+            
+            // Format questions with answers
+            $attemptData['questions'] = $questions->map(function ($question) use ($userAnswers, $exam) {
+                $userAnswer = $userAnswers->get($question->id);
+                
+                $questionData = [
+                    'id' => $question->id,
+                    'question_text' => $question->question_text,
+                    'question_type' => $question->question_type,
+                    'question_media' => $question->question_media,
+                    'points' => $question->points,
+                    'sequence' => $question->sequence,
+                    'is_required' => $question->is_required,
+                ];
+                
+                // Add explanation if allowed
+                if ($exam->show_explanations) {
+                    $questionData['explanation'] = $question->explanation;
+                }
+                
+                // Process choices
+                if ($question->choices->isNotEmpty()) {
+                    $questionData['choices'] = $question->choices->map(function ($choice) use ($userAnswer, $exam) {
+                        $choiceData = [
+                            'id' => $choice->id,
+                            'choice_text' => $choice->choice_text,
+                            'choice_media' => $choice->choice_media,
+                            'points' => $choice->points,
+                            'sequence' => $choice->sequence,
+                        ];
+                        
+                        // Show correct answer if allowed
+                        if ($exam->show_correct_answers) {
+                            $choiceData['is_correct'] = $choice->is_correct;
+                        }
+                        
+                        // Show explanation if allowed
+                        if ($exam->show_explanations && $choice->explanation) {
+                            $choiceData['explanation'] = $choice->explanation;
+                        }
+                        
+                        return $choiceData;
+                    });
+                }
+                
+                // Add user answer
+                if ($userAnswer) {
+                    // Calculate is_correct real-time if not set (for old attempts)
+                    $isCorrect = $userAnswer->is_correct;
+                    if ($isCorrect === null || ($question->question_type !== 'text' && !$userAnswer->graded_at)) {
+                        // Recalculate for non-text questions if not already graded
+                        $answerData = [
+                            'choice_id' => $userAnswer->choice_id,
+                            'choice_ids' => $userAnswer->choice_ids,
+                            'answer_text' => $userAnswer->answer_text,
+                        ];
+                        $isCorrect = $question->isAnswerCorrect($answerData);
+                    }
+                    
+                    $questionData['user_answer'] = [
+                        'choice_id' => $userAnswer->choice_id,
+                        'choice_ids' => $userAnswer->choice_ids,
+                        'answer_text' => $userAnswer->answer_text,
+                        'is_correct' => $exam->show_correct_answers ? $isCorrect : null,
+                        'admin_feedback' => $userAnswer->admin_feedback,
+                        'graded_at' => $userAnswer->graded_at,
+                    ];
+                } else {
+                    $questionData['user_answer'] = null;
+                }
+                
+                return $questionData;
+            });
+        }
+        
+        return $attemptData;
     }
 
     // Upload media to exam question or choice
@@ -2298,47 +2195,57 @@ class ExamController extends Controller
     }
 
     /**
-     * Update exam status
+     * Get exams dropdown list for training form
+     * Returns simple list of exams suitable for dropdown/select components
      */
-    public function updateStatus(Request $request, Exam $exam)
+    public function dropdown(Request $request)
     {
-        $validated = $request->validate([
-            'status' => 'required|in:draft,published,archived'
-        ]);
+        $user = $request->user();
+        $locale = app()->getLocale();
+        
+        $query = Exam::with(['training'])
+            ->select('id', 'title', 'training_id', 'category', 'passing_score', 'duration_minutes');
 
-        $exam->update(['status' => $validated['status']]);
-
-        return response()->json([
-            'message' => 'Exam status updated successfully',
-            'exam' => $exam->fresh()
-        ]);
-    }
-
-    /**
-     * Send exam notification email based on status
-     */
-    private function sendExamNotification($user, $exam, $registration, $status)
-    {
-        try {
-            switch ($status) {
-                case 'passed':
-                    $certificate = Certificate::where('user_id', $user->id)
-                        ->where('related_exam_id', $exam->id)
-                        ->first();
-                    \Mail::to($user->email)->send(new \App\Mail\ExamPassedMail($user, $exam, $registration, $certificate));
-                    break;
-                    
-                case 'failed':
-                    \Mail::to($user->email)->send(new \App\Mail\ExamFailedMail($user, $exam, $registration));
-                    break;
-                    
-                case 'pending_review':
-                    \Mail::to($user->email)->send(new \App\Mail\ExamPendingReviewMail($user, $exam, $registration));
-                    break;
-            }
-        } catch (\Exception $e) {
-            \Log::error('Error sending exam notification: ' . $e->getMessage());
+        // If user is trainer, only show exams for their trainings
+        if ($user && $user->user_type === 'trainer') {
+            $query->whereHas('training', function ($q) use ($user) {
+                $q->where('trainer_id', $user->id);
+            });
         }
+
+        // Get all exams (not paginated for dropdown)
+        $exams = $query->orderByRaw("title->>'{$locale}' ASC")
+            ->orderByRaw("title->>'az' ASC")
+            ->get();
+
+        // Transform for dropdown format
+        $exams = $exams->map(function ($exam) use ($locale) {
+            $title = is_array($exam->title) 
+                ? ($exam->title[$locale] ?? $exam->title['az'] ?? 'Untitled Exam')
+                : $exam->title;
+            
+            $trainingTitle = null;
+            if ($exam->training) {
+                $trainingTitle = is_array($exam->training->title)
+                    ? ($exam->training->title[$locale] ?? $exam->training->title['az'] ?? 'Untitled Training')
+                    : $exam->training->title;
+            }
+
+            return [
+                'id' => $exam->id,
+                'title' => $title,
+                'training_id' => $exam->training_id,
+                'training_title' => $trainingTitle,
+                'category' => $exam->category,
+                'passing_score' => $exam->passing_score,
+                'duration_minutes' => $exam->duration_minutes,
+                'display_text' => $trainingTitle 
+                    ? "{$title} ({$trainingTitle})" 
+                    : $title,
+            ];
+        });
+
+        return response()->json($exams);
     }
 }
 

@@ -21,9 +21,18 @@ class CertificateController extends Controller
     
     public function index()
     {
-        return Certificate::with(['user', 'training', 'exam'])
+        $certificates = Certificate::with(['user', 'training', 'exam'])
             ->latest()
             ->paginate(20);
+        
+        // Add is_expired and is_active to each certificate
+        $certificates->getCollection()->transform(function ($certificate) {
+            $certificate->is_expired = $certificate->isExpired();
+            $certificate->is_active = $certificate->isActive();
+            return $certificate;
+        });
+        
+        return $certificates;
     }
 
     public function show(Certificate $certificate)
@@ -66,16 +75,10 @@ class CertificateController extends Controller
         
         $query = Certificate::where('user_id', $user->id)
             ->with(['training', 'exam'])
-            ->where(function ($q) {
-                // Hide expired certificates from users - only show active ones
-                $q->where('status', '!=', 'expired')
-                  ->orWhere(function ($q2) {
-                      // Include certificates that haven't expired yet (even if marked expired)
-                      $q2->whereNull('expiry_date')
-                         ->orWhereDate('expiry_date', '>=', now()->toDateString());
-                  });
-            })
             ->latest();
+        
+        // Note: Expired certificates are shown but marked as is_expired: true
+        // They cannot be downloaded or previewed
         
         // Filter by type: all, training, exam
         $type = $request->input('type', 'all');
@@ -152,9 +155,9 @@ class CertificateController extends Controller
                 'result' => $examResult,
                 'score' => $examScore,
                 'download_url' => $certificate->download_url,
-                'preview_url' => url('/api/v1/certificates/' . $certificate->id . '/preview'),
-                'share_url' => url('/api/v1/certificates/' . $certificate->id . '/share'),
-                'qr_code_url' => url('/api/v1/certificates/' . $certificate->id . '/qr-code'),
+                'preview_url' => $certificate->preview_url,
+                'share_url' => $certificate->download_url,
+                'qr_code_url' => $certificate->qr_code_url,
                 'verification_url' => $certificate->verification_url,
                 'created_at' => $certificate->created_at,
             ];
@@ -258,6 +261,15 @@ class CertificateController extends Controller
             'pdf_url' => Storage::url($path),
         ]);
 
+        // Generate QR code if it doesn't exist
+        if (!$certificate->qr_code_path) {
+            try {
+                $certificate->generateAndSaveQrCode();
+            } catch (\Exception $e) {
+                \Log::error('Failed to generate QR code for certificate ' . $certificate->id . ' during PDF upload: ' . $e->getMessage());
+            }
+        }
+
         return response()->json([
             'message' => 'PDF sertifikat uğurla yükləndi',
             'pdf_url' => $certificate->pdf_url,
@@ -338,6 +350,7 @@ class CertificateController extends Controller
                 'id' => $training->id,
                 'title' => $training->title,
                 'description' => $training->description,
+                'certificate_description' => $training->certificate_description ?? null,
             ];
 
             // Use PHP certificate generator service
@@ -370,6 +383,13 @@ class CertificateController extends Controller
                 'digital_signature' => $result['digital_signature'],
                 'pdf_path' => $result['pdf_path'],
             ]);
+
+            // Generate and save QR code
+            try {
+                $certificate->generateAndSaveQrCode();
+            } catch (\Exception $e) {
+                \Log::error('Failed to generate QR code for certificate ' . $certificate->id . ': ' . $e->getMessage());
+            }
 
             return response()->json([
                 'success' => true,
@@ -422,6 +442,7 @@ class CertificateController extends Controller
                 'id' => $training->id,
                 'title' => $training->title,
                 'description' => $training->description,
+                'certificate_description' => $training->certificate_description ?? null,
             ];
 
             // Use PHP certificate generator service
@@ -454,6 +475,13 @@ class CertificateController extends Controller
                 'digital_signature' => $result['digital_signature'],
                 'pdf_path' => $result['pdf_path'],
             ]);
+
+            // Generate and save QR code
+            try {
+                $certificate->generateAndSaveQrCode();
+            } catch (\Exception $e) {
+                \Log::error('Failed to generate QR code for certificate ' . $certificate->id . ': ' . $e->getMessage());
+            }
 
             return response()->json([
                 'success' => true,
@@ -531,6 +559,16 @@ class CertificateController extends Controller
      */
     public function download(Certificate $certificate, Request $request)
     {
+        // Check if certificate is expired
+        if ($certificate->isExpired()) {
+            return response()->json([
+                'message' => 'Bu sertifikatın müddəti bitmişdir. Yenidən imtahan keçməlisiniz.',
+                'error' => 'Sertifikat müddəti bitib',
+                'expiry_date' => $certificate->expiry_date ? $certificate->expiry_date->format('Y-m-d') : null,
+                'is_expired' => true
+            ], 403);
+        }
+        
         // Check if user can access this certificate
         if (auth()->check()) {
             $user = auth()->user();
@@ -630,6 +668,16 @@ class CertificateController extends Controller
      */
     public function preview(Certificate $certificate, Request $request)
     {
+        // Check if certificate is expired
+        if ($certificate->isExpired()) {
+            return response()->json([
+                'message' => 'Bu sertifikatın müddəti bitmişdir. Yenidən imtahan keçməlisiniz.',
+                'error' => 'Sertifikat müddəti bitib',
+                'expiry_date' => $certificate->expiry_date ? $certificate->expiry_date->format('Y-m-d') : null,
+                'is_expired' => true
+            ], 403);
+        }
+        
         // Check if user can access this certificate
         if (auth()->check()) {
             $user = auth()->user();
@@ -788,6 +836,7 @@ class CertificateController extends Controller
                 'id' => $training->id,
                 'title' => $training->title,
                 'description' => $training->description,
+                'certificate_description' => $training->certificate_description ?? null,
             ];
 
             // Use PHP certificate generator service

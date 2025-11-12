@@ -108,7 +108,7 @@ class MeetingController extends Controller
 
             // Search by title
             if ($request->has('search')) {
-                $query->where('title', 'like', '%' . $request->search . '%');
+                \App\Helpers\TranslationSearchHelper::addJsonFieldSearch($query, 'title', $request->search);
             }
 
             $meetings = $query->orderBy('start_time', 'desc')->paginate($request->get('per_page', 12));

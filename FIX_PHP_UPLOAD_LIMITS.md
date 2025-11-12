@@ -88,3 +88,5 @@ XAMPP/WAMP istifadə edirsənizsə:
 
 Production server-də PHP konfiqurasiyasını sistem administratoru ilə düzəltmək lazımdır.
 
+
+

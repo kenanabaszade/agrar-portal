@@ -4,9 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Traits\HasTranslations;
 
 class Faq extends Model
 {
+    use HasTranslations;
+
+    protected $translatable = ['question', 'answer'];
+
     protected $fillable = [
         'question',
         'answer',
@@ -17,6 +22,8 @@ class Faq extends Model
     ];
 
     protected $casts = [
+        'question' => 'array',
+        'answer' => 'array',
         'is_active' => 'boolean',
         'helpful_count' => 'integer',
     ];

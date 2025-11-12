@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasTranslations;
 
 class EducationalContent extends Model
 {
-    use HasFactory;
+    use HasFactory, HasTranslations;
+
+    protected $translatable = ['title', 'short_description', 'body_html', 'description', 'announcement_title', 'announcement_body'];
 
     protected $fillable = [
         'type',
@@ -31,6 +34,12 @@ class EducationalContent extends Model
     ];
 
     protected $casts = [
+        'title' => 'array',
+        'short_description' => 'array',
+        'body_html' => 'array',
+        'description' => 'array',
+        'announcement_title' => 'array',
+        'announcement_body' => 'array',
         'seo' => 'array',
         'media_files' => 'array',
         'documents' => 'array',

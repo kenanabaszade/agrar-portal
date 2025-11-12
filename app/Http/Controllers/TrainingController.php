@@ -6,10 +6,14 @@ use App\Models\Training;
 use App\Models\TrainingRegistration;
 use App\Models\UserTrainingProgress;
 use App\Models\Certificate;
+use App\Models\Exam;
 use App\Models\User;
 use App\Services\GoogleCalendarService;
+use App\Services\TranslationHelper;
+use App\Services\CertificateGeneratorService;
 use App\Mail\TrainingCreatedNotification;
 use App\Mail\TrainingNotification;
+use App\Mail\TrainingCompletionNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
@@ -116,9 +120,16 @@ class TrainingController extends Controller
         // Add statistics and media counts for each training
         $trainings->getCollection()->transform(function ($training) use ($request) {
             // Use cached count attributes from withCount (no additional queries!)
+            $participantMetrics = $this->calculateParticipantMetrics($training);
+            $totalParticipants = $participantMetrics['participants_count'];
+            $completedLessonParticipants = $participantMetrics['completed_lesson_participants'];
+
             $totalRegistrations = $training->registrations_count ?? 0;
             $completedRegistrations = $training->completed_registrations_count ?? 0;
             $startedRegistrations = $training->started_registrations_count ?? 0;
+
+            // Ensure video trainings reflect participants who completed lessons
+            $totalRegistrations = max($totalRegistrations, $totalParticipants);
 
             // Calculate completion percentage
             $completionRate = $totalRegistrations > 0 ? round(($completedRegistrations / $totalRegistrations) * 100, 2) : 0;
@@ -163,6 +174,8 @@ class TrainingController extends Controller
             // Add statistics to training object
             $training->statistics = [
                 'total_registrations' => $totalRegistrations,
+                'participants_count' => $totalParticipants,
+                'completed_lessons_participants' => $completedLessonParticipants,
                 'started_count' => $startedRegistrations,
                 'completed_count' => $completedRegistrations,
                 'completion_rate' => $completionRate,
@@ -179,9 +192,13 @@ class TrainingController extends Controller
 
     public function store(Request $request)
     {
+        // Normalize request data: Convert title_az, title_en format to object format
+        $requestData = $this->normalizeTranslationRequest($request->all());
+        $request->merge($requestData);
+
         $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
+            'title' => ['required', new \App\Rules\TranslationRule(true)],
+            'description' => ['nullable', new \App\Rules\TranslationRule(false)],
             'category' => ['nullable', 'string', 'max:255'],
             'trainer_id' => ['required', 'exists:users,id'],
             'start_date' => ['nullable', 'date'],
@@ -224,6 +241,17 @@ class TrainingController extends Controller
             'recurrence_frequency' => ['nullable', 'string', 'in:daily,weekly,monthly'],
             'recurrence_end_date' => ['nullable', 'date', 'after:start_date'],
         ]);
+
+        // Normalize translation fields
+        if (isset($validated['title'])) {
+            $validated['title'] = TranslationHelper::normalizeTranslation($validated['title']);
+        }
+        if (isset($validated['description'])) {
+            $validated['description'] = TranslationHelper::normalizeTranslation($validated['description']);
+        }
+        if (isset($validated['certificate_description'])) {
+            $validated['certificate_description'] = TranslationHelper::normalizeTranslation($validated['certificate_description']);
+        }
 
         // Set default values
         $validated['is_online'] = $validated['is_online'] ?? true;
@@ -319,9 +347,15 @@ class TrainingController extends Controller
                     
                     if ($tokenValidation['valid']) {
                         // Prepare meeting data for Google Calendar
+                        // Extract translated title/description for Google Calendar (use default language)
+                        $meetingTitle = is_array($validated['title']) ? ($validated['title']['az'] ?? reset($validated['title'])) : $validated['title'];
+                        $meetingDescription = '';
+                        if (isset($validated['description'])) {
+                            $meetingDescription = is_array($validated['description']) ? ($validated['description']['az'] ?? reset($validated['description']) ?? '') : ($validated['description'] ?? '');
+                        }
                         $meetingData = [
-                            'title' => $validated['title'],
-                            'description' => $validated['description'] ?? '',
+                            'title' => $meetingTitle,
+                            'description' => $meetingDescription,
                             'start_time' => $validated['meeting_start_time'],
                             'end_time' => $validated['meeting_end_time'],
                             'timezone' => $validated['timezone'] ?? 'UTC',
@@ -419,9 +453,13 @@ class TrainingController extends Controller
 
     public function update(Request $request, Training $training)
     {
+        // Normalize request data: Convert title_az, title_en format to object format
+        $requestData = $this->normalizeTranslationRequest($request->all());
+        $request->merge($requestData);
+
         $validated = $request->validate([
-            'title' => ['sometimes', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
+            'title' => ['sometimes', new \App\Rules\TranslationRule(true)],
+            'description' => ['nullable', new \App\Rules\TranslationRule(false)],
             'category' => ['nullable', 'string', 'max:255'],
             'trainer_id' => ['sometimes', 'exists:users,id'],
             'start_date' => ['nullable', 'date'],
@@ -442,11 +480,17 @@ class TrainingController extends Controller
             'offline_details.address' => ['nullable', 'string'],
             'offline_details.coordinates' => ['nullable', 'string'],
             'has_certificate' => ['nullable', 'boolean'],
+            'certificate_description' => ['nullable', new \App\Rules\TranslationRule(false)],
+            'certificate_has_expiry' => ['nullable', 'boolean'],
+            'certificate_expiry_years' => ['nullable', 'integer', 'min:0'],
+            'certificate_expiry_months' => ['nullable', 'integer', 'min:0', 'max:11'],
+            'certificate_expiry_days' => ['nullable', 'integer', 'min:0', 'max:30'],
             'require_email_verification' => ['nullable', 'boolean'],
             'has_exam' => ['nullable', 'boolean'],
             'exam_id' => ['nullable', 'integer', 'exists:exams,id'],
             'exam_required' => ['nullable', 'boolean'],
             'min_exam_score' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'exam_for_certificate' => ['nullable', 'boolean'],
             'status' => ['nullable', 'string', 'in:draft,published,archived,cancelled'],
             'difficulty' => ['nullable', 'string', 'in:beginner,intermediate,advanced,expert'],
             'banner_image' => ['nullable', File::types(['jpg', 'jpeg', 'png', 'gif', 'webp'])->max(5 * 1024)], // 5MB max
@@ -530,6 +574,17 @@ class TrainingController extends Controller
             }
         }
 
+        // Normalize translation fields
+        if (isset($validated['title'])) {
+            $validated['title'] = TranslationHelper::normalizeTranslation($validated['title']);
+        }
+        if (isset($validated['description'])) {
+            $validated['description'] = TranslationHelper::normalizeTranslation($validated['description']);
+        }
+        if (isset($validated['certificate_description'])) {
+            $validated['certificate_description'] = TranslationHelper::normalizeTranslation($validated['certificate_description']);
+        }
+
         // Remove file inputs and control flags from validated data
         unset($validated['banner_image'], $validated['intro_video'], $validated['media_files'], 
               $validated['remove_banner'], $validated['remove_intro_video'], $validated['remove_media_files']);
@@ -590,9 +645,16 @@ class TrainingController extends Controller
                     
                     if ($tokenValidation['valid']) {
                         // Prepare meeting data for Google Calendar
+                        // Extract translated title/description for Google Calendar (use default language)
+                        $currentTitle = $validated['title'] ?? $training->title;
+                        $currentDescription = $validated['description'] ?? $training->description ?? '';
+                        
+                        $meetingTitle = is_array($currentTitle) ? ($currentTitle['az'] ?? reset($currentTitle)) : $currentTitle;
+                        $meetingDescription = is_array($currentDescription) ? ($currentDescription['az'] ?? reset($currentDescription) ?? '') : $currentDescription;
+                        
                         $meetingData = [
-                            'title' => $validated['title'] ?? $training->title,
-                            'description' => $validated['description'] ?? $training->description,
+                            'title' => $meetingTitle,
+                            'description' => $meetingDescription,
                             'start_time' => $validated['meeting_start_time'],
                             'end_time' => $validated['meeting_end_time'],
                             'timezone' => $validated['timezone'] ?? $training->timezone ?? 'UTC',
@@ -877,18 +939,20 @@ class TrainingController extends Controller
      * Get trainings dropdown for exam creation
      * GET /api/v1/trainings/dropdown
      */
-    public function dropdown(Request $request)
+        public function dropdown(Request $request)
     {
         $user = $request->user();
-        
+
+        $locale = app()->getLocale() ?? 'az';
         $query = Training::select('id', 'title', 'category')
-            ->orderBy('title');
+            ->orderByRaw("title->>'{$locale}' ASC")
+            ->orderByRaw("title->>'az' ASC"); // Fallback to az if locale doesn't exist
 
         // If user is trainer, only show their trainings
         if ($user->user_type === 'trainer') {
             $query->where('trainer_id', $user->id);
         }
-        
+
         $trainings = $query->get();
 
         return response()->json([
@@ -951,7 +1015,11 @@ class TrainingController extends Controller
         // Add basic statistics for each training
         $trainings->getCollection()->transform(function ($training) {
             // Calculate registration statistics
-            $totalRegistrations = $training->registrations_count;
+            $participantMetrics = $this->calculateParticipantMetrics($training);
+            $totalParticipants = $participantMetrics['participants_count'];
+            $completedLessonParticipants = $participantMetrics['completed_lesson_participants'];
+
+            $totalRegistrations = max($training->registrations_count, $totalParticipants);
             $completedRegistrations = $training->registrations()
                 ->whereHas('userTrainingProgress', function ($query) {
                     $query->where('status', 'completed');
@@ -1047,6 +1115,8 @@ class TrainingController extends Controller
             // Add statistics to training object
             $training->statistics = [
                 'total_registrations' => $totalRegistrations,
+                'participants_count' => $totalParticipants,
+                'completed_lessons_participants' => $completedLessonParticipants,
                 'started_count' => $startedRegistrations,
                 'completed_count' => $completedRegistrations,
                 'completion_rate' => $completionRate,
@@ -1122,6 +1192,28 @@ class TrainingController extends Controller
                 ];
             }
 
+            // Add training rating information
+            $training->rating = [
+                'average_rating' => $training->average_rating,
+                'ratings_count' => $training->ratings_count,
+            ];
+
+            // Add user's rating if authenticated
+            if (auth()->check()) {
+                $user = auth()->user();
+                $userRating = \App\Models\TrainingRating::where('user_id', $user->id)
+                    ->where('training_id', $training->id)
+                    ->first();
+                
+                $training->user_rating = $userRating ? [
+                    'rating' => $userRating->rating,
+                    'created_at' => $userRating->created_at,
+                    'updated_at' => $userRating->updated_at,
+                ] : null;
+            } else {
+                $training->user_rating = null;
+            }
+
             return $training;
         });
 
@@ -1142,7 +1234,11 @@ class TrainingController extends Controller
         $training->load(['modules.lessons', 'trainer', 'exam']);
         
         // Add statistics
-        $totalRegistrations = $training->registrations()->count();
+        $participantMetrics = $this->calculateParticipantMetrics($training);
+        $totalParticipants = $participantMetrics['participants_count'];
+        $completedLessonParticipants = $participantMetrics['completed_lesson_participants'];
+
+        $totalRegistrations = max($training->registrations()->count(), $totalParticipants);
         $completedRegistrations = $training->registrations()
             ->whereHas('userTrainingProgress', function ($query) {
                 $query->where('status', 'completed');
@@ -1160,6 +1256,8 @@ class TrainingController extends Controller
 
         $training->statistics = [
             'total_registrations' => $totalRegistrations,
+            'participants_count' => $totalParticipants,
+            'completed_lessons_participants' => $completedLessonParticipants,
             'started_count' => $startedRegistrations,
             'completed_count' => $completedRegistrations,
             'completion_rate' => $completionRate,
@@ -1339,12 +1437,40 @@ class TrainingController extends Controller
                     return $module->lessons->count();
                 })) * 100, 2) : 0
             ];
-        } else {
-            $training->user_progress = null;
-        }
+                  } else {
+              $training->user_progress = null;
+          }
 
-        return response()->json($training);
-    }
+          // Add training rating information
+          $training->rating = [
+              'average_rating' => $training->average_rating,
+              'ratings_count' => $training->ratings_count,
+          ];
+
+          // Add user's rating if authenticated
+          if (auth()->check()) {
+              $user = auth()->user();
+              $userRating = \App\Models\TrainingRating::where('user_id', $user->id)
+                  ->where('training_id', $training->id)
+                  ->first();
+              
+              $training->user_rating = $userRating ? [
+                  'rating' => $userRating->rating,
+                  'created_at' => $userRating->created_at,
+                  'updated_at' => $userRating->updated_at,
+              ] : null;
+          } else {
+              $training->user_rating = null;
+          }
+
+          // Add trainer rating information if trainer exists
+          if ($training->trainer) {
+              $training->trainer->trainer_average_rating = $training->trainer->trainer_average_rating;
+              $training->trainer->trainer_ratings_count = $training->trainer->trainer_ratings_count;
+          }
+
+          return response()->json($training);
+      }
 
     /**
      * Get future trainings (trainings that haven't started yet)
@@ -1404,7 +1530,11 @@ class TrainingController extends Controller
         // Add basic statistics for each training
         $trainings->getCollection()->transform(function ($training) {
             // Calculate registration statistics
-            $totalRegistrations = $training->registrations_count;
+            $participantMetrics = $this->calculateParticipantMetrics($training);
+            $totalParticipants = $participantMetrics['participants_count'];
+            $completedLessonParticipants = $participantMetrics['completed_lesson_participants'];
+
+            $totalRegistrations = max($training->registrations_count, $totalParticipants);
             $completedRegistrations = $training->registrations()
                 ->whereHas('userTrainingProgress', function ($query) {
                     $query->where('status', 'completed');
@@ -1424,6 +1554,8 @@ class TrainingController extends Controller
             // Add statistics to training object
             $training->statistics = [
                 'total_registrations' => $totalRegistrations,
+                'participants_count' => $totalParticipants,
+                'completed_lessons_participants' => $completedLessonParticipants,
                 'started_count' => $startedRegistrations,
                 'completed_count' => $completedRegistrations,
                 'completion_rate' => $completionRate,
@@ -1500,7 +1632,11 @@ class TrainingController extends Controller
         // Add basic statistics for each training
         $trainings->getCollection()->transform(function ($training) {
             // Calculate registration statistics
-            $totalRegistrations = $training->registrations_count;
+            $participantMetrics = $this->calculateParticipantMetrics($training);
+            $totalParticipants = $participantMetrics['participants_count'];
+            $completedLessonParticipants = $participantMetrics['completed_lesson_participants'];
+
+            $totalRegistrations = max($training->registrations_count, $totalParticipants);
             $completedRegistrations = $training->registrations()
                 ->whereHas('userTrainingProgress', function ($query) {
                     $query->where('status', 'completed');
@@ -1520,6 +1656,8 @@ class TrainingController extends Controller
             // Add statistics to training object
             $training->statistics = [
                 'total_registrations' => $totalRegistrations,
+                'participants_count' => $totalParticipants,
+                'completed_lessons_participants' => $completedLessonParticipants,
                 'started_count' => $startedRegistrations,
                 'completed_count' => $completedRegistrations,
                 'completion_rate' => $completionRate,
@@ -1590,6 +1728,8 @@ class TrainingController extends Controller
             }
         }
 
+        $issuedCertificate = null;
+
         // Create certificate if training has certificate
         $certificate = null;
         if ($training->has_certificate) {
@@ -1610,6 +1750,14 @@ class TrainingController extends Controller
                         'issuer_name' => 'Aqrar Portal',
                         'status' => 'active',
                     ]);
+
+                    $this->autoGenerateCertificatePdf($certificate, $training);
+                    $issuedCertificate = $certificate;
+                } else {
+                    if (!$existingCert->pdf_path) {
+                        $this->autoGenerateCertificatePdf($existingCert, $training);
+                    }
+                    $issuedCertificate = $existingCert;
                 }
             } else {
                 // For non-video trainings, attach certificate to registration
@@ -1623,19 +1771,47 @@ class TrainingController extends Controller
                         'issuer_name' => 'Aqrar Portal',
                         'status' => 'active',
                     ]);
-                    
-                    $registration->update([
-                        'certificate_id' => $certificate->id, 
-                        'status' => 'completed'
-                    ]);
+
+                    if ($registration->certificate_id !== $certificate->id) {
+                        $registration->certificate_id = $certificate->id;
+                    }
+                    if ($registration->status !== 'completed') {
+                        $registration->status = 'completed';
+                    }
+                    $registration->save();
+
+                    $this->autoGenerateCertificatePdf($certificate, $training);
+                    $issuedCertificate = $certificate;
+                } elseif ($registration && $registration->status !== 'completed') {
+                    $registration->status = 'completed';
+                    $registration->save();
                 }
             }
         } else {
             // Mark as completed without certificate (only for non-video trainings)
             if ($registration) {
-                $registration->update(['status' => 'completed']);
+                if ($registration->status !== 'completed') {
+                    $registration->status = 'completed';
+                    $registration->save();
+                }
             }
         }
+
+        if (!$issuedCertificate && isset($certificate)) {
+            $issuedCertificate = $certificate;
+        }
+
+        if ($issuedCertificate && $training->has_certificate && !$issuedCertificate->pdf_path && !$training->exam_for_certificate) {
+            if ($this->autoGenerateCertificatePdf($issuedCertificate, $training)) {
+                $issuedCertificate->refresh();
+            }
+        }
+
+        if ($issuedCertificate) {
+            $issuedCertificate->refresh();
+        }
+
+        $this->sendTrainingCompletionEmail($user, $training, $issuedCertificate);
 
         // Get exam information if exists
         $examInfo = null;
@@ -1659,7 +1835,7 @@ class TrainingController extends Controller
         return response()->json([
             'message' => 'Training completed successfully',
             'registration' => $registration ? $registration->fresh() : null,
-            'certificate' => $certificate,
+            'certificate' => $this->formatCertificateResponse($issuedCertificate),
             'completion_date' => now()->toISOString(),
             'exam' => $examInfo
         ]);
@@ -1778,7 +1954,11 @@ class TrainingController extends Controller
         // Add statistics and media counts for each training
         $trainings->getCollection()->transform(function ($training) {
             // Calculate registration statistics
-            $totalRegistrations = $training->registrations_count;
+            $participantMetrics = $this->calculateParticipantMetrics($training);
+            $totalParticipants = $participantMetrics['participants_count'];
+            $completedLessonParticipants = $participantMetrics['completed_lesson_participants'];
+
+            $totalRegistrations = max($training->registrations_count, $totalParticipants);
             $completedRegistrations = $training->registrations()
                 ->whereHas('userTrainingProgress', function ($query) {
                     $query->where('status', 'completed');
@@ -1874,6 +2054,8 @@ class TrainingController extends Controller
             // Add statistics to training object
             $training->statistics = [
                 'total_registrations' => $totalRegistrations,
+                'participants_count' => $totalParticipants,
+                'completed_lessons_participants' => $completedLessonParticipants,
                 'started_count' => $startedRegistrations,
                 'completed_count' => $completedRegistrations,
                 'completion_rate' => $completionRate,
@@ -1953,7 +2135,11 @@ class TrainingController extends Controller
         // Add comprehensive details for each training
         $trainings->transform(function ($training) {
             // Calculate registration statistics
-            $totalRegistrations = $training->registrations_count;
+            $participantMetrics = $this->calculateParticipantMetrics($training);
+            $totalParticipants = $participantMetrics['participants_count'];
+            $completedLessonParticipants = $participantMetrics['completed_lesson_participants'];
+
+            $totalRegistrations = max($training->registrations_count, $totalParticipants);
             $completedRegistrations = $training->registrations()
                 ->whereHas('userTrainingProgress', function ($query) {
                     $query->where('status', 'completed');
@@ -2049,6 +2235,8 @@ class TrainingController extends Controller
             // Add statistics to training object
             $training->statistics = [
                 'total_registrations' => $totalRegistrations,
+                'participants_count' => $totalParticipants,
+                'completed_lessons_participants' => $completedLessonParticipants,
                 'started_count' => $startedRegistrations,
                 'completed_count' => $completedRegistrations,
                 'completion_rate' => $completionRate,
@@ -2173,7 +2361,11 @@ class TrainingController extends Controller
         $training->load(['modules.lessons', 'trainer', 'registrations', 'exam']);
 
         // Calculate comprehensive statistics
-        $totalRegistrations = $training->registrations()->count();
+        $participantMetrics = $this->calculateParticipantMetrics($training);
+        $totalParticipants = $participantMetrics['participants_count'];
+        $completedLessonParticipants = $participantMetrics['completed_lesson_participants'];
+
+        $totalRegistrations = max($training->registrations()->count(), $totalParticipants);
         $completedRegistrations = $training->registrations()
             ->whereHas('userTrainingProgress', function ($query) {
                 $query->where('status', 'completed');
@@ -2266,6 +2458,8 @@ class TrainingController extends Controller
         // Add statistics to training object
         $training->statistics = [
             'total_registrations' => $totalRegistrations,
+            'participants_count' => $totalParticipants,
+            'completed_lessons_participants' => $completedLessonParticipants,
             'started_count' => $startedRegistrations,
             'completed_count' => $completedRegistrations,
             'completion_rate' => $completionRate,
@@ -2569,15 +2763,386 @@ class TrainingController extends Controller
      */
     public function getAll(Request $request)
     {
-        $trainings = Training::with(['trainer'])
+        $trainings = Training::with(['trainer', 'modules.lessons'])
             ->withCount(['registrations'])
             ->orderBy('created_at', 'desc')
             ->get();
+
+        $trainings->transform(function ($training) {
+            $participantMetrics = $this->calculateParticipantMetrics($training);
+            $training->participants_count = $participantMetrics['participants_count'];
+            $training->completed_lessons_participants = $participantMetrics['completed_lesson_participants'];
+
+            $training->media_statistics = $this->calculateMediaStatistics($training);
+            return $training;
+        });
 
         return response()->json([
             'trainings' => $trainings,
             'total_count' => $trainings->count()
         ]);
+    }
+
+    private function autoGenerateCertificatePdf(Certificate $certificate, Training $training): bool
+    {
+        if ($certificate->pdf_path) {
+            return true;
+        }
+
+        try {
+            $user = $certificate->relationLoaded('user') ? $certificate->user : $certificate->user()->first();
+            if (!$user) {
+                $user = User::find($certificate->user_id);
+            }
+
+            if (!$user) {
+                \Log::warning('Cannot generate certificate PDF: user not found', [
+                    'certificate_id' => $certificate->id,
+                    'user_id' => $certificate->user_id,
+                ]);
+                return false;
+            }
+
+            $exam = null;
+            if ($certificate->related_exam_id) {
+                $exam = Exam::find($certificate->related_exam_id);
+            } elseif ($training->relationLoaded('exam') && $training->exam) {
+                $exam = $training->exam;
+            } elseif ($training->exam_id) {
+                $exam = Exam::find($training->exam_id);
+            }
+
+            $trainingTitle = $this->getLocalizedValue($training->title);
+            $trainingDescription = $this->getLocalizedValue($training->description);
+            $trainingCertificateDescription = $this->extractCertificateDescription($training);
+
+            $userData = [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+                'username' => $user->username ?? null,
+            ];
+
+            $examData = $exam ? [
+                'id' => $exam->id,
+                'title' => $this->getLocalizedValue($exam->title ?? null, $trainingTitle),
+                'description' => $this->getLocalizedValue($exam->description ?? null),
+                'sertifikat_description' => $exam->sertifikat_description ?? null,
+            ] : [
+                'id' => $training->id,
+                'title' => $trainingTitle,
+                'description' => $trainingDescription,
+                'sertifikat_description' => $trainingCertificateDescription,
+            ];
+
+            $trainingData = [
+                'id' => $training->id,
+                'title' => $trainingTitle,
+                'description' => $trainingDescription,
+                'certificate_description' => $training->certificate_description ?? null,
+            ];
+
+            /** @var CertificateGeneratorService $service */
+            $service = app(CertificateGeneratorService::class);
+            $result = $service->generateCertificate($userData, $examData, $trainingData);
+
+            if (!($result['success'] ?? false)) {
+                \Log::warning('Certificate PDF generation failed', [
+                    'certificate_id' => $certificate->id,
+                    'training_id' => $training->id,
+                    'error' => $result['error'] ?? null,
+                ]);
+                return false;
+            }
+
+            $updateData = [
+                'pdf_path' => $result['pdf_path'] ?? $certificate->pdf_path,
+                'pdf_url' => isset($result['pdf_path']) ? url('/storage/' . $result['pdf_path']) : $certificate->pdf_url,
+            ];
+
+            if (!empty($result['digital_signature'])) {
+                $updateData['digital_signature'] = $result['digital_signature'];
+            }
+
+            if (!empty($result['certificate_number'])) {
+                $updateData['certificate_number'] = $result['certificate_number'];
+            }
+
+            $certificate->update($updateData);
+
+            if (!$certificate->qr_code_path) {
+                $certificate->generateAndSaveQrCode();
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            \Log::error('Failed to auto generate certificate PDF', [
+                'certificate_id' => $certificate->id,
+                'training_id' => $training->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        return false;
+    }
+
+    private function getLocalizedValue($value, $fallback = ''): string
+    {
+        if (is_array($value)) {
+            if (!empty($value['az'])) {
+                return trim((string) $value['az']);
+            }
+
+            foreach ($value as $v) {
+                if (!empty($v)) {
+                    return trim((string) $v);
+                }
+            }
+        } elseif (is_string($value) && trim($value) !== '') {
+            return trim($value);
+        }
+
+        if (is_string($fallback) && trim($fallback) !== '') {
+            return trim($fallback);
+        }
+
+        return '';
+    }
+
+    private function extractCertificateDescription(Training $training)
+    {
+        $description = $training->certificate_description ?? null;
+        if (is_array($description)) {
+            return $description['az'] ?? reset($description);
+        }
+
+        return $description;
+    }
+
+    private function sendTrainingCompletionEmail(User $user, Training $training, ?Certificate $certificate = null): void
+    {
+        if (!$user->email) {
+            return;
+        }
+
+        try {
+            $training->loadMissing(['modules.lessons', 'trainer']);
+
+            $modulesCount = $training->modules->count();
+            $lessonsCount = $training->modules->sum(function ($module) {
+                return $module->lessons->count();
+            });
+            $totalDurationMinutes = $training->modules->sum(function ($module) {
+                return $module->lessons->sum('duration_minutes');
+            });
+            $completedLessonsCount = UserTrainingProgress::where('user_id', $user->id)
+                ->where('training_id', $training->id)
+                ->where('status', 'completed')
+                ->count();
+
+            $trainingTitle = $this->getLocalizedValue($training->title);
+            $trainingDescription = $this->getLocalizedValue($training->description);
+            $categoryName = $this->getLocalizedValue($training->category);
+            $trainerName = $training->trainer ? trim(($training->trainer->first_name ?? '') . ' ' . ($training->trainer->last_name ?? '')) : null;
+
+            if ($certificate) {
+                $certificate->refresh();
+            }
+
+            $details = [
+                'training_title' => $trainingTitle,
+                'training_description' => $trainingDescription,
+                'category' => $categoryName,
+                'trainer_name' => $trainerName ?: null,
+                'training_type' => $training->type,
+                'modules_count' => $modulesCount,
+                'lessons_count' => $lessonsCount,
+                'completed_lessons_count' => $completedLessonsCount,
+                'total_duration_minutes' => $totalDurationMinutes,
+                'has_certificate' => (bool) $training->has_certificate,
+                'certificate_requires_exam' => (bool) ($training->exam_for_certificate || $training->exam_required),
+                'certificate_available' => $certificate && $certificate->pdf_path,
+                'certificate_download_url' => ($certificate && $certificate->pdf_path) ? url("/api/v1/certificates/{$certificate->id}/download") : null,
+                'certificate_preview_url' => ($certificate && $certificate->pdf_path) ? url("/api/v1/certificates/{$certificate->id}/preview") : null,
+                'certificate_number' => $certificate?->certificate_number,
+                'certificate_id' => $certificate?->id,
+                'has_exam' => (bool) $training->has_exam,
+                'exam_required' => (bool) $training->exam_required,
+            ];
+
+            Mail::to($user->email)->send(new TrainingCompletionNotification($user, $training, $details));
+        } catch (\Throwable $e) {
+            \Log::error('Failed to send training completion email', [
+                'user_id' => $user->id,
+                'training_id' => $training->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function formatCertificateResponse(?Certificate $certificate): ?array
+    {
+        if (!$certificate) {
+            return null;
+        }
+
+        $certificate->refresh();
+
+        $data = $certificate->toArray();
+        $downloadUrl = url("/api/v1/certificates/{$certificate->id}/download");
+        $previewUrl = url("/api/v1/certificates/{$certificate->id}/preview");
+
+        $data['pdf_url'] = $certificate->pdf_url;
+        $data['download_url'] = $certificate->pdf_path ? $downloadUrl : null;
+        $data['preview_url'] = $certificate->pdf_path ? $previewUrl : null;
+
+        return $data;
+    }
+
+    /**
+     * Normalize translation request data
+     * Converts format like {title_az: "...", title_en: "..."} to {title: {az: "...", en: "..."}}
+     */
+    private function normalizeTranslationRequest(array $data): array
+    {
+        $translatableFields = ['title', 'description'];
+        $normalized = $data;
+
+        foreach ($translatableFields as $field) {
+            // Check if field comes as separate language fields (title_az, title_en, etc.)
+            $azKey = $field . '_az';
+            $enKey = $field . '_en';
+            $ruKey = $field . '_ru';
+
+            if (isset($data[$azKey]) || isset($data[$enKey]) || isset($data[$ruKey])) {
+                // Build translation object
+                $translations = [];
+                if (isset($data[$azKey])) {
+                    $translations['az'] = $data[$azKey];
+                    unset($normalized[$azKey]);
+                }
+                if (isset($data[$enKey])) {
+                    $translations['en'] = $data[$enKey];
+                    unset($normalized[$enKey]);
+                }
+                if (isset($data[$ruKey])) {
+                    $translations['ru'] = $data[$ruKey];
+                    unset($normalized[$ruKey]);
+                }
+
+                // If there's also a direct field value (for backward compatibility)
+                if (isset($data[$field]) && !is_array($data[$field])) {
+                    // Use direct value as default az if az not provided
+                    if (!isset($translations['az'])) {
+                        $translations['az'] = $data[$field];
+                    }
+                }
+
+                $normalized[$field] = $translations;
+            } elseif (isset($data[$field]) && !is_array($data[$field])) {
+                // Single string value - convert to translation object with az
+                $normalized[$field] = ['az' => $data[$field]];
+            }
+            // If already in object format, keep it as is
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Calculate participant metrics for a training, including lesson completions.
+     */
+    private function calculateParticipantMetrics(Training $training): array
+    {
+        $registrationUserIds = $training->registrations()->pluck('user_id');
+
+        $progressUserIds = UserTrainingProgress::where('training_id', $training->id)
+            ->where('status', 'completed')
+            ->whereNotNull('user_id')
+            ->distinct()
+            ->pluck('user_id');
+
+        $certificateUserIds = Certificate::where('related_training_id', $training->id)
+            ->pluck('user_id');
+
+        $participantUserIds = collect()
+            ->merge($registrationUserIds)
+            ->merge($progressUserIds)
+            ->merge($certificateUserIds)
+            ->filter()
+            ->unique()
+            ->values();
+
+        return [
+            'participants_count' => $participantUserIds->count(),
+            'completed_lesson_participants' => $progressUserIds->unique()->count(),
+        ];
+    }
+
+    /**
+     * Calculate aggregate media statistics for a training, including lesson media.
+     */
+    private function calculateMediaStatistics(Training $training): array
+    {
+        $mediaCounts = [
+            'videos' => 0,
+            'documents' => 0,
+            'images' => 0,
+            'audio' => 0,
+        ];
+
+        $trainingMediaFiles = $training->media_files ?? [];
+        $trainingCounts = $this->countMediaFilesByType($trainingMediaFiles);
+        $mediaCounts = $this->mergeMediaCounts($mediaCounts, $trainingCounts);
+
+        $modules = $training->relationLoaded('modules') ? $training->modules : collect();
+        $lessonsCount = 0;
+
+        foreach ($modules as $module) {
+            $lessons = $module->relationLoaded('lessons') ? $module->lessons : collect();
+            $lessonsCount += $lessons->count();
+
+            foreach ($lessons as $lesson) {
+                if (!empty($lesson->video_url)) {
+                    $mediaCounts['videos']++;
+                }
+                if (!empty($lesson->pdf_url)) {
+                    $mediaCounts['documents']++;
+                }
+
+                $lessonMediaFiles = $lesson->media_files ?? [];
+                if (!empty($lessonMediaFiles)) {
+                    $lessonCounts = $this->countMediaFilesByType($lessonMediaFiles);
+                    $mediaCounts = $this->mergeMediaCounts($mediaCounts, $lessonCounts);
+                }
+            }
+        }
+
+        return [
+            'videos_count' => $mediaCounts['videos'],
+            'documents_count' => $mediaCounts['documents'],
+            'images_count' => $mediaCounts['images'],
+            'audio_count' => $mediaCounts['audio'],
+            'total_media' => array_sum($mediaCounts),
+            'training_media_count' => count($trainingMediaFiles),
+            'modules_count' => $modules->count(),
+            'lessons_count' => $lessonsCount,
+        ];
+    }
+
+    /**
+     * Merge media counters.
+     */
+    private function mergeMediaCounts(array $base, array $additional): array
+    {
+        foreach ($additional as $key => $value) {
+            if (isset($base[$key])) {
+                $base[$key] += $value;
+            }
+        }
+
+        return $base;
     }
 
     /**
@@ -2607,6 +3172,8 @@ class TrainingController extends Controller
                 $counts['images']++;
             } elseif ($fileType === 'audio' || str_contains($mimeType, 'audio')) {
                 $counts['audio']++;
+            } else {
+                $counts['documents']++;
             }
         }
 

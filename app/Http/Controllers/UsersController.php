@@ -61,17 +61,32 @@ class UsersController extends Controller
                 'id' => $user->id,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
+                'father_name' => $user->father_name,
                 'username' => $user->username,
                 'email' => $user->email,
                 'phone' => $user->phone,
                 'user_type' => $user->user_type,
                 'region' => $user->region,
+                'birth_date' => $user->birth_date ? $user->birth_date->format('Y-m-d') : null,
+                'gender' => $user->gender,
                 'is_active' => $user->is_active,
                 'email_verified' => $user->email_verified,
+                'email_verified_at' => $user->email_verified_at ? $user->email_verified_at->format('Y-m-d H:i:s') : null,
                 'two_factor_enabled' => $user->two_factor_enabled,
+                'profile_photo' => $user->profile_photo,
+                'profile_photo_url' => $user->profile_photo ? url('storage/profile_photos/' . $user->profile_photo) : null,
+                'how_did_you_hear' => $user->how_did_you_hear,
                 'created_at' => $user->created_at->format('Y-m-d H:i:s'),
+                'updated_at' => $user->updated_at->format('Y-m-d H:i:s'),
                 'last_login_at' => $user->last_login_at ? $user->last_login_at->format('Y-m-d H:i:s') : null,
                 'full_name' => $user->first_name . ' ' . $user->last_name,
+                // Trainer specific fields (if user is trainer)
+                'trainer_category' => $user->user_type === 'trainer' ? $user->trainer_category : null,
+                'trainer_description' => $user->user_type === 'trainer' ? $user->trainer_description : null,
+                'experience_years' => $user->user_type === 'trainer' ? $user->experience_years : null,
+                'experience_months' => $user->user_type === 'trainer' ? $user->experience_months : null,
+                'specializations' => $user->user_type === 'trainer' ? $user->specializations : null,
+                'qualifications' => $user->user_type === 'trainer' ? $user->qualifications : null,
             ];
         });
 
@@ -156,10 +171,12 @@ class UsersController extends Controller
      */
     public function categoriesList(Request $request)
     {
+        $locale = app()->getLocale() ?? 'az';
         $categories = \App\Models\Category::select('id', 'name')
             ->where('is_active', true)
             ->orderBy('sort_order')
-            ->orderBy('name')
+            ->orderByRaw("name->>'{$locale}' ASC")
+            ->orderByRaw("name->>'az' ASC") // Fallback to az if locale doesn't exist
             ->get();
 
         $categoryList = $categories->map(function ($category) {

@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasTranslations;
 
 class ForumQuestion extends Model
 {
-    use HasFactory;
+    use HasFactory, HasTranslations;
+
+    protected $translatable = ['title', 'summary', 'body'];
 
     protected $fillable = [
         'user_id',
@@ -29,6 +32,9 @@ class ForumQuestion extends Model
     ];
 
     protected $casts = [
+        'title' => 'array',
+        'summary' => 'array',
+        'body' => 'array',
         'tags' => 'array',
         'poll_options' => 'array',
         'is_pinned' => 'boolean',

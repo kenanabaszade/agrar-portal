@@ -4,14 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasTranslations;
 
 class ForumAnswer extends Model
 {
-    use HasFactory;
+    use HasFactory, HasTranslations;
+
+    protected $translatable = ['body'];
 
     protected $fillable = ['question_id', 'user_id', 'body', 'is_accepted', 'likes_count'];
 
     protected $casts = [
+        'body' => 'array',
         'is_accepted' => 'boolean',
     ];
 

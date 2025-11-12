@@ -36,11 +36,7 @@
         }
     },
     "scripts": {
-        "post-autoload-dump": [
-            "@php artisan config:clear",
-            "@php artisan clear-compiled",
-            "@php artisan package:discover --ansi"
-        ],
+        "post-autoload-dump": [],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
             "@php artisan storage:link --force"
@@ -68,7 +64,7 @@
         }
     },
     "config": {
-        "optimize-autoloader": true,
+        "optimize-autoloader": false,
         "preferred-install": "dist",
         "sort-packages": true,
         "allow-plugins": {

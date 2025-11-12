@@ -66,6 +66,7 @@ class DatabaseSeeder extends Seeder
             'description' => 'Basics of sustainable practices',
             'category' => 'Sustainability',
             'is_online' => true,
+            'has_certificate' => true,
         ]);
 
         $module1 = TrainingModule::firstOrCreate(['training_id' => $training->id, 'sequence' => 1], [
@@ -91,6 +92,7 @@ class DatabaseSeeder extends Seeder
         ], [
             'passing_score' => 60,
             'duration_minutes' => 30,
+            'sertifikat_description' => 'İşğaldan azad olunmuş ərazilərdə kənd təsərrüfatının potensialının gücləndirməsi modulları üzrə təlimlərdə imtahanı uğurla başa vurmuşdur.',
         ]);
 
         $q1 = ExamQuestion::firstOrCreate(['exam_id' => $exam->id, 'sequence' => 1], [

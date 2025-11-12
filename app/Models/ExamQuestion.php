@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasTranslations;
 
 class ExamQuestion extends Model
 {
-    use HasFactory;
+    use HasFactory, HasTranslations;
+
+    protected $translatable = ['question_text', 'explanation'];
 
     protected $fillable = [
         'exam_id', 
@@ -23,6 +26,8 @@ class ExamQuestion extends Model
     ];
 
     protected $casts = [
+        'question_text' => 'array',
+        'explanation' => 'array',
         'question_media' => 'array',
         'metadata' => 'array',
         'is_required' => 'boolean',
@@ -182,7 +187,22 @@ class ExamQuestion extends Model
                 
                 // If choice_id is not provided, try to find by answer_text
                 if (!$choiceId && isset($answer['answer_text'])) {
-                    $choice = $this->choices->where('choice_text', $answer['answer_text'])->first();
+                    // Handle multilang choice_text (array)
+                    $choice = $this->choices->first(function ($choice) use ($answer) {
+                        $answerText = trim($answer['answer_text']);
+                        if (is_array($choice->choice_text)) {
+                            // Check all language versions
+                            foreach ($choice->choice_text as $lang => $text) {
+                                if (trim($text) === $answerText) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        } else {
+                            // Simple string comparison
+                            return trim($choice->choice_text) === $answerText;
+                        }
+                    });
                     return $choice && $choice->is_correct;
                 }
                 
@@ -199,11 +219,33 @@ class ExamQuestion extends Model
                     $choiceIds = [$answer['choice_id']];
                 }
                 
-                // If choice_ids is still empty, try to find by answer_text
+                // If choice_ids is still empty, try to find by answer_text (parse comma-separated values)
                 if (empty($choiceIds) && isset($answer['answer_text'])) {
-                    $choice = $this->choices->where('choice_text', $answer['answer_text'])->first();
-                    if ($choice) {
-                        $choiceIds = [$choice->id];
+                    // Parse answer_text like "az, ac" or "az,ac"
+                    $answerText = trim($answer['answer_text']);
+                    $parts = array_map('trim', explode(',', $answerText));
+                    
+                    // Find choices by text (handle multilang)
+                    foreach ($parts as $part) {
+                        $choice = $this->choices->first(function ($choice) use ($part) {
+                            // Handle multilang choice_text (array)
+                            if (is_array($choice->choice_text)) {
+                                // Check all language versions
+                                foreach ($choice->choice_text as $lang => $text) {
+                                    if (trim($text) === $part) {
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            } else {
+                                // Simple string comparison
+                                return trim($choice->choice_text) === $part;
+                            }
+                        });
+                        
+                        if ($choice) {
+                            $choiceIds[] = $choice->id;
+                        }
                     }
                 }
                 

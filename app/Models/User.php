@@ -42,6 +42,13 @@ class User extends Authenticatable
         'google_refresh_token',
         'google_token_expires_at',
         'last_login_at',
+        // Trainer-specific fields
+        'trainer_category',
+        'trainer_description',
+        'experience_years',
+        'experience_months',
+        'specializations',
+        'qualifications',
     ];
 
     /**
@@ -70,6 +77,13 @@ class User extends Authenticatable
                 'is_active' => 'boolean',
                 'two_factor_enabled' => 'boolean',
                 'email_verified' => 'boolean',
+                // Trainer-specific casts
+                'trainer_category' => 'array',
+                'trainer_description' => 'array',
+                'specializations' => 'array',
+                'qualifications' => 'array',
+                'experience_years' => 'integer',
+                'experience_months' => 'integer',
             ];
         }
 
@@ -122,6 +136,140 @@ class User extends Authenticatable
     public function internshipPrograms()
     {
         return $this->hasMany(InternshipProgram::class, 'trainer_id');
+    }
+
+    /**
+     * Get all trainings created by this trainer
+     */
+    public function trainings()
+    {
+        return $this->hasMany(Training::class, 'trainer_id');
+    }
+
+    /**
+     * Get all exam registrations for this user
+     */
+    public function examRegistrations()
+    {
+        return $this->hasMany(ExamRegistration::class);
+    }
+
+    /**
+     * Get all certificates for this user
+     */
+    public function certificates()
+    {
+        return $this->hasMany(Certificate::class);
+    }
+
+    /**
+     * Get all ratings given by this user
+     */
+    public function trainingRatings()
+    {
+        return $this->hasMany(\App\Models\TrainingRating::class);
+    }
+
+    /**
+     * Get trainer registrations (registrations for trainings created by this trainer)
+     */
+    public function trainerRegistrations()
+    {
+        return TrainingRegistration::whereHas('training', function ($q) {
+            $q->where('trainer_id', $this->id);
+        });
+    }
+
+    /**
+     * Get trainer ratings (ratings for trainings created by this trainer)
+     */
+    public function trainerRatings()
+    {
+        return \App\Models\TrainingRating::whereHas('training', function ($q) {
+            $q->where('trainer_id', $this->id);
+        });
+    }
+
+    /**
+     * Get forum questions created by this user
+     */
+    public function forumQuestions()
+    {
+        return $this->hasMany(ForumQuestion::class);
+    }
+
+    /**
+     * Get forum answers created by this user
+     */
+    public function forumAnswers()
+    {
+        return $this->hasMany(ForumAnswer::class);
+    }
+
+    /**
+     * Get meetings where this user is the trainer
+     */
+    public function meetingsAsTrainer()
+    {
+        return $this->hasMany(Meeting::class, 'trainer_id');
+    }
+
+    /**
+     * Get meetings created by this user
+     */
+    public function meetingsAsCreator()
+    {
+        return $this->hasMany(Meeting::class, 'created_by');
+    }
+
+    /**
+     * Get trainer's average rating from all their trainings
+     */
+    public function getTrainerAverageRatingAttribute()
+    {
+        if ($this->user_type !== 'trainer') {
+            return null;
+        }
+
+        // Get all ratings for trainings created by this trainer
+        $ratings = \App\Models\TrainingRating::whereHas('training', function ($query) {
+            $query->where('trainer_id', $this->id);
+        })->avg('rating');
+
+        return $ratings ? round((float) $ratings, 2) : null;
+    }
+
+    /**
+     * Get trainer's total ratings count
+     */
+    public function getTrainerRatingsCountAttribute()
+    {
+        if ($this->user_type !== 'trainer') {
+            return 0;
+        }
+
+        return \App\Models\TrainingRating::whereHas('training', function ($query) {
+            $query->where('trainer_id', $this->id);
+        })->count();
+    }
+
+    /**
+     * Get formatted experience string (e.g., "3 il 5 ay", "3 il", "5 ay")
+     */
+    public function getExperienceFormattedAttribute()
+    {
+        $years = (int) ($this->experience_years ?? 0);
+        $months = (int) ($this->experience_months ?? 0);
+
+        if ($years > 0 && $months > 0) {
+            return "{$years} il {$months} ay";
+        } elseif ($years > 0) {
+            return "{$years} il";
+        } elseif ($months > 0) {
+            return "{$months} ay";
+        }
+
+        return null;
     }
 
     /**

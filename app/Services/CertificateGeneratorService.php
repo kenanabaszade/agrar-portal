@@ -5,7 +5,7 @@ namespace App\Services;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
-use Endroid\QrCode\Writer\PngWriter;
+use Endroid\QrCode\Writer\SvgWriter;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use Carbon\Carbon;
@@ -19,7 +19,8 @@ class CertificateGeneratorService
     public function __construct()
     {
         $this->basePath = base_path();
-        $this->certificateDir = $this->basePath . DIRECTORY_SEPARATOR . 'certificate';
+        // Use new certificate template directory
+        $this->certificateDir = $this->basePath . DIRECTORY_SEPARATOR . 'certificate_new';
         $this->outputDir = storage_path('app/public/certificates');
         
         // Ensure output directory exists
@@ -54,7 +55,7 @@ class CertificateGeneratorService
     {
         try {
             $builder = new Builder(
-                writer: new PngWriter(),
+                writer: new SvgWriter(),
                 writerOptions: [],
                 validateResult: false,
                 data: $url,
@@ -66,9 +67,9 @@ class CertificateGeneratorService
             
             $result = $builder->build();
             
-            // Get the PNG data and encode to base64
-            $pngData = $result->getString();
-            return base64_encode($pngData);
+            // Get the SVG data and encode to base64
+            $svgData = $result->getString();
+            return 'data:image/svg+xml;base64,' . base64_encode($svgData);
         } catch (\Exception $e) {
             Log::error('QR code generation failed: ' . $e->getMessage());
             throw $e;
@@ -100,20 +101,214 @@ class CertificateGeneratorService
         $certNumber = sprintf("AZ-%d-%06d", Carbon::now()->year, $userData['id']);
         
         // Read template
-        $templatePath = $this->certificateDir . DIRECTORY_SEPARATOR . 'certificate.html';
+        $templatePath = $this->certificateDir . DIRECTORY_SEPARATOR . 'cer.html';
         if (!file_exists($templatePath)) {
             throw new \Exception("Certificate template not found at: {$templatePath}");
         }
         
         $htmlContent = file_get_contents($templatePath);
         
-        // Certificate description
-        $certDescription = $examData['sertifikat_description'] ?? 
-            "{$trainingData['title']} üzrə imtahanı uğurla başa vurmuşdur.";
+        // Certificate description - ONLY use Training certificate_description
+        // Always use 'az' language for certificate PDF generation
+        $certDescription = null;
         
-        // Get image path - convert to file:// URL for Chrome
-        $imagePath = $this->certificateDir . DIRECTORY_SEPARATOR . 'image.png';
-        $imageFileUrl = $this->convertToFileUrl($imagePath);
+        // Only use Training certificate_description (multilang) - always use 'az'
+        if (isset($trainingData['certificate_description']) && !empty($trainingData['certificate_description'])) {
+            $trainingDesc = $trainingData['certificate_description'];
+            // If it's an array (multilang), always get 'az' language for certificate
+            if (is_array($trainingDesc)) {
+                $certDescription = $trainingDesc['az'] ?? null;
+                if (!$certDescription) {
+                    // If 'az' not found, try first available language as fallback
+                    $certDescription = reset($trainingDesc);
+                }
+            } elseif (is_string($trainingDesc) && !empty(trim($trainingDesc))) {
+                $certDescription = trim($trainingDesc);
+            }
+        }
+        
+        // Log for debugging
+        \Log::info('Certificate description selected', [
+            'cert_description' => $certDescription,
+            'has_training_desc' => isset($trainingData['certificate_description']),
+            'training_desc' => $trainingData['certificate_description'] ?? null,
+        ]);
+        
+        // Replace data-generate="Dinamik" attributes with actual data
+        // Use DOMDocument for better HTML parsing
+        $dom = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="UTF-8">' . $htmlContent, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+        
+        // Prepare user name
+        $userFullName = '';
+        if (!empty($userData['first_name']) && !empty($userData['last_name'])) {
+            $userFullName = trim($userData['first_name'] . ' ' . $userData['last_name']);
+        } elseif (!empty($userData['first_name'])) {
+            $userFullName = $userData['first_name'];
+        } elseif (!empty($userData['username'])) {
+            $userFullName = $userData['username'];
+        } elseif (!empty($userData['email'])) {
+            $userFullName = explode('@', $userData['email'])[0];
+        } else {
+            $userFullName = 'İstifadəçi';
+        }
+        
+        // Find all elements with data-generate="Dinamik"
+        $xpath = new \DOMXPath($dom);
+        $dynamicElements = $xpath->query('//*[@data-generate="Dinamik"]');
+        
+        // Track which elements have been replaced
+        $replacedElements = [];
+        $userNameElement = null;
+        $descriptionElement = null;
+        
+        foreach ($dynamicElements as $element) {
+            $tagName = $element->tagName;
+            $textContent = $element->textContent;
+            
+            // Determine what data to replace based on context
+            if ($tagName === 'p' || $tagName === 'h2') {
+                if (strpos($textContent, 'AZ-') === 0) {
+                    // Certificate number
+                    $element->textContent = $certNumber;
+                    $replacedElements[] = $element;
+                } elseif (preg_match('/\d{2}\s*\/\s*\d{2}\s*\/\s*\d{4}/', $textContent)) {
+                    // Date
+                    $element->textContent = $issueDate;
+                    $replacedElements[] = $element;
+                } elseif ($tagName === 'h2') {
+                    // User name - h2 in .main_content_user section - use XPath to find it precisely
+                    $parent = $element->parentNode;
+                    if ($parent && $parent->getAttribute('class') === 'main_content_user') {
+                        $userNameElement = $element;
+                        // Don't replace yet, will do it separately
+                    }
+                } elseif ($tagName === 'p') {
+                    // Check if this is the description in .main_content_user section
+                    $parent = $element->parentNode;
+                    if ($parent && $parent->getAttribute('class') === 'main_content_user') {
+                        // This is the description paragraph - make sure it's not already replaced
+                        $isAlreadyReplaced = false;
+                        foreach ($replacedElements as $replaced) {
+                            if ($element->isSameNode($replaced)) {
+                                $isAlreadyReplaced = true;
+                                break;
+                            }
+                        }
+                        if (!$isAlreadyReplaced) {
+                            $descriptionElement = $element;
+                            // Don't replace yet, will do it separately
+                        }
+                    }
+                }
+            } elseif ($tagName === 'img') {
+                // QR Code image - qrBase64 already contains full data URI
+                $element->setAttribute('src', $qrBase64);
+                $replacedElements[] = $element;
+            }
+        }
+        
+        // If description element not found by parent check, try XPath query
+        if (!$descriptionElement) {
+            $descriptionElements = $xpath->query('//div[@class="main_content_user"]/p[@data-generate="Dinamik"]');
+            if ($descriptionElements && $descriptionElements->length > 0) {
+                foreach ($descriptionElements as $pElement) {
+                    $isReplaced = false;
+                    foreach ($replacedElements as $replaced) {
+                        if ($pElement->isSameNode($replaced)) {
+                            $isReplaced = true;
+                            break;
+                        }
+                    }
+                    if (!$isReplaced) {
+                        $descriptionElement = $pElement;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Replace user name (h2 in .main_content_user)
+        if ($userNameElement) {
+            $userNameElement->textContent = $userFullName;
+            $replacedElements[] = $userNameElement;
+            \Log::info('Certificate user name replaced in HTML', [
+                'user_name' => $userFullName
+            ]);
+        } else {
+            \Log::warning('Certificate user name element (h2 in .main_content_user) not found in HTML template');
+        }
+        
+        // Replace description (p in .main_content_user)
+        if ($descriptionElement) {
+            // Ensure certDescription is not null - convert to empty string if null
+            $descriptionText = $certDescription ?? '';
+            $descriptionElement->textContent = $descriptionText;
+            $replacedElements[] = $descriptionElement;
+            \Log::info('Certificate description replaced in HTML', [
+                'old_text' => trim($descriptionElement->getAttribute('data-original-text') ?? $descriptionElement->textContent),
+                'new_text' => $descriptionText,
+                'cert_description_length' => strlen($descriptionText)
+            ]);
+        } else {
+            \Log::warning('Certificate description element (p in .main_content_user) not found in HTML template');
+            // Try to find any remaining p element with data-generate="Dinamik" as last resort
+            $allPElements = $xpath->query('//p[@data-generate="Dinamik"]');
+            foreach ($allPElements as $pElement) {
+                $isReplaced = false;
+                foreach ($replacedElements as $replaced) {
+                    if ($pElement->isSameNode($replaced)) {
+                        $isReplaced = true;
+                        break;
+                    }
+                }
+                if (!$isReplaced) {
+                    $pText = trim($pElement->textContent);
+                    // If it contains description-like text, replace it
+                    if (strlen($pText) > 20 || strpos($pText, 'başa vurmuşdur') !== false || 
+                        strpos($pText, 'təlim') !== false || strpos($pText, 'imtahan') !== false) {
+                        $descriptionElement = $pElement;
+                        // Ensure certDescription is not null - convert to empty string if null
+                        $descriptionText = $certDescription ?? '';
+                        $descriptionElement->textContent = $descriptionText;
+                        $replacedElements[] = $descriptionElement;
+                        \Log::info('Certificate description replaced as fallback', [
+                            'old_text' => $pText,
+                            'new_text' => $descriptionText
+                        ]);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Save back to HTML
+        $htmlContent = $dom->saveHTML();
+        
+        // Convert all relative image paths to absolute file:// URLs
+        // Find all img src attributes with relative paths
+        preg_match_all('/src="([^"]+)"/', $htmlContent, $matches);
+        $uniquePaths = array_unique($matches[1]);
+        
+        foreach ($uniquePaths as $imagePath) {
+            // Skip if already absolute, data URI, or external URL
+            if (strpos($imagePath, 'http') === 0 || strpos($imagePath, 'data:') === 0 || strpos($imagePath, 'file://') === 0) {
+                continue;
+            }
+            
+            // Remove leading slash if present
+            $cleanImagePath = ltrim($imagePath, '/');
+            $absoluteImagePath = $this->certificateDir . DIRECTORY_SEPARATOR . $cleanImagePath;
+            
+            if (file_exists($absoluteImagePath)) {
+                $imageFileUrl = $this->convertToFileUrl($absoluteImagePath);
+                // Replace all occurrences of this path
+                $htmlContent = str_replace('src="' . $imagePath . '"', 'src="' . $imageFileUrl . '"', $htmlContent);
+                Log::debug("Converted image path: {$imagePath} to file URL");
+            }
+        }
         
         // Convert external image URLs to base64 for better reliability in headless Chrome
         // Find all external image URLs in HTML and convert them
@@ -122,27 +317,6 @@ class CertificateGeneratorService
             $base64Image = $this->convertImageToBase64($url);
             $htmlContent = str_replace('src="' . $url . '"', 'src="' . $base64Image . '"', $htmlContent);
             Log::debug('Converted external image URL to base64', ['original_url' => $url]);
-        }
-        
-        // Replace placeholders with actual data
-        $replacements = [
-            'CAHİD HÜMBƏTOV' => strtoupper("{$userData['first_name']} {$userData['last_name']}"),
-            'AZ-2025-001234' => $certNumber,
-            '27 / 10 / 2025' => $issueDate,
-            'İşğaldan azad olunmuş ərazilərdə kənd təsərrüfatının potensialının gücləndirməsi modulları üzrə təlimlərdə imtahanı uğurla başa vurmuşdur.' => $certDescription,
-            'PLACEHOLDER_EXAM_NAME' => $examData['title'] ?? '',
-            'PLACEHOLDER_QR_CODE' => "data:image/png;base64,{$qrBase64}",
-            'href=""' => "href=\"{$verificationUrl}\"",
-            './image.png' => $imageFileUrl,
-        ];
-        
-        foreach ($replacements as $placeholder => $replacement) {
-            if (strpos($htmlContent, $placeholder) !== false) {
-                $htmlContent = str_replace($placeholder, $replacement, $htmlContent);
-                Log::debug("Replaced placeholder: {$placeholder}");
-            } else {
-                Log::debug("Placeholder not found: {$placeholder}");
-            }
         }
         
         return $htmlContent;

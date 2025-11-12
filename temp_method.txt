@@ -1,0 +1,114 @@
+﻿
+>     public function markTrainingCompleted(Request $request, Training 
+$training)
+      {
+          $user = auth()->user();
+          
+          // For video trainings, registration is not required
+          if ($training->type !== 'video') {
+              // Check if user is registered for non-video trainings
+              $registration = $training->registrations()
+                  ->where('user_id', $user->id)
+                  ->where('status', 'approved')
+                  ->first();
+  
+              if (!$registration) {
+                  return response()->json(['message' => 'Access denied. Please 
+register for this training.'], 403);
+              }
+          } else {
+              // For video trainings, create a virtual registration or skip 
+registration check
+              $registration = null;
+          }
+  
+          // Check if training is already completed (only for non-video 
+trainings with registration)
+          if ($registration && $registration->status === 'completed') {
+              return response()->json([
+                  'message' => 'Training already completed',
+                  'registration' => $registration,
+                  'certificate_id' => $registration->certificate_id
+              ]);
+          }
+  
+          // For video trainings, skip lesson completion check
+          if ($training->type !== 'video') {
+              // Get all required lessons for this training
+              $requiredLessonIds = $training->modules()
+                  ->whereHas('lessons', function ($q) {
+                      $q->where('is_required', true);
+                  })->get()->pluck('lessons')->flatten()->pluck('id')->all();
+  
+              // Check if all required lessons are completed
+              $completedRequiredCount = UserTrainingProgress::where('user_id', 
+$user->id)
+                  ->where('training_id', $training->id)
+                  ->whereIn('lesson_id', $requiredLessonIds)
+                  ->where('status', 'completed')
+                  ->count();
+  
+              if (count($requiredLessonIds) > 0 && $completedRequiredCount < 
+count($requiredLessonIds)) {
+                  return response()->json([
+                      'message' => 'Cannot complete training. Not all required 
+lessons are completed.',
+                      'completed_lessons' => $completedRequiredCount,
+                      'required_lessons' => count($requiredLessonIds),
+                      'remaining_lessons' => count($requiredLessonIds) - 
+$completedRequiredCount
+                  ], 422);
+              }
+          }
+  
+          // Create certificate if training has certificate
+          $certificate = null;
+          if ($training->has_certificate) {
+              // For video trainings, create certificate without registration
+              if ($training->type === 'video') {
+                  // Check if certificate already exists
+                  $existingCert = Certificate::where('user_id', $user->id)
+                      ->where('related_training_id', $training->id)
+                      ->first();
+  
+                  if (!$existingCert) {
+                      $certificate = Certificate::create([
+                          'user_id' => $user->id,
+                          'related_training_id' => $training->id,
+                          'related_exam_id' => null,
+                          'certificate_number' => Str::uuid()->toString(),
+                          'issue_date' => now()->toDateString(),
+                          'issuer_name' => 'Aqrar Portal',
+                          'status' => 'active',
+                      ]);
+                  }
+              } else {
+                  // For non-video trainings, attach certificate to 
+registration
+                  if ($registration && !$registration->certificate_id) {
+                      $certificate = Certificate::create([
+                          'user_id' => $user->id,
+                          'related_training_id' => $training->id,
+                          'related_exam_id' => null,
+                          'certificate_number' => Str::uuid()->toString(),
+                          'issue_date' => now()->toDateString(),
+                          'issuer_name' => 'Aqrar Portal',
+                          'status' => 'active',
+                      ]);
+                      
+                      $registration->update([
+                          'certificate_id' => $certificate->id, 
+                          'status' => 'completed'
+                      ]);
+                  }
+              }
+          } else {
+              // Mark as completed without certificate (only for non-video 
+trainings)
+              if ($registration) {
+                  $registration->update(['status' => 'completed']);
+              }
+          }
+  
+
+

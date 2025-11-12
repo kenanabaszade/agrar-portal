@@ -10,7 +10,7 @@ class ExamRegistration extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'exam_id', 'registration_date', 'status', 'score', 'started_at', 'finished_at', 'certificate_id', 'attempt_number', 'needs_manual_grading', 'auto_graded_score', 'selected_question_ids', 'total_questions'
+        'user_id', 'exam_id', 'registration_date', 'status', 'score', 'started_at', 'finished_at', 'certificate_id', 'attempt_number', 'needs_manual_grading', 'auto_graded_score', 'selected_question_ids', 'total_questions', 'admin_notes', 'graded_at', 'graded_by'
     ];
 
     protected $casts = [
@@ -22,6 +22,7 @@ class ExamRegistration extends Model
         'auto_graded_score' => 'integer',
         'selected_question_ids' => 'array',
         'total_questions' => 'integer',
+        'graded_at' => 'datetime',
     ];
 
     public function user()
@@ -42,6 +43,16 @@ class ExamRegistration extends Model
     public function answers()
     {
         return $this->hasMany(ExamUserAnswer::class, 'registration_id');
+    }
+
+    public function userAnswers()
+    {
+        return $this->answers();
+    }
+
+    public function gradedBy()
+    {
+        return $this->belongsTo(User::class, 'graded_by');
     }
 }
 

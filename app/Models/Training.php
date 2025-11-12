@@ -5,10 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use App\Traits\HasTranslations;
 
 class Training extends Model
 {
-    use HasFactory;
+    use HasFactory, HasTranslations;
+
+    /**
+     * Translatable attributes
+     */
+    protected $translatable = ['title', 'description'];
 
     protected $fillable = [
         'title',
@@ -26,11 +32,17 @@ class Training extends Model
         'offline_details',
         'media_files',
         'has_certificate',
+        'certificate_description',
+        'certificate_has_expiry',
+        'certificate_expiry_years',
+        'certificate_expiry_months',
+        'certificate_expiry_days',
         'require_email_verification',
         'has_exam',
         'exam_id',
         'exam_required',
         'min_exam_score',
+        'exam_for_certificate',
         'status',
         'difficulty',
         // Google Meet integration fields
@@ -44,6 +56,9 @@ class Training extends Model
     ];
 
     protected $casts = [
+        'title' => 'array',
+        'description' => 'array',
+        'certificate_description' => 'array',
         'media_files' => 'array',
         'online_details' => 'array',
         'offline_details' => 'array',
@@ -53,6 +68,8 @@ class Training extends Model
         'end_time' => 'datetime:H:i',
         'is_online' => 'boolean',
         'has_certificate' => 'boolean',
+        'certificate_has_expiry' => 'boolean',
+        'exam_for_certificate' => 'boolean',
         'require_email_verification' => 'boolean',
         'has_exam' => 'boolean',
         'exam_required' => 'boolean',
@@ -94,14 +111,44 @@ class Training extends Model
         return $this->hasManyThrough(TrainingLesson::class, TrainingModule::class);
     }
 
+    /**
+     * Get category relationship
+     * Note: This relationship may not work properly with eager loading
+     * because it matches trainings.category (string) with categories.name (JSON)
+     */
     public function category()
     {
+        // Category relationship is disabled for eager loading due to JSON field mismatch
+        // Use manual query if category data is needed:
+        // Category::whereRaw("name->>'az' = ?", [$this->category])->first()
         return $this->belongsTo(Category::class, 'category', 'name');
     }
 
     public function registrations()
     {
         return $this->hasMany(TrainingRegistration::class);
+    }
+
+    public function ratings()
+    {
+        return $this->hasMany(TrainingRating::class);
+    }
+
+    /**
+     * Get average rating for this training
+     */
+    public function getAverageRatingAttribute()
+    {
+        $average = $this->ratings()->avg('rating');
+        return $average ? round((float) $average, 2) : null;
+    }
+
+    /**
+     * Get total ratings count
+     */
+    public function getRatingsCountAttribute()
+    {
+        return $this->ratings()->count();
     }
 
     /**
@@ -363,4 +410,5 @@ class Training extends Model
             return $hours . ' saat ' . $minutes . ' dəqiqə';
         }
     }
+
 }
