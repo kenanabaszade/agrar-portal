@@ -45,3 +45,4 @@ class ExamPassedMail extends Mailable
 
 
 
+

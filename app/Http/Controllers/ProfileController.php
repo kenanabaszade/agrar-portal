@@ -45,8 +45,24 @@ class ProfileController extends Controller
             'father_name' => ['sometimes', 'string', 'max:255'],
             'region' => ['sometimes', 'string', 'max:255'],
             'phone' => ['sometimes', 'string', 'max:50'],
+            'birth_date' => ['sometimes', 'date'],
+            'gender' => ['sometimes', 'string', 'max:50'],
             'user_type' => ['sometimes', 'in:farmer,trainer,admin,agronom,veterinary,government,entrepreneur,researcher'],
         ]);
+
+        if (array_key_exists('user_type', $validated)) {
+            $requestedType = (string) $validated['user_type'];
+            $currentType = (string) $user->user_type;
+
+            if ($currentType !== $requestedType) {
+                // Non-admin users cannot elevate themselves to admin or trainer.
+                if ($currentType !== 'admin' && in_array($requestedType, ['admin', 'trainer'], true)) {
+                    return response()->json([
+                        'message' => 'You are not allowed to change the user type to the requested role.',
+                    ], 403);
+                }
+            }
+        }
 
         $user->update($validated);
 

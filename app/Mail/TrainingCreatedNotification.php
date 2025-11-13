@@ -64,3 +64,4 @@ class TrainingCreatedNotification extends Mailable
 
 
 
+
