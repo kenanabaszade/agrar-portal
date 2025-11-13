@@ -1526,6 +1526,73 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "Contact Form",
+			"item": [
+				{
+					"name": "Send Contact Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Ad Soyad\",\n  \"email\": \"user@example.com\",\n  \"phone\": \"+994 XX XXX XX XX\",\n  \"category\": \"Sual\",\n  \"subject\": \"Mesaj mövzusu\",\n  \"message\": \"Mesaj mətni buraya yazılır\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/contact",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "contact"]
+						},
+						"description": "Send a contact message. This will send an email notification to all admin users. Requires authentication token."
+					},
+					"response": []
+				},
+				{
+					"name": "Send Contact Message (Minimal)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Ad Soyad\",\n  \"email\": \"user@example.com\",\n  \"subject\": \"Mesaj mövzusu\",\n  \"message\": \"Mesaj mətni buraya yazılır\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/contact",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "contact"]
+						},
+						"description": "Send a contact message with only required fields (name, email, subject, message). Phone and category are optional. Requires authentication token."
+					},
+					"response": []
+				}
+			]
 		}
 	],
 	"variable": [
