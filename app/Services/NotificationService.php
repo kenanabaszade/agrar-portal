@@ -42,8 +42,18 @@ class NotificationService
             'created_at' => now(),
         ]);
 
-        if (in_array('push', $channels, true) && $user->wantsPushNotifications()) {
-            event(new NotificationCreated($notification));
+        if (in_array('push', $channels, true)) {
+            // Refresh user to get latest preferences
+            $user->refresh();
+            
+            if ($user->wantsPushNotifications()) {
+                event(new NotificationCreated($notification));
+            } else {
+                Log::info('Push notification skipped - user disabled', [
+                    'user_id' => $user->id,
+                    'push_notifications_enabled' => $user->push_notifications_enabled,
+                ]);
+            }
         }
 
         if (
@@ -51,7 +61,17 @@ class NotificationService
             && isset($options['mail'])
             && $options['mail'] instanceof Mailable
         ) {
-            $this->sendMail($user, $options['mail']);
+            // Refresh user to get latest preferences
+            $user->refresh();
+            
+            if ($user->wantsEmailNotifications()) {
+                $this->sendMail($user, $options['mail']);
+            } else {
+                Log::info('Email notification skipped - user disabled', [
+                    'user_id' => $user->id,
+                    'email_notifications_enabled' => $user->email_notifications_enabled,
+                ]);
+            }
         }
 
         return $notification;
@@ -68,8 +88,18 @@ class NotificationService
             return false;
         }
 
-        if ($user && !$user->wantsEmailNotifications()) {
-            return false;
+        if ($user) {
+            // Refresh user to get latest preferences
+            $user->refresh();
+            
+            if (!$user->wantsEmailNotifications()) {
+                Log::info('Email notification skipped - user disabled', [
+                    'user_id' => $user->id,
+                    'email' => $email,
+                    'email_notifications_enabled' => $user->email_notifications_enabled,
+                ]);
+                return false;
+            }
         }
 
         try {
