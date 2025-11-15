@@ -14,11 +14,13 @@ class Notification extends Model
 
     public $timestamps = false;
 
-    protected $fillable = ['user_id', 'type', 'title', 'message', 'is_read', 'sent_at', 'created_at'];
+    protected $fillable = ['user_id', 'type', 'title', 'message', 'data', 'channels', 'is_read', 'sent_at', 'created_at'];
 
     protected $casts = [
         'title' => 'array',
         'message' => 'array',
+        'data' => 'array',
+        'channels' => 'array',
         'is_read' => 'boolean',
         'sent_at' => 'datetime',
         'created_at' => 'datetime',

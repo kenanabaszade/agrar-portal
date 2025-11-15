@@ -45,4 +45,14 @@ return [
         'personal_email' => env('GOOGLE_PERSONAL_EMAIL'),
     ],
 
+    'pusher' => [
+        'app_id' => env('PUSHER_APP_ID'),
+        'key' => env('PUSHER_APP_KEY'),
+        'secret' => env('PUSHER_APP_SECRET'),
+        'cluster' => env('PUSHER_APP_CLUSTER'),
+        'host' => env('PUSHER_HOST'),
+        'port' => env('PUSHER_PORT', 6001),
+        'scheme' => env('PUSHER_SCHEME', 'https'),
+    ],
+
 ];

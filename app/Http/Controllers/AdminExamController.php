@@ -12,8 +12,8 @@ use App\Models\Exam;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Process;
+use App\Services\NotificationService;
 
 class AdminExamController extends Controller
 {
@@ -629,12 +629,31 @@ class AdminExamController extends Controller
                 $certificate = Certificate::where('user_id', $user->id)
                     ->where('related_exam_id', $exam->id)
                     ->first();
-                
-                Mail::to($user->email)->send(new \App\Mail\ExamPassedMail($user, $exam, $registration, $certificate));
+                $mailable = new \App\Mail\ExamPassedMail($user, $exam, $registration, $certificate);
             } else {
                 // Send failed email
-                Mail::to($user->email)->send(new \App\Mail\ExamFailedMail($user, $exam, $registration));
+                $mailable = new \App\Mail\ExamFailedMail($user, $exam, $registration);
             }
+
+            $title = $passed ? 'İmtahanı uğurla keçdiniz' : 'İmtahan nəticəsi';
+            $message = $passed
+                ? "{$exam->title} imtahanını uğurla tamamladınız."
+                : "{$exam->title} imtahan nəticəniz hazırdır.";
+
+            app(NotificationService::class)->send(
+                $user,
+                'exam',
+                ['az' => $title],
+                ['az' => $message],
+                [
+                    'data' => [
+                        'exam_id' => $exam->id,
+                        'registration_id' => $registration->id,
+                        'result' => $passed ? 'passed' : 'failed',
+                    ],
+                    'mail' => $mailable,
+                ]
+            );
         } catch (\Exception $e) {
             Log::error('Error sending grading notification: ' . $e->getMessage());
         }

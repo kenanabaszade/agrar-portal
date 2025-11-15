@@ -4,12 +4,12 @@ namespace App\Jobs;
 
 use App\Models\User;
 use App\Mail\TrainingNotification;
+use App\Services\NotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 
 class SendTrainingNotification implements ShouldQueue
@@ -53,9 +53,16 @@ class SendTrainingNotification implements ShouldQueue
                 return;
             }
 
-            Mail::to($user->email)->send(new TrainingNotification($this->notificationData));
-            
-            Log::info("Training notification sent to user {$this->userId}");
+            $sent = app(NotificationService::class)->sendMail(
+                $user,
+                new TrainingNotification($this->notificationData)
+            );
+
+            if ($sent) {
+                Log::info("Training notification sent to user {$this->userId}");
+            } else {
+                Log::info("Training notification skipped for user {$this->userId} (preferences)");
+            }
         } catch (\Exception $e) {
             Log::error("Failed to send training notification to user {$this->userId}: " . $e->getMessage());
             throw $e;

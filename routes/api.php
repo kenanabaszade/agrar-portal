@@ -96,6 +96,11 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
 
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
+        // Broadcasting authentication for real-time notifications
+        Route::post('broadcasting/auth', function (\Illuminate\Http\Request $request) {
+            return \Illuminate\Support\Facades\Broadcast::auth($request);
+        });
+        
         Route::post('auth/logout', [\App\Http\Controllers\AuthController::class, 'logout']);
         
         // Contact Form - Requires authentication
@@ -255,6 +260,10 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         // Notifications
         Route::get('notifications', [\App\Http\Controllers\NotificationController::class, 'index']);
         Route::post('notifications/{notification}/read', [\App\Http\Controllers\NotificationController::class, 'markRead']);
+        Route::post('notifications/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllRead']);
+        Route::get('notifications/unread-count', [\App\Http\Controllers\NotificationController::class, 'unreadCount']);
+        Route::get('notifications/preferences', [\App\Http\Controllers\NotificationPreferenceController::class, 'show']);
+        Route::patch('notifications/preferences', [\App\Http\Controllers\NotificationPreferenceController::class, 'update']);
 
         // Payments
         Route::get('payments', [\App\Http\Controllers\PaymentController::class, 'index']);

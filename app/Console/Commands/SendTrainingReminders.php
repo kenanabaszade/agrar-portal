@@ -6,7 +6,7 @@ use Illuminate\Console\Command;
 use App\Models\Training;
 use App\Models\User;
 use App\Mail\TrainingReminderNotification;
-use Illuminate\Support\Facades\Mail;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 
 class SendTrainingReminders extends Command
@@ -59,6 +59,8 @@ class SendTrainingReminders extends Command
 
         $this->info("Found {$trainings->count()} trainings starting in 3 hours");
 
+        $notificationService = app(NotificationService::class);
+
         foreach ($trainings as $training) {
             $this->info("Processing training: {$training->title}");
             
@@ -71,11 +73,13 @@ class SendTrainingReminders extends Command
             
             foreach ($users as $user) {
                 try {
-                    Mail::to($user->email)->send(
+                    if ($notificationService->sendMail(
+                        $user,
                         new TrainingReminderNotification($training, $user)
-                    );
-                    $emailsSent++;
-                } catch (\Exception $e) {
+                    )) {
+                        $emailsSent++;
+                    }
+                } catch (\Throwable $e) {
                     $this->error("Failed to send reminder to {$user->email}: " . $e->getMessage());
                 }
             }

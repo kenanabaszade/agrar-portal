@@ -2,13 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Mail\GenericNotificationMail;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 
 class SendInternshipNotification implements ShouldQueue
@@ -52,14 +53,18 @@ class SendInternshipNotification implements ShouldQueue
                 return;
             }
 
-            // Note: Create InternshipNotification mailable if it doesn't exist
-            // For now, we'll use a generic mail sending
-            Mail::raw($this->notificationData['message'] ?? 'Internship notification', function ($message) use ($user) {
-                $message->to($user->email)
-                        ->subject($this->notificationData['subject'] ?? 'Internship Notification');
-            });
-            
-            Log::info("Internship notification sent to user {$this->userId}");
+            $mail = new GenericNotificationMail(
+                $this->notificationData['subject'] ?? 'Internship Notification',
+                $this->notificationData['message'] ?? 'Internship notification'
+            );
+
+            $sent = app(NotificationService::class)->sendMail($user, $mail);
+
+            if ($sent) {
+                Log::info("Internship notification sent to user {$this->userId}");
+            } else {
+                Log::info("Internship notification skipped for user {$this->userId} (preferences)");
+            }
         } catch (\Exception $e) {
             Log::error("Failed to send internship notification to user {$this->userId}: " . $e->getMessage());
             throw $e;

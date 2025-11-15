@@ -3,12 +3,13 @@
 namespace App\Jobs;
 
 use App\Models\User;
+use App\Mail\GenericNotificationMail;
+use App\Services\NotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 
 class SendExamNotification implements ShouldQueue
@@ -52,14 +53,18 @@ class SendExamNotification implements ShouldQueue
                 return;
             }
 
-            // Note: Create ExamNotification mailable if it doesn't exist
-            // For now, we'll use a generic mail sending
-            Mail::raw($this->notificationData['message'] ?? 'Exam notification', function ($message) use ($user) {
-                $message->to($user->email)
-                        ->subject($this->notificationData['subject'] ?? 'Exam Notification');
-            });
-            
-            Log::info("Exam notification sent to user {$this->userId}");
+            $mail = new GenericNotificationMail(
+                $this->notificationData['subject'] ?? 'Exam Notification',
+                $this->notificationData['message'] ?? 'Exam notification'
+            );
+
+            $sent = app(NotificationService::class)->sendMail($user, $mail);
+
+            if ($sent) {
+                Log::info("Exam notification sent to user {$this->userId}");
+            } else {
+                Log::info("Exam notification skipped for user {$this->userId} (preferences)");
+            }
         } catch (\Exception $e) {
             Log::error("Failed to send exam notification to user {$this->userId}: " . $e->getMessage());
             throw $e;

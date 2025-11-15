@@ -8,11 +8,11 @@ use App\Models\ProgramRequirement;
 use App\Models\ProgramGoal;
 use App\Models\User;
 use App\Mail\InternshipProgramNotification;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Mail;
 
 class InternshipProgramController extends Controller
 {
@@ -706,14 +706,36 @@ class InternshipProgramController extends Controller
 
             $sentCount = 0;
             $failedCount = 0;
+            $notificationService = app(NotificationService::class);
+            $title = match ($action) {
+                'updated' => 'Staj proqramı yeniləndi',
+                'deleted', 'cancelled' => 'Staj proqramı ləğv edildi',
+                default => 'Yeni staj proqramı əlavə olundu',
+            };
+
+            $message = match ($action) {
+                'updated' => "{$program->title['az'] ?? $program->title} proqramında dəyişiklik oldu.",
+                'deleted', 'cancelled' => "{$program->title['az'] ?? $program->title} proqramı ləğv olundu.",
+                default => "{$program->title['az'] ?? $program->title} adlı yeni staj proqramı mövcuddur.",
+            };
 
             foreach ($users as $user) {
                 try {
-                    Mail::to($user->email)->send(
-                        new InternshipProgramNotification($program, $user, $action)
+                    $notificationService->send(
+                        $user,
+                        'training',
+                        ['az' => $title],
+                        ['az' => $message],
+                        [
+                            'data' => [
+                                'internship_program_id' => $program->id,
+                                'action' => $action,
+                            ],
+                            'mail' => new InternshipProgramNotification($program, $user, $action),
+                        ]
                     );
                     $sentCount++;
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $failedCount++;
                     \Log::error('Failed to send internship program notification email', [
                         'email' => $user->email,

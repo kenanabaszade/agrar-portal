@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\ContactMessage;
 use App\Models\User;
 use App\Mail\ContactMessageNotification;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 
 class ContactController extends Controller
@@ -40,11 +40,14 @@ class ContactController extends Controller
             $sentCount = 0;
             $failedCount = 0;
 
+            $notificationService = app(NotificationService::class);
+
             foreach ($admins as $admin) {
                 try {
-                    Mail::to($admin->email)->send(new ContactMessageNotification($contactMessage));
-                    $sentCount++;
-                } catch (\Exception $e) {
+                    if ($notificationService->sendMail($admin, new ContactMessageNotification($contactMessage))) {
+                        $sentCount++;
+                    }
+                } catch (\Throwable $e) {
                     $failedCount++;
                     Log::error('Failed to send contact message notification email', [
                         'admin_id' => $admin->id,

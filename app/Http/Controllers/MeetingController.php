@@ -4,12 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Meeting;
 use App\Models\MeetingRegistration;
+use App\Models\User;
 use App\Services\GoogleCalendarService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Mail;
 use App\Mail\MeetingCreatedNotification;
 use Carbon\Carbon;
 
@@ -499,15 +500,22 @@ class MeetingController extends Controller
             // Send email notifications to attendees
             $attendees = $this->convertAttendees($validated['attendees'] ?? []);
             if (!empty($attendees)) {
+                $notificationService = app(NotificationService::class);
                 foreach ($attendees as $attendee) {
+                    $linkedUser = isset($attendee['email'])
+                        ? User::where('email', $attendee['email'])->first()
+                        : null;
+
                     try {
-                        Mail::to($attendee['email'])->send(
+                        $notificationService->sendMailToAddress(
+                            $linkedUser,
+                            $attendee['email'] ?? null,
                             new MeetingCreatedNotification($meeting, $attendee)
                         );
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         // Log email sending error but don't fail the meeting creation
                         \Log::error('Failed to send meeting notification email', [
-                            'email' => $attendee['email'],
+                            'email' => $attendee['email'] ?? null,
                             'meeting_id' => $meeting->id,
                             'error' => $e->getMessage()
                         ]);

@@ -34,6 +34,8 @@ class User extends Authenticatable
         'user_type',
         'is_active',
         'two_factor_enabled',
+        'email_notifications_enabled',
+        'push_notifications_enabled',
         'otp_code',
         'otp_expires_at',
         'email_verified',
@@ -77,6 +79,8 @@ class User extends Authenticatable
                 'is_active' => 'boolean',
                 'two_factor_enabled' => 'boolean',
                 'email_verified' => 'boolean',
+                'email_notifications_enabled' => 'boolean',
+                'push_notifications_enabled' => 'boolean',
                 // Trainer-specific casts
                 'trainer_category' => 'array',
                 'trainer_description' => 'array',
@@ -281,5 +285,19 @@ class User extends Authenticatable
             return asset('storage/profile_photos/' . $this->profile_photo);
         }
         return null;
+    }
+
+    public function wantsEmailNotifications(): bool
+    {
+        if (!$this->email || !filter_var($this->email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        return $this->email_notifications_enabled ?? true;
+    }
+
+    public function wantsPushNotifications(): bool
+    {
+        return $this->push_notifications_enabled ?? true;
     }
 }

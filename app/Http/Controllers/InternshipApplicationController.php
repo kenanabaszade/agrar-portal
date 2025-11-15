@@ -6,10 +6,10 @@ use App\Models\InternshipApplication;
 use App\Models\InternshipProgram;
 use App\Models\User;
 use App\Mail\InternshipApplicationConfirmation;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 
 class InternshipApplicationController extends Controller
@@ -79,10 +79,12 @@ class InternshipApplicationController extends Controller
             // Send email notification to admins
             $this->notifyAdmins($application);
 
+            $notificationService = app(NotificationService::class);
+
             // Send confirmation email to user
             try {
-                Mail::to($user->email)->send(new InternshipApplicationConfirmation($application));
-            } catch (\Exception $e) {
+                $notificationService->sendMail($user, new InternshipApplicationConfirmation($application));
+            } catch (\Throwable $e) {
                 \Log::error('Failed to send confirmation email to user', [
                     'user_id' => $user->id,
                     'application_id' => $application->id,
@@ -281,8 +283,18 @@ class InternshipApplicationController extends Controller
         try {
             $admins = User::where('user_type', 'admin')->get();
             
+            $notificationService = app(NotificationService::class);
+
             foreach ($admins as $admin) {
-                Mail::to($admin->email)->send(new \App\Mail\InternshipApplicationNotification($application));
+                try {
+                    $notificationService->sendMail($admin, new \App\Mail\InternshipApplicationNotification($application));
+                } catch (\Throwable $mailException) {
+                    \Log::warning('Failed to send admin internship notification', [
+                        'admin_id' => $admin->id,
+                        'application_id' => $application->id,
+                        'error' => $mailException->getMessage(),
+                    ]);
+                }
             }
         } catch (\Exception $e) {
             \Log::error('Failed to send internship application notification', [

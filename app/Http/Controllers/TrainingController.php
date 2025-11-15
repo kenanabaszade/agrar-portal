@@ -11,12 +11,12 @@ use App\Models\User;
 use App\Services\GoogleCalendarService;
 use App\Services\TranslationHelper;
 use App\Services\CertificateGeneratorService;
+use App\Services\NotificationService;
 use App\Mail\TrainingCreatedNotification;
 use App\Mail\TrainingNotification;
 use App\Mail\TrainingCompletionNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -2608,14 +2608,47 @@ class TrainingController extends Controller
 
             $sentCount = 0;
             $failedCount = 0;
+            $notificationService = app(NotificationService::class);
+            
+            // Get localized training title
+            $trainingTitle = is_array($training->title) 
+                ? ($training->title['az'] ?? reset($training->title))
+                : $training->title;
+            
+            $title = match ($action) {
+                'updated' => 'Təlim yeniləndi',
+                'deleted', 'cancelled' => 'Təlim ləğv edildi',
+                default => 'Yeni təlim əlavə olundu',
+            };
+
+            $message = match ($action) {
+                'updated' => "{$trainingTitle} təlimində dəyişiklik edildi.",
+                'deleted', 'cancelled' => "{$trainingTitle} təlimi ləğv olundu.",
+                default => "{$trainingTitle} adlı yeni təlim əlavə olundu.",
+            };
+
+            if ($googleMeetLink) {
+                $message .= " Google Meet keçidi: {$googleMeetLink}";
+            }
 
             foreach ($users as $user) {
                 try {
-                    Mail::to($user->email)->send(
-                        new TrainingNotification($training, $user, $action, $googleMeetLink)
+                    $notificationService->send(
+                        $user,
+                        'training',
+                        ['az' => $title],
+                        ['az' => $message],
+                        [
+                            'data' => [
+                                'training_id' => $training->id,
+                                'action' => $action,
+                                'google_meet_link' => $googleMeetLink,
+                            ],
+                            'mail' => new TrainingNotification($training, $user, $action, $googleMeetLink),
+                        ]
                     );
                     $sentCount++;
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $failedCount++;
                     \Log::error('Failed to send training notification email', [
                         'email' => $user->email,
@@ -2922,10 +2955,6 @@ class TrainingController extends Controller
 
     private function sendTrainingCompletionEmail(User $user, Training $training, ?Certificate $certificate = null): void
     {
-        if (!$user->email) {
-            return;
-        }
-
         try {
             $training->loadMissing(['modules.lessons', 'trainer']);
 
@@ -2971,7 +3000,20 @@ class TrainingController extends Controller
                 'exam_required' => (bool) $training->exam_required,
             ];
 
-            Mail::to($user->email)->send(new TrainingCompletionNotification($user, $training, $details));
+            app(NotificationService::class)->send(
+                $user,
+                'training',
+                ['az' => "{$trainingTitle} tamamlandı"],
+                ['az' => "{$trainingTitle} təlimini uğurla tamamladınız."],
+                [
+                    'data' => [
+                        'training_id' => $training->id,
+                        'certificate_id' => $certificate?->id,
+                        'type' => 'completion',
+                    ],
+                    'mail' => new TrainingCompletionNotification($user, $training, $details),
+                ]
+            );
         } catch (\Throwable $e) {
             \Log::error('Failed to send training completion email', [
                 'user_id' => $user->id,

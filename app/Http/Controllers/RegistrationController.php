@@ -6,7 +6,7 @@ use App\Models\{Training, TrainingRegistration, Exam, ExamRegistration, Certific
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Mail;
+use App\Services\NotificationService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use App\Mail\TrainingRegistrationNotification;
 
@@ -27,15 +27,23 @@ class RegistrationController extends Controller
 
         // Send registration confirmation email
         try {
-            Mail::to($user->email)->send(
+            $emailSent = app(NotificationService::class)->sendMail(
+                $user,
                 new TrainingRegistrationNotification($training, $user)
             );
-            
-            \Log::info('Training registration email sent', [
-                'user_id' => $user->id,
-                'training_id' => $training->id,
-                'email' => $user->email
-            ]);
+
+            if ($emailSent) {
+                \Log::info('Training registration email sent', [
+                    'user_id' => $user->id,
+                    'training_id' => $training->id,
+                    'email' => $user->email
+                ]);
+            } else {
+                \Log::info('Training registration email skipped (preferences)', [
+                    'user_id' => $user->id,
+                    'training_id' => $training->id,
+                ]);
+            }
         } catch (\Exception $e) {
             \Log::error('Failed to send training registration email', [
                 'user_id' => $user->id,
@@ -48,7 +56,7 @@ class RegistrationController extends Controller
         return response()->json([
             'message' => 'Registration successful',
             'registration' => $registration,
-            'email_sent' => true
+            'email_sent' => $emailSent ?? false
         ], 201);
     }
 
