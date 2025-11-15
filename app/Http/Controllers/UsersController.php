@@ -213,9 +213,18 @@ class UsersController extends Controller
             'email' => ['required', 'email', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:50'],
             'password' => ['required', 'string', 'min:8'],
-            'user_type' => ['required', 'in:farmer,trainer,admin,agronom,veterinary,government,entrepreneur,researcher'],
+            'user_type' => ['required', 'in:farmer,trainer,admin,agronom,veterinary,government,entrepreneur,researcher,student'],
             'two_factor_enabled' => ['boolean'],
         ]);
+
+        if (
+            in_array($validated['user_type'], ['admin', 'trainer'], true)
+            && $request->user()?->user_type !== 'admin'
+        ) {
+            return response()->json([
+                'message' => 'Only administrators can create admin or trainer accounts.',
+            ], 403);
+        }
 
         // Create the user
         $user = User::create([
@@ -259,11 +268,21 @@ class UsersController extends Controller
             'first_name' => ['sometimes', 'string', 'max:255'],
             'last_name' => ['sometimes', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
-            'user_type' => ['nullable', 'in:farmer,trainer,admin,agronom,veterinary,government,entrepreneur,researcher'],
+            'user_type' => ['nullable', 'in:farmer,trainer,admin,agronom,veterinary,government,entrepreneur,researcher,student'],
             'is_active' => ['boolean'],
             'password' => ['nullable', 'string', 'min:8'],
             'two_factor_enabled' => ['sometimes', 'boolean'],
         ]);
+
+        if (
+            isset($validated['user_type'])
+            && in_array($validated['user_type'], ['admin', 'trainer'], true)
+            && $request->user()?->user_type !== 'admin'
+        ) {
+            return response()->json([
+                'message' => 'Only administrators can assign admin or trainer roles.',
+            ], 403);
+        }
 
         if (isset($validated['password'])) {
             $validated['password_hash'] = Hash::make($validated['password']);

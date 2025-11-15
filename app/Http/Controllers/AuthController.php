@@ -25,7 +25,7 @@ class AuthController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:50'],
             'password' => ['required', 'string', 'min:8'],
-            'user_type' => ['nullable', Rule::in(['farmer', 'trainer', 'admin', 'agronom', 'veterinary', 'government', 'entrepreneur', 'researcher'])],
+            'user_type' => ['nullable', Rule::in(['farmer', 'agronom', 'veterinary', 'government', 'entrepreneur', 'researcher', 'student'])],
             'region' => ['nullable', 'string', 'max:255'],
             'birth_date' => ['nullable', 'date'],
             'gender' => ['nullable', 'string', 'max:50'],
@@ -602,7 +602,7 @@ class AuthController extends Controller
 
         $validated = $request->validate([
             'email' => ['required', 'email', 'exists:users,email'],
-            'user_type' => ['sometimes', 'in:admin,trainer,farmer'] // Optional: specify user type
+            'user_type' => ['sometimes', 'in:admin,trainer,farmer,student'] // Optional: specify user type
         ]);
 
         $user = User::where('email', $validated['email'])->first();

@@ -47,7 +47,7 @@ class ProfileController extends Controller
             'phone' => ['sometimes', 'string', 'max:50'],
             'birth_date' => ['sometimes', 'date'],
             'gender' => ['sometimes', 'string', 'max:50'],
-            'user_type' => ['sometimes', 'in:farmer,trainer,admin,agronom,veterinary,government,entrepreneur,researcher'],
+            'user_type' => ['sometimes', 'in:farmer,agronom,veterinary,government,entrepreneur,researcher,student'],
         ]);
 
         if (array_key_exists('user_type', $validated)) {
@@ -99,6 +99,58 @@ class ProfileController extends Controller
 
         return response()->json([
             'message' => 'Password changed successfully',
+        ], 200);
+    }
+
+    /**
+     * Confirm password before sensitive actions (like account deletion)
+     */
+    public function confirmPassword(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'password' => ['required', 'string'],
+        ]);
+
+        if (!Hash::check($validated['password'], (string) $user->password_hash)) {
+            return response()->json([
+                'message' => 'Password is incorrect',
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Password confirmed successfully',
+        ], 200);
+    }
+
+    /**
+     * Delete authenticated user's account
+     */
+    public function deleteAccount(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'password' => ['required', 'string'],
+        ]);
+
+        if (!Hash::check($validated['password'], (string) $user->password_hash)) {
+            return response()->json([
+                'message' => 'Password is incorrect',
+            ], 422);
+        }
+
+        // Delete tokens to revoke access
+        $user->tokens()->delete();
+
+        // Delete pending email change requests
+        $user->emailChangeRequests()->delete();
+
+        $user->delete();
+
+        return response()->json([
+            'message' => 'Account deleted successfully',
         ], 200);
     }
 

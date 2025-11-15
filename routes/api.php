@@ -293,6 +293,7 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         Route::get('profile', [\App\Http\Controllers\ProfileController::class, 'show']);
         Route::patch('profile', [\App\Http\Controllers\ProfileController::class, 'update']);
         Route::post('profile/change-password', [\App\Http\Controllers\ProfileController::class, 'changePassword']);
+        Route::post('profile/confirm-password', [\App\Http\Controllers\ProfileController::class, 'confirmPassword']);
         Route::post('profile/request-email-change', [\App\Http\Controllers\ProfileController::class, 'requestEmailChange']);
         Route::post('profile/verify-email-change', [\App\Http\Controllers\ProfileController::class, 'verifyEmailChange']);
         Route::post('profile/resend-email-change-otp', [\App\Http\Controllers\ProfileController::class, 'resendEmailChangeOtp']);
@@ -301,6 +302,7 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         // Profile Photo Management
         Route::post('profile/upload-photo', [\App\Http\Controllers\ProfileController::class, 'uploadProfilePhoto']);
         Route::delete('profile/delete-photo', [\App\Http\Controllers\ProfileController::class, 'deleteProfilePhoto']);
+        Route::delete('profile', [\App\Http\Controllers\ProfileController::class, 'deleteAccount']);
 
         // Google Calendar Authentication
         Route::get('google/auth-url', [\App\Http\Controllers\GoogleAuthController::class, 'getAuthUrl']);
