@@ -46,6 +46,9 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
     Route::post('auth/verify-otp-dev', [\App\Http\Controllers\AuthController::class, 'verifyOtpDev']);
     Route::post('auth/verify-login-otp-dev', [\App\Http\Controllers\AuthController::class, 'verifyLoginOtpDev']);
 
+    // Global Search (public endpoint)
+    Route::get('search/global', [\App\Http\Controllers\SearchController::class, 'globalSearch']);
+
     // Public endpoints (no authentication required)
     Route::get('trainings/public', [\App\Http\Controllers\TrainingController::class, 'public'])
         ->middleware('optional.auth'); // Optional auth - token varsa user məlumatlarını qaytarır

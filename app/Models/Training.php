@@ -108,7 +108,14 @@ class Training extends Model
 
     public function lessons()
     {
-        return $this->hasManyThrough(TrainingLesson::class, TrainingModule::class);
+        return $this->hasManyThrough(
+            TrainingLesson::class,
+            TrainingModule::class,
+            'training_id', // Foreign key on training_modules table
+            'module_id',   // Foreign key on training_lessons table
+            'id',          // Local key on trainings table
+            'id'           // Local key on training_modules table
+        );
     }
 
     /**

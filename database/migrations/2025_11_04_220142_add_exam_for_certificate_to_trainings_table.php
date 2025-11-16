@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('trainings', function (Blueprint $table) {
-            //
+            $table->boolean('exam_for_certificate')->default(false)->after('has_certificate');
         });
     }
 
@@ -22,7 +22,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('trainings', function (Blueprint $table) {
-            //
+            if (Schema::hasColumn('trainings', 'exam_for_certificate')) {
+                $table->dropColumn('exam_for_certificate');
+            }
         });
     }
 };
