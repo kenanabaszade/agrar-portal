@@ -43,7 +43,15 @@ class AuthController extends Controller
                 'otp_expires_at' => Carbon::now()->addMinutes(10),
             ]);
             
-            Notification::send($existingUser, new OtpNotification($otp));
+            // Send immediately without queue (critical for registration)
+            try {
+                $existingUser->notifyNow(new OtpNotification($otp));
+            } catch (\Exception $e) {
+                \Log::error('Failed to send OTP notification', [
+                    'email' => $validated['email'],
+                    'error' => $e->getMessage()
+                ]);
+            }
             
             return response()->json([
                 'message' => 'OTP sent to your email. Please check your inbox and verify your account.',
@@ -73,7 +81,15 @@ class AuthController extends Controller
             'otp_expires_at' => Carbon::now()->addMinutes(10),
         ]);
 
-        Notification::send($user, new OtpNotification($otp));
+        // Send immediately without queue (critical for registration)
+        try {
+            $user->notifyNow(new OtpNotification($otp));
+        } catch (\Exception $e) {
+            \Log::error('Failed to send OTP notification', [
+                'email' => $validated['email'],
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'message' => 'Registration successful! Please check your email for OTP verification.',
@@ -155,7 +171,15 @@ class AuthController extends Controller
             'otp_expires_at' => Carbon::now()->addMinutes(10),
         ]);
 
-        Notification::send($user, new OtpNotification($otp));
+        // Send immediately without queue
+        try {
+            $user->notifyNow(new OtpNotification($otp));
+        } catch (\Exception $e) {
+            \Log::error('Failed to send OTP notification', [
+                'email' => $user->email,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'message' => 'New OTP sent to your email',
@@ -177,7 +201,15 @@ class AuthController extends Controller
             'otp_expires_at' => Carbon::now()->addMinutes(10),
         ]);
 
-        Notification::send($user, new OtpNotification($otp));
+        // Send immediately without queue
+        try {
+            $user->notifyNow(new OtpNotification($otp));
+        } catch (\Exception $e) {
+            \Log::error('Failed to send 2FA OTP notification', [
+                'email' => $user->email,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'message' => 'OTP sent to your email. Please verify to enable 2FA.',
@@ -279,8 +311,13 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        // Optimize: Select only necessary columns for initial query
         /** @var User|null $user */
-        $user = User::where('email', $validated['email'])->first();
+        $user = User::select([
+            'id', 'email', 'password_hash', 'email_verified', 
+            'two_factor_enabled', 'otp_code', 'otp_expires_at',
+            'first_name', 'last_name', 'user_type', 'profile_photo'
+        ])->where('email', $validated['email'])->first();
 
         if (! $user || ! Hash::check($validated['password'], (string) $user->password_hash)) {
             return response()->json(['message' => 'Invalid credentials'], 422);
@@ -298,12 +335,24 @@ class AuthController extends Controller
         if ($user->two_factor_enabled) {
             // Generate and send OTP for 2FA verification
             $otp = $this->generateOtp();
-            $user->update([
-                'otp_code' => $otp,
-                'otp_expires_at' => Carbon::now()->addMinutes(10),
-            ]);
+            
+            // Use DB::update for faster execution (bypasses Eloquent overhead)
+            DB::table('users')
+                ->where('id', $user->id)
+                ->update([
+                    'otp_code' => $otp,
+                    'otp_expires_at' => Carbon::now()->addMinutes(10),
+                ]);
 
-            Notification::send($user, new OtpNotification($otp));
+            // Send immediately without queue (critical for login)
+            try {
+                $user->notifyNow(new OtpNotification($otp));
+            } catch (\Exception $e) {
+                \Log::error('Failed to send login OTP notification', [
+                    'email' => $user->email,
+                    'error' => $e->getMessage()
+                ]);
+            }
 
             return response()->json([
                 'message' => '2FA verification required. Please check your email for OTP code.',
@@ -313,23 +362,51 @@ class AuthController extends Controller
             ], 200);
         }
 
-        // Clear any existing OTP codes when 2FA is disabled
+        // Prepare update data - only update if needed
+        $needsUpdate = false;
+        $updateData = [];
+        
+        // Update last_login_at (always needed)
+        $updateData['last_login_at'] = Carbon::now();
+        $needsUpdate = true;
+        
+        // Clear any existing OTP codes when 2FA is disabled (only if exists)
         if ($user->otp_code || $user->otp_expires_at) {
-            $user->update([
-                'otp_code' => null,
-                'otp_expires_at' => null,
-            ]);
+            $updateData['otp_code'] = null;
+            $updateData['otp_expires_at'] = null;
+            $needsUpdate = true;
         }
 
-        // Update last login time
-        $user->update(['last_login_at' => Carbon::now()]);
+        // Only update if needed
+        if ($needsUpdate) {
+            // Use DB::update for faster execution
+            DB::table('users')
+                ->where('id', $user->id)
+                ->update($updateData);
+        }
 
+        // Create token (this is fast, but we can optimize by using DB directly if needed)
         $token = $user->createToken('api')->plainTextToken;
 
+        // Build response array directly (faster than accessing model properties)
+        $profilePhotoUrl = $user->profile_photo 
+            ? asset('storage/profile_photos/' . $user->profile_photo)
+            : null;
+
+        // Return only necessary user fields to reduce response size
         return response()->json([
-            'user' => $user,
+            'user' => [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+                'user_type' => $user->user_type,
+                'email_verified' => $user->email_verified,
+                'two_factor_enabled' => $user->two_factor_enabled,
+                'profile_photo_url' => $profilePhotoUrl,
+            ],
             'token' => $token,
-        ]);
+        ], 200, [], JSON_UNESCAPED_SLASHES);
     }
 
     public function logout(Request $request)
@@ -370,8 +447,15 @@ class AuthController extends Controller
             'otp_expires_at' => Carbon::now()->addMinutes(10),
         ]);
 
-        // Send OTP notification
-        Notification::send($user, new OtpNotification($otp));
+        // Send OTP notification immediately
+        try {
+            $user->notifyNow(new OtpNotification($otp));
+        } catch (\Exception $e) {
+            \Log::error('Failed to send password reset OTP notification', [
+                'email' => $user->email,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'message' => 'Password reset OTP sent to your email. Please check your inbox.',
@@ -501,7 +585,15 @@ class AuthController extends Controller
             'otp_expires_at' => Carbon::now()->addMinutes(10),
         ]);
 
-        Notification::send($user, new OtpNotification($otp));
+        // Send immediately without queue
+        try {
+            $user->notifyNow(new OtpNotification($otp));
+        } catch (\Exception $e) {
+            \Log::error('Failed to resend password reset OTP notification', [
+                'email' => $user->email,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'message' => 'New password reset OTP sent to your email.',
@@ -580,7 +672,15 @@ class AuthController extends Controller
             'otp_expires_at' => Carbon::now()->addMinutes(10),
         ]);
 
-        Notification::send($user, new OtpNotification($otp));
+        // Send immediately without queue
+        try {
+            $user->notifyNow(new OtpNotification($otp));
+        } catch (\Exception $e) {
+            \Log::error('Failed to resend 2FA OTP notification', [
+                'email' => $user->email,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'message' => 'New 2FA OTP sent to your email.',

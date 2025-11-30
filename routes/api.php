@@ -96,12 +96,137 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
     // Optional authentication endpoints (works with or without token)
     Route::get('trainings/{training}/detailed', [\App\Http\Controllers\TrainingController::class, 'detailed'])
         ->middleware('optional.auth'); // Ətraflı training məlumatları - token varsa user məlumatlarını qaytarır
+    
+    // Protected Lesson Media Access (supports both authenticated and signed URL access)
+    Route::get('modules/{module}/lessons/{lesson}/media/download', [\App\Http\Controllers\LessonMediaController::class, 'download'])
+        ->middleware(['optional.auth', 'throttle:60,1']) // 60 requests per minute
+        ->name('lesson.media.download');
 
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
         // Broadcasting authentication for real-time notifications
         Route::post('broadcasting/auth', function (\Illuminate\Http\Request $request) {
-            return \Illuminate\Support\Facades\Broadcast::auth($request);
+            try {
+                $user = $request->user();
+                
+                if (!$user) {
+                    \Log::warning('Broadcasting auth: User not authenticated', [
+                        'channel_name' => $request->input('channel_name'),
+                        'socket_id' => $request->input('socket_id')
+                    ]);
+                    return response()->json([
+                        'error' => 'Unauthorized',
+                        'message' => 'User not authenticated'
+                    ], 403);
+                }
+                
+                $channelName = $request->input('channel_name');
+                $socketId = $request->input('socket_id');
+                
+                \Log::debug('Broadcasting auth attempt', [
+                    'user_id' => $user->id,
+                    'channel_name' => $channelName,
+                    'socket_id' => $socketId
+                ]);
+                
+                // Validate channel name format
+                if (!$channelName) {
+                    return response()->json([
+                        'error' => 'Invalid request',
+                        'message' => 'Channel name is required'
+                    ], 400);
+                }
+                
+                // Check if channel is private-notifications.{userId}
+                if (strpos($channelName, 'private-notifications.') === 0) {
+                    $userId = (int) str_replace('private-notifications.', '', $channelName);
+                    
+                    // Verify user has access to this channel
+                    if ($userId !== (int) $user->id) {
+                        \Log::warning('Broadcasting auth: User trying to access another user\'s channel', [
+                            'user_id' => $user->id,
+                            'requested_user_id' => $userId,
+                            'channel_name' => $channelName
+                        ]);
+                        return response()->json([
+                            'error' => 'Forbidden',
+                            'message' => 'You do not have access to this channel'
+                        ], 403);
+                    }
+                    
+                    // User is authorized for their own channel
+                    // Return proper Pusher/Echo auth response
+                    // Check if Pusher is configured
+                    $pusherSecret = config('broadcasting.connections.pusher.secret');
+                    $pusherKey = config('broadcasting.connections.pusher.key');
+                    
+                    if (!$pusherSecret || !$pusherKey) {
+                        \Log::warning('Broadcasting auth: Pusher not configured', [
+                            'user_id' => $user->id,
+                            'channel_name' => $channelName
+                        ]);
+                        // Fallback: return simple authorized response
+                        return response()->json([
+                            'auth' => 'authorized'
+                        ], 200);
+                    }
+                    
+                    $signature = hash_hmac('sha256', $socketId . ':' . $channelName, $pusherSecret, false);
+                    
+                    return response()->json([
+                        'auth' => $pusherKey . ':' . $signature
+                    ], 200);
+                }
+                
+                // For other channels, use Laravel's default Broadcast::auth()
+                $response = \Illuminate\Support\Facades\Broadcast::auth($request);
+                
+                // Ensure response is always a proper JSON response
+                if ($response instanceof \Illuminate\Http\JsonResponse) {
+                    return $response;
+                }
+                
+                // If response is not JSON, convert it
+                if ($response instanceof \Symfony\Component\HttpFoundation\Response) {
+                    $content = $response->getContent();
+                    $decoded = json_decode($content, true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        return response()->json($decoded, $response->getStatusCode());
+                    }
+                }
+                
+                // Fallback: return success response
+                return response()->json([
+                    'auth' => 'authorized'
+                ], 200);
+                
+            } catch (\Illuminate\Broadcasting\BroadcastException $broadcastException) {
+                \Log::error('Broadcast::auth() failed', [
+                    'error' => $broadcastException->getMessage(),
+                    'user_id' => $request->user()?->id,
+                    'channel_name' => $request->input('channel_name'),
+                    'trace' => $broadcastException->getTraceAsString()
+                ]);
+                
+                // Return proper error response that frontend can handle
+                return response()->json([
+                    'error' => 'Broadcasting authentication failed',
+                    'message' => $broadcastException->getMessage()
+                ], 403);
+            } catch (\Exception $e) {
+                \Log::error('Broadcasting auth error', [
+                    'error' => $e->getMessage(),
+                    'user_id' => $request->user()?->id,
+                    'channel_name' => $request->input('channel_name'),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                
+                // Always return proper error object
+                return response()->json([
+                    'error' => 'Authentication failed',
+                    'message' => $e->getMessage()
+                ], 500);
+            }
         });
         
         Route::post('auth/logout', [\App\Http\Controllers\AuthController::class, 'logout']);
@@ -169,6 +294,10 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         Route::delete('lessons/{lesson}/remove-media', [\App\Http\Controllers\TrainingLessonController::class, 'removeMedia'])->middleware('role:admin,trainer');
         Route::post('modules/{module}/reorder-lessons', [\App\Http\Controllers\TrainingLessonController::class, 'reorder'])->middleware('role:admin,trainer');
         
+        // Lesson Media Secure URL (authenticated users only)
+        Route::get('modules/{module}/lessons/{lesson}/media/secure-url', [\App\Http\Controllers\LessonMediaController::class, 'getSecureUrl'])
+            ->middleware('auth:sanctum');
+        
         // Lesson Progress (for students)
         Route::get('lessons/{lesson}/progress', [\App\Http\Controllers\TrainingLessonController::class, 'getProgress']);
         Route::post('lessons/{lesson}/complete', [\App\Http\Controllers\TrainingLessonController::class, 'markCompleted']);
@@ -177,11 +306,19 @@ Route::get('certificates/{certificateNumber}/verify', [\App\Http\Controllers\Cer
         Route::get('categories/dropdown', [\App\Http\Controllers\CategoryController::class, 'dropdown'])->middleware('role:admin,trainer');
         Route::apiResource('categories', \App\Http\Controllers\CategoryController::class)->middleware('role:admin');
 
-        // FAQ Management (admin only)
+        // FAQ Management
+        // Public GET endpoints (accessible to authenticated users)
+        Route::get('faqs', [\App\Http\Controllers\FaqController::class, 'index']);
+        Route::get('faqs/{faq}', [\App\Http\Controllers\FaqController::class, 'show']);
         Route::get('faqs/categories', [\App\Http\Controllers\FaqController::class, 'categories']);
-        Route::get('faqs/stats', [\App\Http\Controllers\FaqController::class, 'stats'])->middleware('role:admin');
         Route::post('faqs/{faq}/helpful', [\App\Http\Controllers\FaqController::class, 'markHelpful']);
-        Route::apiResource('faqs', \App\Http\Controllers\FaqController::class)->middleware('role:admin');
+        
+        // Admin-only endpoints
+        Route::get('faqs/stats', [\App\Http\Controllers\FaqController::class, 'stats'])->middleware('role:admin');
+        Route::post('faqs', [\App\Http\Controllers\FaqController::class, 'store'])->middleware('role:admin');
+        Route::put('faqs/{faq}', [\App\Http\Controllers\FaqController::class, 'update'])->middleware('role:admin');
+        Route::patch('faqs/{faq}', [\App\Http\Controllers\FaqController::class, 'update'])->middleware('role:admin');
+        Route::delete('faqs/{faq}', [\App\Http\Controllers\FaqController::class, 'destroy'])->middleware('role:admin');
 
         // About Page Management (admin only)
         Route::post('about/blocks', [\App\Http\Controllers\AboutPageController::class, 'store'])->middleware('role:admin');

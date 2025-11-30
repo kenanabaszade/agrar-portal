@@ -199,7 +199,7 @@ class TrainingController extends Controller
         $validated = $request->validate([
             'title' => ['required', new \App\Rules\TranslationRule(true)],
             'description' => ['nullable', new \App\Rules\TranslationRule(false)],
-            'category' => ['nullable', 'string', 'max:255'],
+            'category' => ['nullable', new \App\Rules\TranslationRule(false)],
             'trainer_id' => ['required', 'exists:users,id'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
@@ -227,8 +227,8 @@ class TrainingController extends Controller
             'status' => ['nullable', 'string', 'in:draft,published,archived,cancelled'],
             'difficulty' => ['nullable', 'string', 'in:beginner,intermediate,advanced,expert'],
             'banner_image' => ['nullable', File::types(['jpg', 'jpeg', 'png', 'gif', 'webp'])->max(5 * 1024)], // 5MB max
-            'intro_video' => ['nullable', File::types(['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'])->max(20 * 1024)], // 20MB max
-            'media_files.*' => ['nullable', 'file', 'max:' . (50 * 1024)], // 50MB max per file
+            'intro_video' => ['nullable', File::types(['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'])->max(100 * 1024)], // 100MB max
+            'media_files.*' => ['nullable', 'file', 'max:' . (100 * 1024)], // 100MB max per file
             // New fields for Google Meet integration
             'google_meet_enabled' => ['nullable', 'boolean'],
             'meeting_start_time' => ['nullable', 'date'],
@@ -248,6 +248,9 @@ class TrainingController extends Controller
         }
         if (isset($validated['description'])) {
             $validated['description'] = TranslationHelper::normalizeTranslation($validated['description']);
+        }
+        if (isset($validated['category'])) {
+            $validated['category'] = TranslationHelper::normalizeTranslation($validated['category']);
         }
         if (isset($validated['certificate_description'])) {
             $validated['certificate_description'] = TranslationHelper::normalizeTranslation($validated['certificate_description']);
@@ -299,6 +302,13 @@ class TrainingController extends Controller
                     'size' => $request->file('intro_video')->getSize(),
                     'uploaded_at' => now()->toISOString(),
                 ];
+                
+                // Process video into HLS quality variants (background job)
+                $hlsEnabled = config('ffmpeg.hls.enabled', false);
+                if ($hlsEnabled) {
+                    \App\Jobs\ProcessTrainingVideoHLS::dispatch($training->id, $videoPath)
+                        ->delay(now()->addSeconds(5)); // Small delay to ensure training is saved
+                }
             }
 
             // Handle general media files
@@ -460,7 +470,7 @@ class TrainingController extends Controller
         $validated = $request->validate([
             'title' => ['sometimes', new \App\Rules\TranslationRule(true)],
             'description' => ['nullable', new \App\Rules\TranslationRule(false)],
-            'category' => ['nullable', 'string', 'max:255'],
+            'category' => ['nullable', new \App\Rules\TranslationRule(false)],
             'trainer_id' => ['sometimes', 'exists:users,id'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
@@ -494,8 +504,8 @@ class TrainingController extends Controller
             'status' => ['nullable', 'string', 'in:draft,published,archived,cancelled'],
             'difficulty' => ['nullable', 'string', 'in:beginner,intermediate,advanced,expert'],
             'banner_image' => ['nullable', File::types(['jpg', 'jpeg', 'png', 'gif', 'webp'])->max(5 * 1024)], // 5MB max
-            'intro_video' => ['nullable', File::types(['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'])->max(20 * 1024)], // 20MB max
-            'media_files.*' => ['nullable', 'file', 'max:' . (50 * 1024)], // 50MB max per file
+            'intro_video' => ['nullable', File::types(['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'])->max(100 * 1024)], // 100MB max
+            'media_files.*' => ['nullable', 'file', 'max:' . (100 * 1024)], // 100MB max per file
             'remove_banner' => ['nullable', 'boolean'],
             'remove_intro_video' => ['nullable', 'boolean'],
             'remove_media_files' => ['nullable', 'array'], // Array of file paths to remove
@@ -539,6 +549,13 @@ class TrainingController extends Controller
                 $request->file('intro_video')->getSize(),
                 'intro_video'
             );
+            
+            // Process video into HLS quality variants (background job)
+            $hlsEnabled = config('ffmpeg.hls.enabled', false);
+            if ($hlsEnabled) {
+                \App\Jobs\ProcessTrainingVideoHLS::dispatch($training->id, $videoPath)
+                    ->delay(now()->addSeconds(5)); // Small delay to ensure training is saved
+            }
         } elseif ($request->boolean('remove_intro_video')) {
             $training->removeMediaFilesByType('intro_video');
         }
@@ -580,6 +597,9 @@ class TrainingController extends Controller
         }
         if (isset($validated['description'])) {
             $validated['description'] = TranslationHelper::normalizeTranslation($validated['description']);
+        }
+        if (isset($validated['category'])) {
+            $validated['category'] = TranslationHelper::normalizeTranslation($validated['category']);
         }
         if (isset($validated['certificate_description'])) {
             $validated['certificate_description'] = TranslationHelper::normalizeTranslation($validated['certificate_description']);
@@ -748,8 +768,8 @@ class TrainingController extends Controller
     {
         $validated = $request->validate([
             'banner_image' => ['nullable', File::types(['jpg', 'jpeg', 'png', 'gif', 'webp'])->max(5 * 1024)],
-            'intro_video' => ['nullable', File::types(['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'])->max(20 * 1024)],
-            'media_files.*' => ['nullable', 'file', 'max:' . (50 * 1024)],
+            'intro_video' => ['nullable', File::types(['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'])->max(100 * 1024)], // 100MB max
+            'media_files.*' => ['nullable', 'file', 'max:' . (100 * 1024)], // 100MB max per file
             'type' => ['nullable', 'string', 'in:banner,intro_video,general'],
         ]);
 
@@ -787,6 +807,13 @@ class TrainingController extends Controller
                 'path' => $videoPath,
                 'original_name' => $request->file('intro_video')->getClientOriginalName(),
             ];
+            
+            // Process video into HLS quality variants (background job)
+            $hlsEnabled = config('ffmpeg.hls.enabled', false);
+            if ($hlsEnabled) {
+                \App\Jobs\ProcessTrainingVideoHLS::dispatch($training->id, $videoPath)
+                    ->delay(now()->addSeconds(5)); // Small delay to ensure training is saved
+            }
         }
 
         // Handle general media files
@@ -872,7 +899,7 @@ class TrainingController extends Controller
     public function uploadMediaFiles(Request $request, Training $training)
     {
         $validated = $request->validate([
-            'media_files.*' => ['required', 'file', 'max:' . (50 * 1024)], // 50MB max per file
+            'media_files.*' => ['required', 'file', 'max:' . (100 * 1024)], // 100MB max per file
         ]);
 
         $mediaFiles = $training->media_files ?? [];
@@ -967,9 +994,51 @@ class TrainingController extends Controller
      */
     public function public(Request $request)
     {
-        $query = Training::with(['modules.lessons', 'trainer'])
-            ->withCount(['registrations'])
-            ->where('status', 'published'); // Only show published trainings
+        // Build cache key based on request parameters
+        $cacheKey = 'trainings:public:' . md5(json_encode([
+            'search' => $request->get('search'),
+            'category' => $request->get('category'),
+            'trainer_id' => $request->get('trainer_id'),
+            'difficulty' => $request->get('difficulty'),
+            'type' => $request->get('type'),
+            'sort_by' => $request->get('sort_by', 'created_at'),
+            'sort_order' => $request->get('sort_order', 'desc'),
+            'per_page' => $request->get('per_page', 15),
+            'page' => $request->get('page', 1),
+        ]));
+
+        // Try to get from cache first (5 minutes cache)
+        $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+        if ($cached && !$request->has('nocache')) {
+            return response()->json($cached);
+        }
+
+        // Optimize: Select only necessary columns for trainings
+        // Note: is_offline doesn't exist as a column, it's calculated from type
+        $query = Training::select([
+            'id', 'title', 'description', 'category', 'difficulty', 
+            'type', 'is_online', 'media_files', 'trainer_id'
+        ])
+        ->with([
+            // Optimize: Only select necessary columns for modules
+            'modules' => function ($q) {
+                $q->select('id', 'training_id', 'title', 'sequence');
+            },
+            // Optimize: Only select necessary columns for lessons (duration_minutes for calculation)
+            'modules.lessons' => function ($q) {
+                $q->select('id', 'module_id', 'title', 'duration_minutes');
+            },
+            // Optimize: Only select trainer name fields
+            'trainer' => function ($q) {
+                $q->select('id', 'first_name', 'last_name');
+            }
+        ])
+        ->withCount([
+            'registrations',
+            // Optimize: Count modules in SQL (avoid loading all data)
+            'modules as modules_count'
+        ])
+        ->where('status', 'published'); // Only show published trainings
 
         // Search functionality
         if ($request->filled('search')) {
@@ -1012,212 +1081,155 @@ class TrainingController extends Controller
         $perPage = min($request->get('per_page', 15), 100);
         $trainings = $query->paginate($perPage);
 
-        // Add basic statistics for each training
-        $trainings->getCollection()->transform(function ($training) {
-            // Calculate registration statistics
-            $participantMetrics = $this->calculateParticipantMetrics($training);
-            $totalParticipants = $participantMetrics['participants_count'];
-            $completedLessonParticipants = $participantMetrics['completed_lesson_participants'];
+        // Optimize: Pre-load ratings for all trainings in batch (avoid N+1)
+        $trainingIds = $trainings->pluck('id');
+        $ratingsData = \App\Models\TrainingRating::selectRaw('training_id, AVG(rating) as avg_rating, COUNT(*) as count')
+            ->whereIn('training_id', $trainingIds)
+            ->groupBy('training_id')
+            ->get()
+            ->keyBy('training_id');
 
-            $totalRegistrations = max($training->registrations_count, $totalParticipants);
-            $completedRegistrations = $training->registrations()
-                ->whereHas('userTrainingProgress', function ($query) {
-                    $query->where('status', 'completed');
-                })
-                ->count();
+        // Optimize: Pre-load user data if authenticated (batch queries)
+        $userRegistrations = [];
+        $userCertificates = [];
+        $userProgressData = [];
+        
+        if (auth()->check()) {
+            $user = auth()->user();
+            $userId = $user->id;
             
-            $startedRegistrations = $training->registrations()
-                ->whereHas('userTrainingProgress', function ($query) {
-                    $query->where('status', 'in_progress');
-                })
-                ->count();
+            // Batch load all registrations for user
+            $userRegistrations = \App\Models\TrainingRegistration::where('user_id', $userId)
+                ->whereIn('training_id', $trainingIds)
+                ->get()
+                ->keyBy('training_id');
+            
+            // Batch load all certificates for user
+            $userCertificates = \App\Models\Certificate::where('user_id', $userId)
+                ->whereIn('related_training_id', $trainingIds)
+                ->get()
+                ->keyBy('related_training_id');
+            
+            // Batch load all progress data for user
+            $progressData = \App\Models\UserTrainingProgress::selectRaw('training_id, COUNT(*) as completed_count')
+                ->where('user_id', $userId)
+                ->whereIn('training_id', $trainingIds)
+                ->where('status', 'completed')
+                ->groupBy('training_id')
+                ->get()
+                ->keyBy('training_id');
+            
+            $userProgressData = $progressData;
+        }
 
-            // Calculate completion percentage
-            $completionRate = $totalRegistrations > 0 ? round(($completedRegistrations / $totalRegistrations) * 100, 2) : 0;
-            $progressRate = $totalRegistrations > 0 ? round((($completedRegistrations + $startedRegistrations) / $totalRegistrations) * 100, 2) : 0;
+        // Transform trainings with optimized data
+        $trainings->getCollection()->transform(function ($training) use ($ratingsData, $userRegistrations, $userCertificates, $userProgressData) {
+            // Get banner file (only one needed)
+            $bannerFile = collect($training->media_files ?? [])->firstWhere('type', 'banner');
+            $bannerUrl = $bannerFile ? url('storage/' . $bannerFile['path']) : null;
 
-            // Count media files by type (training + modules + lessons)
-            $trainingMediaFiles = $training->media_files ?? [];
+            // Use pre-calculated count from withCount (faster than counting in PHP)
+            $modulesCount = $training->modules_count ?? $training->modules->count();
             
-            // Get all modules and their lessons
-            $modules = $training->modules;
+            // Calculate lessons count from loaded modules (already eager loaded, no extra query)
+            $lessonsCount = $training->modules->sum(fn($m) => $m->lessons->count());
+
+            // Calculate is_offline from type
+            $isOffline = strtolower($training->type ?? '') === 'offline';
+
+            // Get rating from pre-loaded data (avoid N+1)
+            $ratingInfo = $ratingsData->get($training->id);
+            $averageRating = $ratingInfo ? round((float) $ratingInfo->avg_rating, 2) : null;
+            $ratingsCount = $ratingInfo ? (int) $ratingInfo->count : 0;
+
+            // Get user completion from pre-loaded data (avoid N+1)
+            $userRegistration = $userRegistrations[$training->id] ?? null;
+            $userCertificate = $userCertificates[$training->id] ?? null;
             
-            // Initialize counters
-            $totalVideos = 0;
-            $totalDocuments = 0;
-            $totalImages = 0;
-            $totalAudio = 0;
+            $isRegistered = (bool) $userRegistration;
+            $isCompleted = false;
             
-            // Count training media files
-            foreach ($trainingMediaFiles as $file) {
-                $mimeType = $file['mime_type'] ?? '';
-                if ($file['type'] === 'intro_video' || str_contains($mimeType, 'video')) {
-                    $totalVideos++;
-                } elseif (str_contains($mimeType, 'pdf') || str_contains($mimeType, 'doc')) {
-                    $totalDocuments++;
-                } elseif ($file['type'] === 'banner' || str_contains($mimeType, 'image')) {
-                    $totalImages++;
-                } elseif (str_contains($mimeType, 'audio')) {
-                    $totalAudio++;
+            if ($userRegistration) {
+                $isCompleted = $userRegistration->status === 'completed';
+                if ($training->type === 'video' && $userCertificate) {
+                    $isCompleted = true;
                 }
-            }
-            
-            // Count lesson media files and URLs
-            foreach ($modules as $module) {
-                $lessons = $module->lessons;
-                foreach ($lessons as $lesson) {
-                    // Count video_url
-                    if (!empty($lesson->video_url)) {
-                        $totalVideos++;
-                    }
-                    
-                    // Count pdf_url
-                    if (!empty($lesson->pdf_url)) {
-                        $totalDocuments++;
-                    }
-                    
-                    // Count lesson media_files
-                    $lessonMedia = $lesson->media_files ?? [];
-                    foreach ($lessonMedia as $file) {
-                        if (isset($file['type'])) {
-                            switch ($file['type']) {
-                                case 'video':
-                                    $totalVideos++;
-                                    break;
-                                case 'document':
-                                    $totalDocuments++;
-                                    break;
-                                case 'image':
-                                    $totalImages++;
-                                    break;
-                                case 'audio':
-                                    $totalAudio++;
-                                    break;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            $mediaStats = [
-                'videos_count' => $totalVideos,
-                'documents_count' => $totalDocuments,
-                'images_count' => $totalImages,
-                'audio_count' => $totalAudio,
-                'total_media' => $totalVideos + $totalDocuments + $totalImages + $totalAudio,
-                'training_media_count' => count($trainingMediaFiles),
-                'modules_count' => $modules->count(),
-                'lessons_count' => $modules->sum(function ($module) {
-                    return $module->lessons->count();
-                })
-            ];
-
-            // Add statistics to training object
-            $training->statistics = [
-                'total_registrations' => $totalRegistrations,
-                'participants_count' => $totalParticipants,
-                'completed_lessons_participants' => $completedLessonParticipants,
-                'started_count' => $startedRegistrations,
-                'completed_count' => $completedRegistrations,
-                'completion_rate' => $completionRate,
-                'progress_rate' => $progressRate
-            ];
-
-            $training->media_statistics = $mediaStats;
-
-            // Add full URLs to media files
-            if ($training->media_files) {
-                $training->media_files = collect($training->media_files)->map(function ($file) {
-                    $file['url'] = url('storage/' . $file['path']);
-                    return $file;
-                })->toArray();
+            } elseif ($userCertificate) {
+                $isCompleted = true;
             }
 
-            // Add user completion status if authenticated
-            if (auth()->check()) {
-                $user = auth()->user();
-                
-                // Check if user is registered for this training
-                $userRegistration = $training->registrations()
-                    ->where('user_id', $user->id)
-                    ->first();
-                
-                // Check if user has certificate for this training
-                $userCertificate = \App\Models\Certificate::where('user_id', $user->id)
-                    ->where('related_training_id', $training->id)
-                    ->first();
-                
-                if ($userRegistration) {
-                    // User is registered
-                    $isCompleted = $userRegistration->status === 'completed';
-                    
-                    // For video trainings, also check certificate
-                    if ($training->type === 'video' && $userCertificate) {
-                        $isCompleted = true;
-                    }
-                    
-                    $training->user_completion = [
-                        'is_registered' => true,
-                        'is_completed' => $isCompleted,
-                        'registration_status' => $userRegistration->status,
-                        'certificate_id' => $userRegistration->certificate_id ?: $userCertificate?->id,
-                        'registration_date' => $userRegistration->registration_date,
+            // Get user progress from pre-loaded data (avoid N+1)
+            $progressInfo = $userProgressData[$training->id] ?? null;
+            $completedLessons = $progressInfo ? (int) $progressInfo->completed_count : 0;
+            $percentage = $lessonsCount > 0 ? round(($completedLessons / $lessonsCount) * 100, 2) : 0;
+
+            // Build optimized response with only necessary fields
+            return [
+                'id' => $training->id,
+                'title' => $training->title,
+                'description' => $training->description,
+                'category' => $training->category,
+                'difficulty' => $training->difficulty,
+                'type' => $training->type,
+                'is_online' => $training->is_online,
+                'is_offline' => $isOffline,
+                'media_files' => $bannerFile ? [[
+                    'type' => 'banner',
+                    'url' => $bannerUrl,
+                ]] : [],
+                'modules' => $training->modules->map(function ($module) {
+                    return [
+                        'id' => $module->id,
+                        'title' => $module->title,
+                        'lessons' => $module->lessons->map(function ($lesson) {
+                            return [
+                                'id' => $lesson->id,
+                                'title' => $lesson->title,
+                                'duration_minutes' => $lesson->duration_minutes,
+                            ];
+                        }),
                     ];
-                } elseif ($userCertificate) {
-                    // User has certificate but no registration (video training case)
-                    $training->user_completion = [
-                        'is_registered' => false,
-                        'is_completed' => true,
-                        'registration_status' => null,
-                        'certificate_id' => $userCertificate->id,
-                        'registration_date' => null,
-                    ];
-                } else {
-                    // User has neither registration nor certificate
-                    $training->user_completion = [
-                        'is_registered' => false,
-                        'is_completed' => false,
-                        'registration_status' => null,
-                        'certificate_id' => null,
-                        'registration_date' => null,
-                    ];
-                }
-            } else {
-                $training->user_completion = [
-                    'is_registered' => false,
-                    'is_completed' => false,
-                    'registration_status' => null,
-                    'certificate_id' => null,
-                    'registration_date' => null,
-                ];
-            }
-
-            // Add training rating information
-            $training->rating = [
-                'average_rating' => $training->average_rating,
-                'ratings_count' => $training->ratings_count,
+                }),
+                'media_statistics' => [
+                    'modules_count' => $modulesCount,
+                    'lessons_count' => $lessonsCount,
+                ],
+                'trainer' => $training->trainer ? [
+                    'id' => $training->trainer->id,
+                    'first_name' => $training->trainer->first_name,
+                    'last_name' => $training->trainer->last_name,
+                ] : null,
+                'user_completion' => [
+                    'is_registered' => $isRegistered,
+                    'is_completed' => $isCompleted,
+                ],
+                'user_progress' => auth()->check() && $isRegistered ? [
+                    'percentage' => $percentage,
+                ] : null,
+                'rating' => [
+                    'average_rating' => $averageRating,
+                    'ratings_count' => $ratingsCount,
+                ],
             ];
-
-            // Add user's rating if authenticated
-            if (auth()->check()) {
-                $user = auth()->user();
-                $userRating = \App\Models\TrainingRating::where('user_id', $user->id)
-                    ->where('training_id', $training->id)
-                    ->first();
-                
-                $training->user_rating = $userRating ? [
-                    'rating' => $userRating->rating,
-                    'created_at' => $userRating->created_at,
-                    'updated_at' => $userRating->updated_at,
-                ] : null;
-            } else {
-                $training->user_rating = null;
-            }
-
-            return $training;
         });
 
-        return $trainings;
+        // Build paginated response
+        $responseData = [
+            'data' => $trainings->items(),
+            'current_page' => $trainings->currentPage(),
+            'per_page' => $trainings->perPage(),
+            'total' => $trainings->total(),
+            'last_page' => $trainings->lastPage(),
+            'from' => $trainings->firstItem(),
+            'to' => $trainings->lastItem(),
+        ];
+
+        // Cache the response for 5 minutes (only if not authenticated, as user data changes)
+        if (!auth()->check()) {
+            Cache::put($cacheKey, $responseData, 300); // 5 minutes
+        }
+
+        return response()->json($responseData);
     }
 
     /**
@@ -1226,12 +1238,189 @@ class TrainingController extends Controller
      */
     public function detailed(Training $training)
     {
+        // ✅ Timeout və memory limit artır (bu endpoint çox kompleksdir)
+        @ini_set('max_execution_time', 600); // 10 dəqiqə
+        @ini_set('memory_limit', '512M');
+        
         // Only show published trainings for public access
         if ($training->status !== 'published') {
             return response()->json(['message' => 'Training not found'], 404);
         }
 
-        $training->load(['modules.lessons', 'trainer', 'exam']);
+        // ✅ Optimized eager loading - yalnız lazım olan field-ləri yüklə
+        $training->load([
+            'modules' => function ($query) {
+                $query->select(['id', 'training_id', 'sequence', 'title', 'created_at', 'updated_at']);
+            },
+            'modules.lessons' => function ($query) {
+                $query->select([
+                    'id',
+                    'module_id',
+                    'title',
+                    'sequence',
+                    'lesson_type',
+                    'duration_minutes',
+                    'status',
+                    'is_required',
+                    'min_completion_time',
+                    'media_files',
+                    'metadata',
+                    'content',
+                    'description',
+                    'created_at',
+                    'updated_at'
+                ]);
+            },
+            'trainer:id,first_name,last_name,email,user_type',
+            'exam:id,title'
+        ]);
+        
+        // Get authenticated user (if any)
+        $userId = auth()->check() ? auth()->user()->id : null;
+        
+        // Transform lesson media URLs to signed URLs (temporary URLs that expire)
+        foreach ($training->modules as $module) {
+            foreach ($module->lessons as $lesson) {
+                // Get media_files (may already be transformed by accessor)
+                $mediaFiles = $lesson->media_files ?? [];
+                
+                if ($mediaFiles && is_array($mediaFiles)) {
+                    $lesson->media_files = collect($mediaFiles)->map(function ($mediaFile) use ($module, $lesson, $userId) {
+                        // Extract path from URL if path field doesn't exist
+                        $filePath = $mediaFile['path'] ?? null;
+                        
+                        if (!$filePath && isset($mediaFile['url'])) {
+                            // Extract path from protected endpoint URL
+                            // URL format: /api/v1/modules/1/lessons/2/media/download?path=lessons%2F2%2Fvideo.mp4
+                            $url = $mediaFile['url'];
+                            if (preg_match('/[?&]path=([^&]+)/', $url, $matches)) {
+                                $filePath = urldecode($matches[1]);
+                            } elseif (preg_match('/\/lessons\/(\d+)\/([^\/]+)$/', $url, $matches)) {
+                                // Fallback: extract from URL path
+                                $filePath = 'lessons/' . $matches[1] . '/' . $matches[2];
+                            }
+                        }
+                        
+                        // Generate signed URL for all media files (videos, images, PDFs, etc.)
+                        if ($filePath) {
+                            try {
+                                // Generate temporary signed URL (expires in 2 hours)
+                                // Use null userId so signed URL works in browser without authentication
+                                $signedUrl = \App\Http\Controllers\LessonMediaController::generateSignedUrl(
+                                    $module,
+                                    $lesson,
+                                    $filePath,
+                                    null, // Always use null for browser compatibility
+                                    120 // 2 hours expiration
+                                );
+                                
+                                // Add signed URL and expiration info
+                                $mediaFile['signed_url'] = $signedUrl;
+                                $mediaFile['signed_url_expires_at'] = now()->addHours(2)->toIso8601String();
+                                
+                                // Keep path field for reference
+                                if (!isset($mediaFile['path'])) {
+                                    $mediaFile['path'] = $filePath;
+                                }
+                                
+                                // Keep original protected URL as fallback
+                                if (!isset($mediaFile['url'])) {
+                                    $mediaFile['url'] = route('lesson.media.download', [
+                                        'module' => $module->id,
+                                        'lesson' => $lesson->id,
+                                        'path' => $filePath
+                                    ]);
+                                }
+                                
+                                // For video files, also handle HLS master playlist URL və variants (əgər varsa)
+                                if (isset($mediaFile['type']) && $mediaFile['type'] === 'video') {
+                                    // Əvvəlcə database-dən yoxla, sonra disk-dən dinamik yoxla
+                                    $hlsMasterPlaylist = $mediaFile['hls_master_playlist'] ?? null;
+                                    $hlsVariants = $mediaFile['hls_variants'] ?? [];
+                                    
+                                    // Əgər database-də yoxdursa, disk-dən yoxla
+                                    if (!$hlsMasterPlaylist && $filePath) {
+                                        $hlsInfo = $this->detectHLSFiles($lesson->id, $filePath);
+                                        if ($hlsInfo) {
+                                            $hlsMasterPlaylist = $hlsInfo['master_playlist'];
+                                            $hlsVariants = $hlsInfo['variants'];
+                                        }
+                                    }
+                                    
+                                    if ($hlsMasterPlaylist) {
+                                        // HLS playlist üçün signed URL yarat
+                                        $hlsPlaylistPath = $hlsMasterPlaylist;
+                                        $hlsSignedUrl = \App\Http\Controllers\LessonMediaController::generateSignedUrl(
+                                            $module,
+                                            $lesson,
+                                            $hlsPlaylistPath,
+                                            null,
+                                            120
+                                        );
+                                        $mediaFile['hls_master_playlist'] = $hlsMasterPlaylist;
+                                        $mediaFile['hls_master_playlist_url'] = $hlsSignedUrl;
+                                        
+                                        // HLS variants üçün signed URL-lər yarat (quality selection üçün)
+                                        if (!empty($hlsVariants) && is_array($hlsVariants)) {
+                                            $mediaFile['hls_variants'] = [];
+                                            foreach ($hlsVariants as $quality => $variant) {
+                                                $variantData = $variant;
+                                                if (isset($variant['playlist'])) {
+                                                    $variantPlaylistPath = $variant['playlist'];
+                                                    $variantSignedUrl = \App\Http\Controllers\LessonMediaController::generateSignedUrl(
+                                                        $module,
+                                                        $lesson,
+                                                        $variantPlaylistPath,
+                                                        null,
+                                                        120
+                                                    );
+                                                    $variantData['playlist_url'] = $variantSignedUrl;
+                                                }
+                                                $mediaFile['hls_variants'][$quality] = $variantData;
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (\Exception $e) {
+                                // Log error but don't fail
+                                \Log::error('Failed to generate signed URL', [
+                                    'error' => $e->getMessage(),
+                                    'module_id' => $module->id,
+                                    'lesson_id' => $lesson->id,
+                                    'file_path' => $filePath
+                                ]);
+                                
+                                // Fallback to regular protected URL transformation
+                                if (isset($mediaFile['path']) && !isset($mediaFile['url'])) {
+                                    $mediaFile['url'] = route('lesson.media.download', [
+                                        'module' => $module->id,
+                                        'lesson' => $lesson->id,
+                                        'path' => $mediaFile['path']
+                                    ]);
+                                } else {
+                                    // Transform existing URLs if needed
+                                    $mediaFile = $lesson->transformMediaUrls([$mediaFile])[0] ?? $mediaFile;
+                                }
+                            }
+                        } else {
+                            // If no path available, use regular protected URL transformation
+                            if (isset($mediaFile['path']) && !isset($mediaFile['url'])) {
+                                $mediaFile['url'] = route('lesson.media.download', [
+                                    'module' => $module->id,
+                                    'lesson' => $lesson->id,
+                                    'path' => $mediaFile['path']
+                                ]);
+                            } else {
+                                // Transform existing URLs if needed
+                                $mediaFile = $lesson->transformMediaUrls([$mediaFile])[0] ?? $mediaFile;
+                            }
+                        }
+                        
+                        return $mediaFile;
+                    })->toArray();
+                }
+            }
+        }
         
         // Add statistics
         $participantMetrics = $this->calculateParticipantMetrics($training);
@@ -1274,10 +1463,42 @@ class TrainingController extends Controller
         $training->banner_url = $training->banner_url;
         $training->banner_images = $training->banner_images;
 
-        // Add full URLs to media files
+        // Add full URLs to media files and HLS information for intro_video
         if ($training->media_files) {
-            $training->media_files = collect($training->media_files)->map(function ($file) {
+            $training->media_files = collect($training->media_files)->map(function ($file) use ($training) {
                 $file['url'] = url('storage/' . $file['path']);
+                
+                // Add HLS information for intro_video if available
+                if (isset($file['type']) && $file['type'] === 'intro_video') {
+                    $hlsMasterPlaylist = $file['hls_master_playlist'] ?? null;
+                    $hlsVariants = $file['hls_variants'] ?? [];
+                    
+                    // If HLS info exists, add signed URLs for playlists
+                    if ($hlsMasterPlaylist) {
+                        // Generate signed URL for master playlist
+                        $masterPlaylistPath = $hlsMasterPlaylist;
+                        $masterPlaylistUrl = url('storage/' . $masterPlaylistPath);
+                        $file['hls_master_playlist'] = $masterPlaylistPath;
+                        $file['hls_master_playlist_url'] = $masterPlaylistUrl;
+                        
+                        // Add signed URLs for variant playlists
+                        if (!empty($hlsVariants)) {
+                            $file['hls_variants'] = [];
+                            foreach ($hlsVariants as $quality => $variant) {
+                                $variantPlaylistPath = $variant['playlist'];
+                                $variantPlaylistUrl = url('storage/' . $variantPlaylistPath);
+                                
+                                $file['hls_variants'][$quality] = [
+                                    'playlist' => $variantPlaylistPath,
+                                    'playlist_url' => $variantPlaylistUrl,
+                                    'bandwidth' => $variant['bandwidth'] ?? null,
+                                    'resolution' => $variant['resolution'] ?? null,
+                                ];
+                            }
+                        }
+                    }
+                }
+                
                 return $file;
             })->toArray();
         }
@@ -2359,6 +2580,103 @@ class TrainingController extends Controller
 
         // Load all related data
         $training->load(['modules.lessons', 'trainer', 'registrations', 'exam']);
+        
+        // Get authenticated user (if any)
+        $userId = auth()->check() ? auth()->user()->id : null;
+        
+        // Transform lesson media URLs to signed URLs (temporary URLs that expire)
+        foreach ($training->modules as $module) {
+            foreach ($module->lessons as $lesson) {
+                // Get media_files (may already be transformed by accessor)
+                $mediaFiles = $lesson->media_files ?? [];
+                
+                if ($mediaFiles && is_array($mediaFiles)) {
+                    $lesson->media_files = collect($mediaFiles)->map(function ($mediaFile) use ($module, $lesson, $userId) {
+                        // Extract path from URL if path field doesn't exist
+                        $filePath = $mediaFile['path'] ?? null;
+                        
+                        if (!$filePath && isset($mediaFile['url'])) {
+                            // Extract path from protected endpoint URL
+                            // URL format: /api/v1/modules/1/lessons/2/media/download?path=lessons%2F2%2Fvideo.mp4
+                            $url = $mediaFile['url'];
+                            if (preg_match('/[?&]path=([^&]+)/', $url, $matches)) {
+                                $filePath = urldecode($matches[1]);
+                            } elseif (preg_match('/\/lessons\/(\d+)\/([^\/]+)$/', $url, $matches)) {
+                                // Fallback: extract from URL path
+                                $filePath = 'lessons/' . $matches[1] . '/' . $matches[2];
+                            }
+                        }
+                        
+                        // Generate signed URL for all media files (videos, images, PDFs, etc.)
+                        if ($filePath) {
+                            try {
+                                // Generate temporary signed URL (expires in 2 hours)
+                                // Use null userId so signed URL works in browser without authentication
+                                $signedUrl = \App\Http\Controllers\LessonMediaController::generateSignedUrl(
+                                    $module,
+                                    $lesson,
+                                    $filePath,
+                                    null, // Always use null for browser compatibility
+                                    120 // 2 hours expiration
+                                );
+                                
+                                // Add signed URL and expiration info
+                                $mediaFile['signed_url'] = $signedUrl;
+                                $mediaFile['signed_url_expires_at'] = now()->addHours(2)->toIso8601String();
+                                
+                                // Keep path field for reference
+                                if (!isset($mediaFile['path'])) {
+                                    $mediaFile['path'] = $filePath;
+                                }
+                                
+                                // Keep original protected URL as fallback
+                                if (!isset($mediaFile['url'])) {
+                                    $mediaFile['url'] = route('lesson.media.download', [
+                                        'module' => $module->id,
+                                        'lesson' => $lesson->id,
+                                        'path' => $filePath
+                                    ]);
+                                }
+                            } catch (\Exception $e) {
+                                // Log error but don't fail
+                                \Log::error('Failed to generate signed URL', [
+                                    'error' => $e->getMessage(),
+                                    'module_id' => $module->id,
+                                    'lesson_id' => $lesson->id,
+                                    'file_path' => $filePath
+                                ]);
+                                
+                                // Fallback to regular protected URL transformation
+                                if (isset($mediaFile['path']) && !isset($mediaFile['url'])) {
+                                    $mediaFile['url'] = route('lesson.media.download', [
+                                        'module' => $module->id,
+                                        'lesson' => $lesson->id,
+                                        'path' => $mediaFile['path']
+                                    ]);
+                                } else {
+                                    // Transform existing URLs if needed
+                                    $mediaFile = $lesson->transformMediaUrls([$mediaFile])[0] ?? $mediaFile;
+                                }
+                            }
+                        } else {
+                            // If no path available, use regular protected URL transformation
+                            if (isset($mediaFile['path']) && !isset($mediaFile['url'])) {
+                                $mediaFile['url'] = route('lesson.media.download', [
+                                    'module' => $module->id,
+                                    'lesson' => $lesson->id,
+                                    'path' => $mediaFile['path']
+                                ]);
+                            } else {
+                                // Transform existing URLs if needed
+                                $mediaFile = $lesson->transformMediaUrls([$mediaFile])[0] ?? $mediaFile;
+                            }
+                        }
+                        
+                        return $mediaFile;
+                    })->toArray();
+                }
+            }
+        }
 
         // Calculate comprehensive statistics
         $participantMetrics = $this->calculateParticipantMetrics($training);
@@ -3220,5 +3538,172 @@ class TrainingController extends Controller
         }
 
         return $counts;
+    }
+
+    /**
+     * Detect HLS files dynamically from disk storage
+     * Checks if HLS files exist even if not saved in database
+     * 
+     * @param int $lessonId
+     * @param string $videoPath Original video path
+     * @return array|null Returns HLS info or null if not found
+     */
+    private function detectHLSFiles(int $lessonId, string $videoPath): ?array
+    {
+        try {
+            // Check for HLS directory: lessons/{lessonId}/hls/
+            // HLS files can be in: lessons/{lessonId}/hls/master.m3u8 (direct)
+            // OR: lessons/{lessonId}/hls/{randomId}/master.m3u8 (subdirectory)
+            $hlsBaseDir = "lessons/{$lessonId}/hls";
+            
+            // First, check if there's a direct master.m3u8 file
+            $masterPlaylistPath = "{$hlsBaseDir}/master.m3u8";
+            $masterPlaylistExists = false;
+            $disk = null;
+            
+            if (\Storage::disk('local')->exists($masterPlaylistPath)) {
+                $masterPlaylistExists = true;
+                $disk = 'local';
+            } elseif (\Storage::disk('public')->exists($masterPlaylistPath)) {
+                $masterPlaylistExists = true;
+                $disk = 'public';
+            }
+            
+            // If not found directly, check subdirectories
+            if (!$masterPlaylistExists) {
+                // Check for subdirectories in hls folder
+                $subdirs = [];
+                
+                // Check local disk
+                if (\Storage::disk('local')->exists($hlsBaseDir)) {
+                    $localDirs = \Storage::disk('local')->directories($hlsBaseDir);
+                    foreach ($localDirs as $dir) {
+                        $subMasterPath = $dir . '/master.m3u8';
+                        if (\Storage::disk('local')->exists($subMasterPath)) {
+                            $masterPlaylistPath = $subMasterPath;
+                            $masterPlaylistExists = true;
+                            $disk = 'local';
+                            break;
+                        }
+                    }
+                }
+                
+                // Check public disk if still not found
+                if (!$masterPlaylistExists && \Storage::disk('public')->exists($hlsBaseDir)) {
+                    $publicDirs = \Storage::disk('public')->directories($hlsBaseDir);
+                    foreach ($publicDirs as $dir) {
+                        $subMasterPath = $dir . '/master.m3u8';
+                        if (\Storage::disk('public')->exists($subMasterPath)) {
+                            $masterPlaylistPath = $subMasterPath;
+                            $masterPlaylistExists = true;
+                            $disk = 'public';
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (!$masterPlaylistExists) {
+                return null;
+            }
+            
+            // Read master playlist file
+            $masterPlaylistContent = \Storage::disk($disk)->get($masterPlaylistPath);
+            
+            if (empty($masterPlaylistContent)) {
+                return null;
+            }
+            
+            // Get the HLS directory from master playlist path (could be direct or in subdirectory)
+            $hlsDir = dirname($masterPlaylistPath);
+            
+            // Parse master playlist to extract quality variants
+            $variants = [];
+            $lines = explode("\n", $masterPlaylistContent);
+            $currentBandwidth = null;
+            $currentResolution = null;
+            $currentQuality = null;
+            
+            foreach ($lines as $line) {
+                $line = trim($line);
+                
+                // Skip empty lines and comments (except EXT-X-STREAM-INF)
+                if (empty($line) || strpos($line, '#EXTM3U') === 0 || strpos($line, '#EXT-X-VERSION') === 0) {
+                    continue;
+                }
+                
+                // Parse EXT-X-STREAM-INF line for bandwidth and resolution
+                if (preg_match('/#EXT-X-STREAM-INF:BANDWIDTH=(\d+)(?:,RESOLUTION=(\d+x\d+))?/', $line, $matches)) {
+                    $currentBandwidth = intval($matches[1]);
+                    $currentResolution = $matches[2] ?? null;
+                    
+                    // Determine quality name from resolution
+                    if ($currentResolution) {
+                        if (preg_match('/(\d+)x(\d+)/', $currentResolution, $resMatches)) {
+                            $height = intval($resMatches[2]);
+                            if ($height >= 1080) {
+                                $currentQuality = '1080p';
+                            } elseif ($height >= 720) {
+                                $currentQuality = '720p';
+                            } elseif ($height >= 480) {
+                                $currentQuality = '480p';
+                            } else {
+                                $currentQuality = $height . 'p';
+                            }
+                        }
+                    } else {
+                        // Fallback: use bandwidth to determine quality
+                        if ($currentBandwidth >= 2000000) {
+                            $currentQuality = '1080p';
+                        } elseif ($currentBandwidth >= 1000000) {
+                            $currentQuality = '720p';
+                        } else {
+                            $currentQuality = '480p';
+                        }
+                    }
+                }
+                // Next line after EXT-X-STREAM-INF is the playlist filename
+                elseif ($currentBandwidth && !empty($line) && !str_starts_with($line, '#')) {
+                    $playlistFilename = $line;
+                    // Playlist filename might be relative (e.g., "480p.m3u8") or absolute path
+                    // If it's relative, combine with hlsDir; if absolute, use as is
+                    if (strpos($playlistFilename, '/') === 0 || strpos($playlistFilename, 'lessons/') === 0) {
+                        $playlistPath = $playlistFilename;
+                    } else {
+                        $playlistPath = "{$hlsDir}/{$playlistFilename}";
+                    }
+                    
+                    if ($currentQuality) {
+                        $variants[$currentQuality] = [
+                            'playlist' => $playlistPath,
+                            'bandwidth' => $currentBandwidth,
+                            'resolution' => $currentResolution ?? 'unknown',
+                        ];
+                    }
+                    
+                    // Reset for next variant
+                    $currentBandwidth = null;
+                    $currentResolution = null;
+                    $currentQuality = null;
+                }
+            }
+            
+            if (empty($variants)) {
+                return null;
+            }
+            
+            return [
+                'master_playlist' => $masterPlaylistPath,
+                'variants' => $variants,
+            ];
+            
+        } catch (\Exception $e) {
+            \Log::error('Failed to detect HLS files', [
+                'lesson_id' => $lessonId,
+                'video_path' => $videoPath,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
     }
 }

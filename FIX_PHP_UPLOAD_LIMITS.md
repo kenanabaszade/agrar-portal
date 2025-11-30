@@ -20,18 +20,26 @@ Bu komanda `php.ini` faylının yerini göstərəcək.
 
 ### 2. php.ini Faylında Dəyişikliklər
 
+**Fayl yeri:** `C:\Program Files\php-8.3.26-nts-Win32-vs16-x64\php.ini`
+
+**Vacib:** Notepad-i **Administrator kimi işə salın** (sağ klik → "Run as administrator") və sonra `php.ini` faylını açın!
+
 `php.ini` faylını açın və aşağıdakı dəyərləri tapın və dəyişdirin:
 
 ```ini
 ; Upload limitləri
-upload_max_filesize = 25M
-post_max_size = 30M
-memory_limit = 256M
-max_execution_time = 300
-max_input_time = 300
+upload_max_filesize = 105M
+post_max_size = 110M
+memory_limit = 512M
+max_execution_time = 600
+max_input_time = 600
 ```
 
 **Vacib:** `post_max_size` həmişə `upload_max_filesize`-dən böyük olmalıdır!
+
+**Hazırki dəyərlər:**
+- `post_max_size = 8M` → **110M**-ə dəyişdirin
+- `upload_max_filesize = 45M` → **105M**-ə dəyişdirin (və ya saxlayın)
 
 ### 3. PHP Server-i Yenidən Başlatmaq
 

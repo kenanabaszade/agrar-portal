@@ -7,6 +7,8 @@ use App\Models\EmailChangeRequest;
 use App\Notifications\OtpNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -159,57 +161,130 @@ class ProfileController extends Controller
      */
     public function requestEmailChange(Request $request)
     {
-        $user = $request->user();
-        
-        $validated = $request->validate([
-            'new_email' => ['required', 'email', 'unique:users,email'],
-            'password' => ['required', 'string'],
-        ]);
+        try {
+            $user = $request->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'message' => 'Unauthorized. Please login first.'
+                ], 401);
+            }
+            
+            $validated = $request->validate([
+                'new_email' => ['required', 'email', 'unique:users,email'],
+                'password' => ['required', 'string'],
+            ]);
 
-        // Verify current password
-        if (!Hash::check($validated['password'], (string) $user->password_hash)) {
+            // Verify current password
+            if (!Hash::check($validated['password'], (string) $user->password_hash)) {
+                return response()->json([
+                    'message' => 'Password is incorrect'
+                ], 422);
+            }
+
+            // Check if email change is already in progress
+            $existingRequest = EmailChangeRequest::where('user_id', $user->id)
+                ->where('otp_expires_at', '>', Carbon::now())
+                ->first();
+
+            // If there's an active request for the same email, just resend OTP
+            if ($existingRequest && $existingRequest->new_email === $validated['new_email']) {
+                // Generate new OTP and extend expiration
+                $otp = $this->generateOtp();
+                $existingRequest->update([
+                    'otp_code' => $otp,
+                    'otp_expires_at' => Carbon::now()->addMinutes(10),
+                ]);
+
+                // Resend OTP to new email (bypass notification preferences)
+                // Using notifyNow() with tempUser (not loaded from DB) bypasses preference checks
+                try {
+                    $tempUser = new User();
+                    $tempUser->email = $validated['new_email'];
+                    $tempUser->first_name = $user->first_name;
+                    $tempUser->last_name = $user->last_name;
+                    
+                    // notifyNow() sends immediately without queue and without checking preferences
+                    $tempUser->notifyNow(new OtpNotification($otp));
+                } catch (\Exception $emailException) {
+                    Log::error('Failed to resend email change OTP notification', [
+                        'user_id' => $user->id,
+                        'new_email' => $validated['new_email'],
+                        'error' => $emailException->getMessage(),
+                        'trace' => $emailException->getTraceAsString()
+                    ]);
+                }
+
+                return response()->json([
+                    'message' => 'New OTP sent to email address. Please verify to complete email change.',
+                    'new_email' => $validated['new_email'],
+                ], 200);
+            }
+
+            // If there's an active request for different email, cancel it and create new one
+            if ($existingRequest) {
+                $existingRequest->delete();
+            }
+
+            // Delete any expired requests
+            EmailChangeRequest::where('user_id', $user->id)
+                ->where('otp_expires_at', '<=', Carbon::now())
+                ->delete();
+
+            // Generate OTP for email change
+            $otp = $this->generateOtp();
+            
+            // Create email change request
+            $emailChangeRequest = EmailChangeRequest::create([
+                'user_id' => $user->id,
+                'new_email' => $validated['new_email'],
+                'otp_code' => $otp,
+                'otp_expires_at' => Carbon::now()->addMinutes(10),
+            ]);
+
+            // Send OTP to new email (send immediately, bypass notification preferences)
+            // Email change OTP is critical and must be sent regardless of user preferences
+            // Using notifyNow() with tempUser (not loaded from DB) bypasses preference checks
+            try {
+                $tempUser = new User();
+                $tempUser->email = $validated['new_email'];
+                $tempUser->first_name = $user->first_name;
+                $tempUser->last_name = $user->last_name;
+                
+                // notifyNow() sends immediately without queue and without checking preferences
+                // Since tempUser is not loaded from DB, it has no preferences to check
+                $tempUser->notifyNow(new OtpNotification($otp));
+            } catch (\Exception $emailException) {
+                // Log email error but don't fail the request
+                Log::error('Failed to send email change OTP notification', [
+                    'user_id' => $user->id,
+                    'new_email' => $validated['new_email'],
+                    'error' => $emailException->getMessage(),
+                    'trace' => $emailException->getTraceAsString()
+                ]);
+            }
+
             return response()->json([
-                'message' => 'Password is incorrect'
+                'message' => 'OTP sent to new email address. Please verify to complete email change.',
+                'new_email' => $validated['new_email'],
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
             ], 422);
-        }
-
-        // Check if email change is already in progress
-        $existingRequest = EmailChangeRequest::where('user_id', $user->id)
-            ->where('otp_expires_at', '>', Carbon::now())
-            ->first();
-
-        if ($existingRequest) {
+        } catch (\Exception $e) {
+            Log::error('Error requesting email change', [
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
-                'message' => 'Email change already in progress. Please wait for the current OTP to expire or verify it first.'
-            ], 400);
+                'message' => 'An error occurred while processing your request. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
         }
-
-        // Delete any expired requests
-        EmailChangeRequest::where('user_id', $user->id)->delete();
-
-        // Generate OTP for email change
-        $otp = $this->generateOtp();
-        
-        // Create email change request
-        EmailChangeRequest::create([
-            'user_id' => $user->id,
-            'new_email' => $validated['new_email'],
-            'otp_code' => $otp,
-            'otp_expires_at' => Carbon::now()->addMinutes(10),
-        ]);
-
-        // Send OTP to new email
-        $tempUser = new User();
-        $tempUser->email = $validated['new_email'];
-        $tempUser->first_name = $user->first_name;
-        $tempUser->last_name = $user->last_name;
-        
-        Notification::send($tempUser, new OtpNotification($otp));
-
-        return response()->json([
-            'message' => 'OTP sent to new email address. Please verify to complete email change.',
-            'new_email' => $validated['new_email'],
-        ], 200);
     }
 
     /**
@@ -254,37 +329,71 @@ class ProfileController extends Controller
      */
     public function resendEmailChangeOtp(Request $request)
     {
-        $user = $request->user();
-        
-        // Find existing email change request
-        $emailChangeRequest = EmailChangeRequest::where('user_id', $user->id)
-            ->where('otp_expires_at', '>', Carbon::now())
-            ->first();
+        try {
+            $user = $request->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'message' => 'Unauthorized. Please login first.'
+                ], 401);
+            }
+            
+            // Find existing email change request (even if expired, we'll renew it)
+            $emailChangeRequest = EmailChangeRequest::where('user_id', $user->id)
+                ->orderBy('created_at', 'desc')
+                ->first();
 
-        if (!$emailChangeRequest) {
+            if (!$emailChangeRequest) {
+                return response()->json([
+                    'message' => 'No email change request found. Please request email change first.'
+                ], 400);
+            }
+
+            // Generate new OTP and extend expiration
+            $otp = $this->generateOtp();
+            $emailChangeRequest->update([
+                'otp_code' => $otp,
+                'otp_expires_at' => Carbon::now()->addMinutes(10),
+            ]);
+
+            // Send OTP to new email (send immediately, bypass notification preferences)
+            // Email change OTP is critical and must be sent regardless of user preferences
+            // Using notifyNow() with tempUser (not loaded from DB) bypasses preference checks
+            try {
+                $tempUser = new User();
+                $tempUser->email = $emailChangeRequest->new_email;
+                $tempUser->first_name = $user->first_name;
+                $tempUser->last_name = $user->last_name;
+                
+                // notifyNow() sends immediately without queue and without checking preferences
+                // Since tempUser is not loaded from DB, it has no preferences to check
+                $tempUser->notifyNow(new OtpNotification($otp));
+            } catch (\Exception $emailException) {
+                // Log email error but don't fail the request
+                Log::error('Failed to resend email change OTP notification', [
+                    'user_id' => $user->id,
+                    'new_email' => $emailChangeRequest->new_email,
+                    'error' => $emailException->getMessage(),
+                    'trace' => $emailException->getTraceAsString()
+                ]);
+            }
+
             return response()->json([
-                'message' => 'No email change request found. Please request email change first.'
-            ], 400);
+                'message' => 'New OTP sent to new email address.',
+                'new_email' => $emailChangeRequest->new_email,
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Error resending email change OTP', [
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'message' => 'An error occurred while resending OTP. Please try again later.',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
         }
-
-        // Generate new OTP
-        $otp = $this->generateOtp();
-        $emailChangeRequest->update([
-            'otp_code' => $otp,
-            'otp_expires_at' => Carbon::now()->addMinutes(10),
-        ]);
-
-        // Send OTP to new email
-        $tempUser = new User();
-        $tempUser->email = $emailChangeRequest->new_email;
-        $tempUser->first_name = $user->first_name;
-        $tempUser->last_name = $user->last_name;
-        
-        Notification::send($tempUser, new OtpNotification($otp));
-
-        return response()->json([
-            'message' => 'New OTP sent to new email address.',
-        ], 200);
     }
 
     /**

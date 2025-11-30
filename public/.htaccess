@@ -15,7 +15,11 @@
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
-    # Allow direct access to files in storage directory
+    # Block direct access to lesson media files (they must go through protected API endpoint)
+    RewriteCond %{REQUEST_URI} ^/storage/lessons/
+    RewriteRule ^ - [F,L]
+    
+    # Allow direct access to other files in storage directory
     RewriteCond %{REQUEST_URI} ^/storage/
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^ - [L]

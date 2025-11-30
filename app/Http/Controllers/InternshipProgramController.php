@@ -713,10 +713,11 @@ class InternshipProgramController extends Controller
                 default => 'Yeni staj proqramı əlavə olundu',
             };
 
+            $title = is_array($program->title) ? ($program->title['az'] ?? $program->title) : $program->title;
             $message = match ($action) {
-                'updated' => "{$program->title['az'] ?? $program->title} proqramında dəyişiklik oldu.",
-                'deleted', 'cancelled' => "{$program->title['az'] ?? $program->title} proqramı ləğv olundu.",
-                default => "{$program->title['az'] ?? $program->title} adlı yeni staj proqramı mövcuddur.",
+                'updated' => "{$title} proqramında dəyişiklik oldu.",
+                'deleted', 'cancelled' => "{$title} proqramı ləğv olundu.",
+                default => "{$title} adlı yeni staj proqramı mövcuddur.",
             };
 
             foreach ($users as $user) {

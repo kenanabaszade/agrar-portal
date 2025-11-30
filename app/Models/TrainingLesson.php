@@ -123,15 +123,110 @@ class TrainingLesson extends Model
      */
     public function getFullContent()
     {
+        // Transform media files URLs to protected endpoints
+        $mediaFiles = $this->transformMediaUrls($this->media_files ?? []);
+        
         $content = [
             'text' => $this->content,
             'description' => $this->description,
-            'media' => $this->media_files ?? [],
+            'media' => $mediaFiles,
             'video_url' => $this->video_url,
             'pdf_url' => $this->pdf_url,
         ];
 
         return array_filter($content);
+    }
+    
+    /**
+     * Transform media file URLs to protected endpoints
+     * Converts /storage/lessons/{id}/file.mp4 to protected API endpoint
+     */
+    public function transformMediaUrls($mediaFiles)
+    {
+        if (empty($mediaFiles) || !is_array($mediaFiles)) {
+            return $mediaFiles;
+        }
+        
+        return collect($mediaFiles)->map(function ($mediaFile) {
+            // If URL is already a protected endpoint, keep it and preserve path
+            if (isset($mediaFile['url']) && (strpos($mediaFile['url'], '/api/v1/modules/') === 0 || strpos($mediaFile['url'], 'http') === 0 && strpos($mediaFile['url'], '/api/v1/modules/') !== false)) {
+                // Extract path from URL if path field doesn't exist
+                if (!isset($mediaFile['path']) && preg_match('/[?&]path=([^&]+)/', $mediaFile['url'], $matches)) {
+                    $mediaFile['path'] = urldecode($matches[1]);
+                }
+                return $mediaFile;
+            }
+            
+            // If URL is /storage/lessons/{id}/file.mp4, convert to protected endpoint
+            if (isset($mediaFile['url']) && strpos($mediaFile['url'], '/storage/lessons/') === 0) {
+                // Extract path from URL
+                $path = str_replace('/storage/', '', $mediaFile['url']);
+                
+                // Extract lesson ID from path (lessons/{id}/file.mp4)
+                if (preg_match('/^lessons\/(\d+)\//', $path, $matches)) {
+                    $lessonId = $matches[1];
+                    $moduleId = $this->module_id;
+                    
+                    // Convert to protected endpoint URL
+                    $mediaFile['url'] = route('lesson.media.download', [
+                        'module' => $moduleId,
+                        'lesson' => $lessonId,
+                        'path' => $path
+                    ]);
+                    
+                    // Preserve path field
+                    if (!isset($mediaFile['path'])) {
+                        $mediaFile['path'] = $path;
+                    }
+                }
+            }
+            
+            // If path exists but URL doesn't, create protected URL
+            if (isset($mediaFile['path']) && !isset($mediaFile['url'])) {
+                $path = $mediaFile['path'];
+                if (preg_match('/^lessons\/(\d+)\//', $path, $matches)) {
+                    $lessonId = $matches[1];
+                    $moduleId = $this->module_id;
+                    
+                    $mediaFile['url'] = route('lesson.media.download', [
+                        'module' => $moduleId,
+                        'lesson' => $lessonId,
+                        'path' => $path
+                    ]);
+                }
+            }
+            
+            return $mediaFile;
+        })->toArray();
+    }
+    
+    /**
+     * Accessor to automatically transform media URLs when lesson is loaded
+     * Note: This may not work with JSON casting, so we also transform in controllers
+     */
+    public function getMediaFilesAttribute($value)
+    {
+        // JSON cast already decoded the value
+        $mediaFiles = is_string($value) ? json_decode($value, true) : $value;
+        
+        if (!is_array($mediaFiles) || empty($mediaFiles)) {
+            return $mediaFiles;
+        }
+        
+        // If already transformed (has protected URL), return as is
+        $hasProtectedUrl = collect($mediaFiles)->contains(function ($file) {
+            return isset($file['url']) && (
+                strpos($file['url'], '/api/v1/modules/') === 0 ||
+                strpos($file['url'], 'http') === 0 && strpos($file['url'], '/api/v1/modules/') !== false
+            );
+        });
+        
+        if ($hasProtectedUrl) {
+            return $mediaFiles;
+        }
+        
+        // Transform URLs if needed
+        return $this->transformMediaUrls($mediaFiles);
     }
 }
 

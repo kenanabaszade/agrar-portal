@@ -17,11 +17,16 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
             \Illuminate\Http\Middleware\HandleCors::class,
+            \App\Http\Middleware\CustomValidatePostSize::class, // Custom ValidatePostSize (bypasses for lessons/trainings)
+            \App\Http\Middleware\IncreasePostSize::class, // Increase limits
         ]);
         
         $middleware->web(append: [
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
+        
+        // Remove default ValidatePostSize middleware (we use CustomValidatePostSize instead)
+        $middleware->remove(\Illuminate\Http\Middleware\ValidatePostSize::class);
         
         // Register custom middleware aliases
         $middleware->alias([
@@ -31,4 +36,5 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
-    })->create();
+    })
+    ->create();

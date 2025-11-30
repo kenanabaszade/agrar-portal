@@ -56,6 +56,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Frontend URL
+    |--------------------------------------------------------------------------
+    |
+    | This URL is used for CORS and Referer header validation
+    |
+    */
+
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Security Settings
+    |--------------------------------------------------------------------------
+    |
+    | Configure security-related settings
+    |
+    */
+
+    'check_referer' => env('CHECK_REFERER', true), // Enable/disable Referer header checking
+    'video_download_rate_limit' => env('VIDEO_DOWNLOAD_RATE_LIMIT', 50), // Max downloads per minute per user
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

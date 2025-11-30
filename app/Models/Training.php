@@ -58,6 +58,7 @@ class Training extends Model
     protected $casts = [
         'title' => 'array',
         'description' => 'array',
+        'category' => 'array',
         'certificate_description' => 'array',
         'media_files' => 'array',
         'online_details' => 'array',

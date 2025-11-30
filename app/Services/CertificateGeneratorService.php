@@ -319,6 +319,24 @@ class CertificateGeneratorService
             Log::debug('Converted external image URL to base64', ['original_url' => $url]);
         }
         
+        // Inject additional CSS to remove any browser headers/footers
+        $additionalCss = '
+        <style>
+            @page {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+            }
+        </style>';
+        
+        // Insert CSS before closing </head> tag
+        $htmlContent = str_replace('</head>', $additionalCss . '</head>', $htmlContent);
+        
         return $htmlContent;
     }
 
@@ -506,6 +524,8 @@ class CertificateGeneratorService
                 '--user-data-dir=' . escapeshellarg($userDataDir),
                 '--print-to-pdf=' . escapeshellarg($outputPath),
                 '--print-to-pdf-no-header',
+                '--disable-print-preview',
+                '--no-margins',
             ];
             
             // Build command with proper escaping
